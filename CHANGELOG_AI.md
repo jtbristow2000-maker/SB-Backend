@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-01 DashboardConfig model added
+
+### Added
+- `dashboard/DashboardConfig.cs` with strongly typed dashboard builder config model classes:
+  - `DashboardConfig`
+  - `BrandingConfig`
+  - `ThemeConfig`
+  - `ModuleConfig`
+  - `PipelineConfig`
+  - `StageConfig`
+
+### Notes
+- Model classes only; no file I/O, save/load logic, UI changes, backend changes, or provider integrations.
+
 ## [2026-05-29] - Dashboard Builder tasks revised and expanded
 
 ### Changed
