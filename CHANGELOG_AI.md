@@ -1,6 +1,23 @@
 # CHANGELOG_AI.md
 
-## [2026-05-29]
+## [2026-05-29] — Dashboard source added
+
+### Added
+- `dashboard/` folder: full C# .NET 10 WinForms source for the Business Hub owner dashboard.
+  - `BusinessDashboard.csproj` — project file, targets net10.0-windows, depends on Microsoft.Data.Sqlite
+  - `Program.cs` — entry point; supports `--seed` flag for demo data
+  - `Models.cs` — Lead, Quote, Message, Appointment data classes
+  - `Database.cs` — SQLite CRUD (stores to `%LOCALAPPDATA%\BusinessDashboard\data.db`)
+  - `MainForm.cs` — main window; sidebar nav + 4 section pages
+  - `CardListPage.cs` — reusable section page (header, search, scrollable card list)
+  - `EntityCard.cs` — painted row card with avatar, status badge, edit/delete icons
+  - `NavItem.cs` — painted sidebar nav item with count badge
+  - `FieldDialog.cs` — reusable add/edit dialog built from a field definition list
+  - `UiKit.cs` — color palette, PillButton, SearchBox, drawing helpers
+  - `SampleData.cs` — dev seed data (triggered with `--seed` flag)
+- `.gitignore` updated: added C# rules (`dashboard/bin/`, `dashboard/obj/`, `*.user`, `*.pdb`, `crash.log`)
+
+## [2026-05-29] — SPEC written
 ### Added
 - SPEC.md (v1.0): Complete MVP specification written from scratch.
   - Defined 5 core workflows: missed call (no VM), missed call + voicemail, photo upload, callback reminder, follow-up tracking.

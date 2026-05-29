@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# .NET / C# build artifacts
+dashboard/bin/
+dashboard/obj/
+*.user
+*.pdb
+crash.log
