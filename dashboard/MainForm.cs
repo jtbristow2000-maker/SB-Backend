@@ -127,16 +127,7 @@ public class MainForm : Form
             Padding = new Padding(16, 0, 0, 6),
         };
 
-        // footer
-        var footer = new Label
-        {
-            Dock = DockStyle.Bottom,
-            Height = 40,
-            Text = "  Data saved locally • v2.0",
-            ForeColor = Color.FromArgb(96, 108, 134),
-            Font = Ui.F(8f),
-            TextAlign = ContentAlignment.MiddleLeft,
-        };
+        var footer = BuildSidebarFooter();
 
         foreach (var nav in navItems.AsEnumerable().Reverse())
             sidebar.Controls.Add(nav);
@@ -145,6 +136,47 @@ public class MainForm : Form
         sidebar.Controls.Add(footer);
 
         return sidebar;
+    }
+
+    private Control BuildSidebarFooter()
+    {
+        var footer = new Panel { Dock = DockStyle.Bottom, Height = 82, BackColor = Ui.SidebarBg };
+        var customize = new Label
+        {
+            Dock = DockStyle.Top,
+            Height = 42,
+            Text = "  Customize",
+            ForeColor = Color.FromArgb(180, 190, 210),
+            Font = Ui.F(9f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(16, 0, 0, 0),
+            Cursor = Cursors.Hand,
+        };
+        var version = new Label
+        {
+            Dock = DockStyle.Bottom,
+            Height = 32,
+            Text = "  Data saved locally • v2.0",
+            ForeColor = Color.FromArgb(96, 108, 134),
+            Font = Ui.F(8f),
+            TextAlign = ContentAlignment.MiddleLeft,
+        };
+
+        customize.Click += (s, e) => OpenBuilder();
+        customize.MouseEnter += (s, e) => customize.ForeColor = Color.White;
+        customize.MouseLeave += (s, e) => customize.ForeColor = Color.FromArgb(180, 190, 210);
+
+        footer.Controls.Add(customize);
+        footer.Controls.Add(version);
+        return footer;
+    }
+
+    private void OpenBuilder()
+    {
+        using var builder = new BuilderForm(_config);
+        if (builder.ShowDialog(this) != DialogResult.OK) return;
+
+        ApplyConfig(ConfigManager.Load());
     }
 
     private NavItem NewNav(string icon, string label, CardListPage page)

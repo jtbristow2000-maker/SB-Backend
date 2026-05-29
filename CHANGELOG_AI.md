@@ -1,5 +1,27 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-07 Modules tab working copy
+
+### Added
+- `BuilderForm.cs`: added a cloned working-copy `DashboardConfig` so builder edits do not mutate the live dashboard config.
+- `BuilderForm.cs`: implemented the Modules tab with module order, enabled toggle, editable module name, editable add-button label, and up/down reorder controls.
+- `BuilderForm.cs`: added named panels for Modules, Pipeline, Appearance, and Branding tabs.
+
+### Notes
+- Module tab edits are in-memory only and are not persisted yet.
+- Save/load, drag-and-drop, pipeline editing, appearance editing, branding editing, validation-on-save, backend changes, provider integrations, auth, payments, and message sending were not implemented.
+
+## [2026-05-29] - BUILDER-05/06 Customize entry point and builder shell
+
+### Added
+- `MainForm.cs`: added a sidebar `Customize` entry point that opens the dashboard builder dialog.
+- `BuilderForm.cs`: added a modal shell with header, Modules/Pipeline/Appearance/Branding tab selectors, empty content panels, and footer controls.
+
+### Notes
+- `Save & Apply` closes the shell with `DialogResult.OK`; `MainForm` then reloads the existing local config and reapplies it.
+- `Reset to Defaults` is present but disabled because reset/save behavior is deferred to later builder tasks.
+- No tab content, module editing, pipeline editing, appearance editing, branding editing, database changes, backend changes, provider integrations, auth, payments, or message sending.
+
 ## [2026-05-29] - BUILDER-04 config-driven status dropdowns
 
 ### Changed
