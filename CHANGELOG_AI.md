@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Dashboard Builder tasks added
+
+### Added
+- `TASKS.md`: added a new "Dashboard Builder Tasks" section based on Claude's Dashboard Builder spec.
+- Listed the first task as "Create dashboard configuration system with mock config."
+- Added follow-up builder tasks for editable names/colors/toggles, local save/load, reset to defaults, drag-and-drop module reorder, pipeline stage editing, and status color editing.
+
+### Notes
+- No implementation code was changed.
+- Builder work remains mock/local-config only until explicitly approved.
+
 ## [2026-05-29] - Product direction clarified
 
 ### Changed

@@ -4,6 +4,49 @@
 
 Build the backend/call-automation side for small-business automation software. Claude owns the dashboard GUI. Codex owns backend services, call/message intake, data contracts, tests, and deployment setup.
 
+## Dashboard Builder Tasks
+
+These tasks define the dashboard customization builder from Claude's Dashboard Builder spec. Implement one task at a time, with mock data/config only until explicitly approved.
+
+1. Create dashboard configuration system with mock config.
+   - Define the dashboard config data structure.
+   - Include editable business/dashboard names.
+   - Include editable theme colors.
+   - Include module visibility toggles.
+   - Use mock/default config only.
+   - Do not connect backend providers or real customer data.
+
+2. Add editable names/colors/toggles panel.
+   - Let the owner edit display names from the mock config.
+   - Let the owner edit theme colors from the mock config.
+   - Let the owner toggle dashboard modules on/off.
+   - Keep changes local-only.
+
+3. Save/load config locally.
+   - Save dashboard builder config to local storage or local app data.
+   - Load saved config on startup.
+   - Fall back to defaults if saved config is missing or invalid.
+
+4. Reset to defaults.
+   - Add a clear reset action.
+   - Restore the mock default dashboard config.
+   - Do not delete unrelated local data.
+
+5. Drag-and-drop module reorder.
+   - Allow dashboard modules to be reordered in the builder.
+   - Persist the local module order.
+   - Keep module reorder separate from backend data order.
+
+6. Pipeline stage editor.
+   - Allow editing mock pipeline stage names.
+   - Allow adding/removing/reordering stages locally.
+   - Preserve a simple default stage list.
+
+7. Status color editor.
+   - Allow editing status colors from the mock config.
+   - Support reset back to default status colors.
+   - Keep all changes local-only.
+
 ## Codex Tasks
 
 1. Pick and scaffold the backend stack outside `dashboard/`.
