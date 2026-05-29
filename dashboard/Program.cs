@@ -10,7 +10,8 @@ static class Program
             ApplicationConfiguration.Initialize();
             Database.Initialize();
             if (args.Contains("--seed")) SampleData.Seed();
-            Application.Run(new MainForm());
+            var config = ConfigManager.Load();
+            Application.Run(new MainForm(config));
         }
         catch (Exception ex)
         {

@@ -7,11 +7,11 @@ namespace BusinessDashboard;
 public static class Ui
 {
     // Core palette (slate + blue)
-    public static readonly Color SidebarBg   = Color.FromArgb(24, 33, 54);
+    public static Color SidebarBg   = Color.FromArgb(24, 33, 54);
     public static readonly Color SidebarHover = Color.FromArgb(36, 47, 74);
     public static readonly Color SidebarActive = Color.FromArgb(45, 60, 95);
-    public static readonly Color Accent      = Color.FromArgb(56, 132, 255);
-    public static readonly Color ContentBg   = Color.FromArgb(243, 245, 249);
+    public static Color Accent      = Color.FromArgb(56, 132, 255);
+    public static Color ContentBg   = Color.FromArgb(243, 245, 249);
     public static readonly Color CardBg       = Color.White;
     public static readonly Color CardBorder   = Color.FromArgb(226, 231, 238);
     public static readonly Color CardBorderHover = Color.FromArgb(56, 132, 255);
@@ -69,7 +69,31 @@ public static class Ui
         _ => Info,
     };
 
+    public static void ApplyTheme(ThemeConfig? theme)
+    {
+        if (theme == null) return;
+        if (TryHexColor(theme.SidebarBg, out var sidebarBg)) SidebarBg = sidebarBg;
+        if (TryHexColor(theme.Accent, out var accent)) Accent = accent;
+        if (TryHexColor(theme.ContentBg, out var contentBg)) ContentBg = contentBg;
+    }
+
     public static Font F(float size, FontStyle style = FontStyle.Regular) => new(FontName, size, style);
+
+    private static bool TryHexColor(string value, out Color color)
+    {
+        color = Color.Empty;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+
+        try
+        {
+            color = ColorTranslator.FromHtml(value.Trim());
+            return !color.IsEmpty;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 }
 
 /// <summary>A flat, rounded, hover-aware button drawn entirely by us.</summary>

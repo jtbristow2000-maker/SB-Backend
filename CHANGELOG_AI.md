@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-03 config wired into dashboard startup
+
+### Changed
+- `Program.cs`: loads the local dashboard config and passes it into `MainForm`.
+- `MainForm.cs`: applies branding, theme colors, module labels/icons/enabled flags/order, and page add-button labels from the loaded config.
+- `UiKit.cs`: allows configured theme colors for sidebar background, accent, and content background with invalid-color fallback.
+
+### Notes
+- Added `MainForm.ApplyConfig(DashboardConfig config)` for re-applying config to an open window.
+- No pipeline/status dropdown storage changes, builder form, customize entry point, backend changes, provider integrations, auth, payments, or message sending.
+
 ## [2026-05-29] - BUILDER-02 ConfigManager added
 
 ### Added
