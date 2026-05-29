@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-08 Pipeline tab editor
+
+### Added
+- `BuilderForm.cs`: implemented the Pipeline tab against the working-copy `DashboardConfig`.
+- `BuilderForm.cs`: added pipeline selection, stage order display, stage ID display, editable stage labels, color picker buttons, and up/down stage reordering.
+- `BuilderForm.cs`: added in-memory add/delete stage controls from the BUILDER-08 task.
+
+### Notes
+- Pipeline tab edits are in-memory only and are not persisted yet.
+- Existing dashboard status dropdowns continue to use `DashboardConfig` pipeline stages.
+- Card badge color routing still uses the existing `Ui.StatusColor()` behavior and should be handled in a future task if stage colors need to render on dashboard cards.
+- Save/load, drag-and-drop, appearance editing, branding editing, backend changes, provider integrations, auth, payments, and message sending were not implemented.
+
 ## [2026-05-29] - BUILDER-07 Modules tab working copy
 
 ### Added
