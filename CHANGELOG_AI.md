@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-04 config-driven status dropdowns
+
+### Changed
+- `MainForm.cs`: Lead, Appointment, and Quote status dropdowns now use pipeline stages from `DashboardConfig`.
+- Status values saved from those dialogs now prefer stable stage IDs instead of display labels.
+- Cards and edit dialogs map stored stage IDs back to current configured labels for display.
+
+### Notes
+- Added centralized helpers for pipeline stage lookup, label display, label-to-ID conversion, and ID-to-label compatibility.
+- Existing records that stored old labels such as `Won`, `Scheduled`, or `Pending` continue to display through compatibility mapping.
+- No builder form, customize entry point, backend changes, provider integrations, auth, payments, or message sending.
+
 ## [2026-05-29] - BUILDER-03 config wired into dashboard startup
 
 ### Changed

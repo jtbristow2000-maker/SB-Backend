@@ -223,12 +223,12 @@ public class MainForm : Form
             new("Email", "Email", l.Email),
             new("Source", "Source (referral, web, etc.)", l.Source),
             new("Notes", "Notes", l.Notes) { Kind = FieldKind.Multiline },
-            new("Status", "Status", l.Status) { Kind = FieldKind.Combo, Options = ["New", "Contacted", "Quoted", "Won", "Lost"] },
+            new("Status", "Status", StageLabelForStatus("leads", l.Status)) { Kind = FieldKind.Combo, Options = StageLabelsForDropdown("leads", l.Status) },
         };
         using var d = new FieldDialog(l.Id == 0 ? "New Lead" : "Edit Lead", fields);
         if (d.ShowDialog(this) != DialogResult.OK) return;
         l.Name = d.Values["Name"]; l.Phone = d.Values["Phone"]; l.Email = d.Values["Email"];
-        l.Source = d.Values["Source"]; l.Notes = d.Values["Notes"]; l.Status = d.Values["Status"];
+        l.Source = d.Values["Source"]; l.Notes = d.Values["Notes"]; l.Status = StageIdForSelection("leads", d.Values["Status"]);
         Database.SaveLead(l);
         RefreshLeads();
     }
@@ -240,7 +240,7 @@ public class MainForm : Form
         var cards = data.Select(l => new EntityCard(
             l.Name,
             Join(l.Phone, l.Email, l.Source),
-            l.Status,
+            StageLabelForStatus("leads", l.Status),
             () => EditLeadDialog(l),
             () => Delete("lead", () => Database.DeleteLead(l.Id), RefreshLeads))).ToList();
         _leadsPage.SetCards(cards);
@@ -259,13 +259,13 @@ public class MainForm : Form
             new("AppTime", "Time", a.AppTime),
             new("Service", "Service / Job", a.Service),
             new("Notes", "Notes", a.Notes) { Kind = FieldKind.Multiline },
-            new("Status", "Status", a.Status) { Kind = FieldKind.Combo, Options = ["Scheduled", "Confirmed", "Completed", "Cancelled", "No Show"] },
+            new("Status", "Status", StageLabelForStatus("appointments", a.Status)) { Kind = FieldKind.Combo, Options = StageLabelsForDropdown("appointments", a.Status) },
         };
         using var d = new FieldDialog(a.Id == 0 ? "New Appointment" : "Edit Appointment", fields);
         if (d.ShowDialog(this) != DialogResult.OK) return;
         a.CustomerName = d.Values["CustomerName"]; a.Phone = d.Values["Phone"];
         a.AppDate = d.Values["AppDate"]; a.AppTime = d.Values["AppTime"];
-        a.Service = d.Values["Service"]; a.Notes = d.Values["Notes"]; a.Status = d.Values["Status"];
+        a.Service = d.Values["Service"]; a.Notes = d.Values["Notes"]; a.Status = StageIdForSelection("appointments", d.Values["Status"]);
         Database.SaveAppointment(a);
         RefreshAppointments();
     }
@@ -277,7 +277,7 @@ public class MainForm : Form
         var cards = data.Select(a => new EntityCard(
             a.CustomerName,
             Join(Join2(a.AppDate, a.AppTime), a.Service, a.Phone),
-            a.Status,
+            StageLabelForStatus("appointments", a.Status),
             () => EditAppointmentDialog(a),
             () => Delete("appointment", () => Database.DeleteAppointment(a.Id), RefreshAppointments))).ToList();
         _apptPage.SetCards(cards);
@@ -332,13 +332,13 @@ public class MainForm : Form
             new("Amount", "Amount ($)", q.Amount),
             new("QuoteDate", "Date", q.QuoteDate),
             new("Notes", "Notes", q.Notes) { Kind = FieldKind.Multiline },
-            new("Status", "Status", q.Status) { Kind = FieldKind.Combo, Options = ["Pending", "Sent", "Accepted", "Declined", "Invoiced"] },
+            new("Status", "Status", StageLabelForStatus("quotes", q.Status)) { Kind = FieldKind.Combo, Options = StageLabelsForDropdown("quotes", q.Status) },
         };
         using var d = new FieldDialog(q.Id == 0 ? "New Quote" : "Edit Quote", fields);
         if (d.ShowDialog(this) != DialogResult.OK) return;
         q.CustomerName = d.Values["CustomerName"]; q.Phone = d.Values["Phone"];
         q.Service = d.Values["Service"]; q.Amount = d.Values["Amount"];
-        q.QuoteDate = d.Values["QuoteDate"]; q.Notes = d.Values["Notes"]; q.Status = d.Values["Status"];
+        q.QuoteDate = d.Values["QuoteDate"]; q.Notes = d.Values["Notes"]; q.Status = StageIdForSelection("quotes", d.Values["Status"]);
         Database.SaveQuote(q);
         RefreshQuotes();
     }
@@ -350,7 +350,7 @@ public class MainForm : Form
         var cards = data.Select(q => new EntityCard(
             q.CustomerName,
             Join(q.Service, FormatMoney(q.Amount), q.QuoteDate),
-            q.Status,
+            StageLabelForStatus("quotes", q.Status),
             () => EditQuoteDialog(q),
             () => Delete("quote", () => Database.DeleteQuote(q.Id), RefreshQuotes))).ToList();
         _quotePage.SetCards(cards);
@@ -416,6 +416,75 @@ public class MainForm : Form
         "quotes" => new ModuleConfig { Id = "quotes", Label = "Quotes", Icon = "\U0001F4DD", AddButtonLabel = "+  Add Quote", Enabled = true, Order = 3 },
         _ => new ModuleConfig { Id = id, Label = id, Icon = "", AddButtonLabel = "+  Add", Enabled = false, Order = int.MaxValue },
     };
+
+    private string[] StageLabelsForDropdown(string pipelineId, string currentStatus)
+    {
+        var labels = PipelineStages(pipelineId)
+            .Select(StageDisplayText)
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var currentLabel = StageLabelForStatus(pipelineId, currentStatus);
+
+        if (!string.IsNullOrWhiteSpace(currentLabel) && !labels.Any(label => SameText(label, currentLabel)))
+            labels.Add(currentLabel);
+
+        return labels.ToArray();
+    }
+
+    private string StageLabelForStatus(string pipelineId, string status)
+    {
+        var stage = FindStage(pipelineId, status);
+        return stage == null ? status : StageDisplayText(stage);
+    }
+
+    private string StageIdForSelection(string pipelineId, string selectedLabel)
+    {
+        var stage = FindStage(pipelineId, selectedLabel);
+        return stage == null ? selectedLabel.Trim() : TextOrDefault(stage.Id, StageDisplayText(stage));
+    }
+
+    private StageConfig? FindStage(string pipelineId, string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+
+        var stages = PipelineStages(pipelineId);
+        var stage = stages.FirstOrDefault(s => SameText(s.Id, value))
+            ?? stages.FirstOrDefault(s => SameText(s.Label, value));
+        if (stage != null) return stage;
+
+        var defaultStage = DefaultPipelineStages(pipelineId).FirstOrDefault(s =>
+            SameText(s.Id, value) || SameText(s.Label, value));
+        if (defaultStage == null) return null;
+
+        return stages.FirstOrDefault(s => SameText(s.Id, defaultStage.Id)) ?? defaultStage;
+    }
+
+    private List<StageConfig> PipelineStages(string pipelineId)
+    {
+        var stages = StagesFrom(_config.Pipelines, pipelineId);
+        return stages.Count > 0 ? stages : DefaultPipelineStages(pipelineId);
+    }
+
+    private static List<StageConfig> DefaultPipelineStages(string pipelineId) =>
+        StagesFrom(ConfigManager.GetDefaults().Pipelines, pipelineId);
+
+    private static List<StageConfig> StagesFrom(Dictionary<string, PipelineConfig>? pipelines, string pipelineId)
+    {
+        if (pipelines == null || string.IsNullOrWhiteSpace(pipelineId)) return [];
+
+        var pipeline = pipelines.FirstOrDefault(pair =>
+            SameText(pair.Key, pipelineId)).Value;
+        return pipeline?.Stages?
+            .Where(stage => !string.IsNullOrWhiteSpace(stage.Id) || !string.IsNullOrWhiteSpace(stage.Label))
+            .ToList() ?? [];
+    }
+
+    private static string StageDisplayText(StageConfig stage) =>
+        TextOrDefault(stage.Label, stage.Id);
+
+    private static bool SameText(string? left, string? right) =>
+        string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
 
     private static string TextOrDefault(string? value, string fallback) =>
         string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
