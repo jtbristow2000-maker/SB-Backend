@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-02 ConfigManager added
+
+### Added
+- `dashboard/ConfigManager.cs` with `Load()`, `Save(DashboardConfig config)`, and `GetDefaults()`.
+- Local mock config path: `%LOCALAPPDATA%\BusinessDashboard\dashboard.config.json`.
+- Default dashboard config matching the current app modules, branding, theme colors, and pipeline stages.
+
+### Notes
+- Uses `System.Text.Json` only; no third-party packages.
+- Saves through a temp file before replacing the config file.
+- No UI wiring, backend changes, provider integrations, auth, payments, or message sending.
+
 ## [2026-05-29] - BUILDER-01 DashboardConfig model added
 
 ### Added
