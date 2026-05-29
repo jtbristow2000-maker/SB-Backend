@@ -140,6 +140,7 @@ public class BuilderForm : Form
 
         RenderModulesTab();
         RenderPipelineTab();
+        RenderAppearanceTab();
 
         return host;
     }
@@ -698,6 +699,136 @@ public class BuilderForm : Form
 
     private static string ColorToHex(Color color) =>
         $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+
+    private void RenderAppearanceTab()
+    {
+        _appearancePanel.SuspendLayout();
+        foreach (Control control in _appearancePanel.Controls) control.Dispose();
+        _appearancePanel.Controls.Clear();
+
+        var table = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            Height = 188,
+            ColumnCount = 3,
+            RowCount = 4,
+            BackColor = Color.White,
+        };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+
+        table.Controls.Add(HeaderLabel("Setting"), 0, 0);
+        table.Controls.Add(HeaderLabel("Hex value"), 1, 0);
+        table.Controls.Add(HeaderLabel("Picker"), 2, 0);
+
+        AddThemeRow(table, 1, "Primary/accent color", _workingConfig.Theme.Accent, value => _workingConfig.Theme.Accent = value);
+        AddThemeRow(table, 2, "Sidebar background", _workingConfig.Theme.SidebarBg, value => _workingConfig.Theme.SidebarBg = value);
+        AddThemeRow(table, 3, "Content background", _workingConfig.Theme.ContentBg, value => _workingConfig.Theme.ContentBg = value);
+
+        _appearancePanel.Controls.Add(table);
+        _appearancePanel.ResumeLayout();
+    }
+
+    private void AddThemeRow(TableLayoutPanel table, int row, string labelText, string initialValue, Action<string> update)
+    {
+        var name = new Label
+        {
+            Text = labelText,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = Ui.TextDark,
+            Font = Ui.F(9.5f, FontStyle.Bold),
+        };
+        var hex = new TextBox
+        {
+            Text = NormalizeHex(initialValue, "#000000"),
+            Dock = DockStyle.Fill,
+            Font = Ui.F(10f),
+            BorderStyle = BorderStyle.FixedSingle,
+            Margin = new Padding(0, 10, 14, 0),
+        };
+        var picker = new Button
+        {
+            Dock = DockStyle.Fill,
+            BackColor = ColorFromHex(hex.Text, Color.Black),
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(0, 9, 0, 1),
+            Text = "",
+        };
+        picker.FlatAppearance.BorderColor = Ui.CardBorder;
+
+        hex.Leave += (s, e) => UpdateThemeColor(hex, picker, update);
+        picker.Click += (s, e) => PickThemeColor(hex, picker, update);
+
+        update(hex.Text);
+        table.Controls.Add(name, 0, row);
+        table.Controls.Add(hex, 1, row);
+        table.Controls.Add(picker, 2, row);
+    }
+
+    private void PickThemeColor(TextBox hex, Button picker, Action<string> update)
+    {
+        using var dialog = new ColorDialog
+        {
+            Color = ColorFromHex(hex.Text, Ui.Accent),
+            FullOpen = true,
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        var value = ColorToHex(dialog.Color);
+        hex.Text = value;
+        picker.BackColor = dialog.Color;
+        update(value);
+    }
+
+    private static void UpdateThemeColor(TextBox hex, Button picker, Action<string> update)
+    {
+        var previous = NormalizeHex(picker.BackColor, "#000000");
+        var value = NormalizeHex(hex.Text, previous);
+        if (!IsValidHexColor(hex.Text))
+        {
+            MessageBox.Show("Use a hex color like #3884FF.", "Appearance",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            hex.Text = previous;
+            return;
+        }
+
+        hex.Text = value;
+        picker.BackColor = ColorFromHex(value, picker.BackColor);
+        update(value);
+    }
+
+    private static bool IsValidHexColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var trimmed = value.Trim();
+        if (trimmed.Length != 7 || trimmed[0] != '#') return false;
+        if (trimmed.Skip(1).Any(c => !Uri.IsHexDigit(c))) return false;
+
+        try
+        {
+            var color = ColorTranslator.FromHtml(trimmed);
+            return !color.IsEmpty;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static string NormalizeHex(string? value, string fallback)
+    {
+        if (!IsValidHexColor(value)) return fallback;
+        return ColorToHex(ColorFromHex(value, Color.Black));
+    }
+
+    private static string NormalizeHex(Color color, string fallback) =>
+        color.IsEmpty ? fallback : ColorToHex(color);
 
     private static bool SameText(string? left, string? right) =>
         string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);

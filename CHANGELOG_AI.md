@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-09 Appearance tab editor
+
+### Added
+- `BuilderForm.cs`: implemented the Appearance tab against the working-copy `DashboardConfig`.
+- `BuilderForm.cs`: added hex text boxes and color picker buttons for accent color, sidebar background, and content background.
+
+### Notes
+- Appearance tab edits are in-memory only and are not persisted yet.
+- The current `DashboardConfig.Theme` model only supports accent, sidebar background, and content background, so card color, text color, radius, spacing, and theme mode were not added.
+- Branding editing, save/apply persistence, drag-and-drop, backend changes, provider integrations, auth, payments, and message sending were not implemented.
+
 ## [2026-05-29] - BUILDER-08 Pipeline tab editor
 
 ### Added
