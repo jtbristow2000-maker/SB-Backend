@@ -1,15 +1,32 @@
 # CHANGELOG_AI.md
 
-## [2026-05-29] - Dashboard Builder tasks added
+## [2026-05-29] - Dashboard Builder tasks revised and expanded
 
-### Added
-- `TASKS.md`: added a new "Dashboard Builder Tasks" section based on Claude's Dashboard Builder spec.
-- Listed the first task as "Create dashboard configuration system with mock config."
-- Added follow-up builder tasks for editable names/colors/toggles, local save/load, reset to defaults, drag-and-drop module reorder, pipeline stage editing, and status color editing.
+### Changed
+- `TASKS.md` — Dashboard Builder Tasks section replaced with 12 granular, ID-tagged tasks (BUILDER-01 through BUILDER-12).
+  - Previous tasks were too broad for Codex to implement directly.
+  - New tasks are atomic, ordered, and each has a named target file, clear inputs/outputs, and acceptance criteria.
+  - No Twilio, no database connections, no auth, no customer messages — mock/local config only throughout.
+
+### Task summary
+| ID | Task |
+|---|---|
+| BUILDER-01 | Create `DashboardConfig.cs` model classes |
+| BUILDER-02 | Create `ConfigManager.cs` (load/save/defaults) |
+| BUILDER-03 | Wire config into `MainForm` startup + `ApplyConfig()` method |
+| BUILDER-04 | Wire pipeline stages into `FieldDialog` status dropdowns |
+| BUILDER-05 | Add `⚙ Customize` entry point to sidebar |
+| BUILDER-06 | Create `BuilderForm.cs` shell (tabs, header, footer, reset) |
+| BUILDER-07 | Implement Modules tab (toggle, rename, reorder, add-label) |
+| BUILDER-08 | Implement Pipeline tab (stage editor, color picker, add/delete/reorder) |
+| BUILDER-09 | Implement Appearance tab (three theme color pickers) |
+| BUILDER-10 | Implement Branding tab (business name, subtitle) |
+| BUILDER-11 | Implement Save & Apply with validation and sidebar confirmation |
+| BUILDER-12 | Add `SeedConfig()` to `SampleData.cs`, wire to `--seed` flag |
 
 ### Notes
-- No implementation code was changed.
-- Builder work remains mock/local-config only until explicitly approved.
+- No code was changed. Planning pass only.
+- First Codex task: BUILDER-01 (`DashboardConfig.cs` — model classes only, no logic).
 
 ## [2026-05-29] - Product direction clarified
 
