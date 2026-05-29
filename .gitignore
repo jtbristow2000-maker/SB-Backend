@@ -145,6 +145,7 @@ vite.config.ts.timestamp-*
 # .NET / C# build artifacts
 dashboard/bin/
 dashboard/obj/
+dist/
 *.user
 *.pdb
 crash.log
