@@ -1,431 +1,420 @@
-# SPEC.md — AI Missed-Call & Quote Assistant (MVP)
+# SPEC.md - Small Business Automation Platform
 
-**Version:** 1.0  
-**Date:** 2026-05-29  
+**Version:** 1.1
+**Date:** 2026-05-29
 **Status:** Draft
 
 ---
 
 ## 1. Product Overview
 
-A lightweight AI-powered assistant that captures every missed call for local service businesses. When the owner misses a call, the system automatically transcribes any voicemail, generates an AI lead summary, texts the customer back, and creates a trackable lead in a simple dashboard — all without the customer needing an app or account.
+This product is automation software for small businesses. The first major automation area is call and message intake: when a customer calls, leaves a voicemail, sends a text, or has a live call with the business, the system should capture the important details and create or update a dashboard profile.
 
-**Target users:** Auto detailers, pressure washers, landscapers, window cleaners, painters, junk removal operators, mobile mechanics, and similar owner-operated service businesses.
+The dashboard should become the owner's source of truth for customers, leads, call notes, addresses, quote details, tasks, and follow-ups. The customer should not need an app or account.
 
-**Core promise:** You never lose a lead to a missed call again.
+**Target users:** local service businesses, owner-operated trades, home services, mobile services, auto/detailing, landscaping, cleaning, junk removal, repair businesses, and similar small teams.
 
----
-
-## 2. Goals & Non-Goals
-
-### Goals (MVP)
-- Capture every inbound missed call as a lead
-- Transcribe voicemails automatically
-- Generate a plain-English AI summary of what the caller needs
-- Auto-text the caller within seconds of the missed call
-- Let callers upload job photos via a one-time web link (no app, no login)
-- Give the owner a simple dashboard: leads, voicemails, status, reminders
-- Remind the owner to call back if they haven't acted on a lead
-
-### Non-Goals (MVP — do not build)
-- Customer login or accounts
-- Native mobile app (owner or customer)
-- Quoting, invoicing, or payment processing
-- Multi-user / team access
-- CRM or calendar integrations
-- Email campaigns or drip sequences
-- Live call answering or AI call agent
-- Automated quote generation
+**Core promise:** every customer conversation becomes an organized business record the owner can act on.
 
 ---
 
-## 3. User Personas
+## 2. Agent Ownership
 
-### The Owner (primary user)
-- Runs their business solo or with 1–2 helpers
-- Works in the field most of the day; phone is often unavailable
-- Checks texts and a simple app dashboard in the evenings or between jobs
-- Wants to know: *Who called? What do they need? Did I follow up?*
-- Not technical; needs zero setup after initial onboarding
+### Claude-owned work
+- Dashboard GUI and visual design
+- Owner workflow screens
+- Customer-facing copy and tone
+- UX review and product planning
 
-### The Caller / Potential Customer (secondary user)
-- Called a local business from Google, a yard sign, or a referral
-- Expects a quick acknowledgment, not silence
-- Will share photos if it's frictionless
-- Should never need to download anything or create an account
+### Codex-owned work
+- Backend services and APIs
+- Call, voicemail, SMS, and future live-call integrations
+- Data models and migrations
+- AI extraction and transcription pipeline
+- Dashboard data contracts
+- Tests, deployment setup, debugging, and cleanup
+
+Codex should avoid editing the `dashboard/` GUI source unless explicitly asked.
+
+---
+
+## 3. Goals and Non-Goals
+
+### Goals
+- Capture missed calls, voicemails, inbound SMS, and live-call summaries.
+- Create or update a customer/lead profile from each interaction.
+- Extract useful call details: name, phone, address, service requested, urgency, quote notes, and next steps.
+- Store transcripts, recordings, messages, owner notes, and quote draft fields.
+- Expose clean backend data for the dashboard.
+- Create callback and follow-up tasks when action is needed.
+- Default all integrations to sandbox/test mode.
+
+### Non-Goals for the first backend pass
+- Native customer app.
+- Customer login.
+- Full CRM replacement.
+- Payment processing.
+- Automated quote sending without owner review.
+- AI voice agent that speaks for the owner without explicit approval.
+- Multi-user/team permissions unless separately approved.
 
 ---
 
 ## 4. Core Workflows
 
----
-
-### Flow A — Missed Call, No Voicemail
+### Flow A - Missed Call
 
 ```
-Caller dials → Owner misses call → No voicemail left
-     ↓
-System detects missed call (Twilio webhook)
-     ↓
-Caller lookup: check existing lead history by phone number
-     ↓
-Auto-text sent to caller within 30 seconds
-     ↓
-Lead created in dashboard (status: New)
-     ↓
-Owner notified (SMS or dashboard badge)
+Customer calls -> owner misses call
+     ->
+Phone provider webhook reaches backend
+     ->
+Backend creates CallRecord
+     ->
+Backend creates or updates CustomerProfile
+     ->
+Dashboard shows new lead/callback task
 ```
 
-**Auto-text copy (no voicemail):**
-> Hey, this is [Business Name]! Sorry we missed your call. We'll be in touch shortly. If you have photos of the job, you can send them here: [upload link] — [Owner First Name]
+If auto-text is enabled in sandbox or explicitly approved for production, the backend may send an acknowledgement with an upload or intake link.
 
----
-
-### Flow B — Missed Call + Voicemail
+### Flow B - Voicemail or Recorded Message
 
 ```
-Caller dials → Owner misses call → Caller leaves voicemail
-     ↓
-Twilio records voicemail audio
-     ↓
-Transcription service converts audio → text
-     ↓
-AI (Claude) reads transcript → generates lead summary
-     ↓
-Auto-text sent to caller within 60 seconds
-     ↓
-Lead created with: voicemail audio, transcript, AI summary
-     ↓
-Owner notified with AI summary (SMS or dashboard)
+Customer leaves voicemail
+     ->
+Recording callback reaches backend
+     ->
+Audio is transcribed
+     ->
+AI extraction creates structured call notes
+     ->
+CustomerProfile is updated
+     ->
+Dashboard shows transcript, summary, quote details, and next task
 ```
 
-**Auto-text copy (voicemail received):**
-> Hey, this is [Business Name]! Got your message and we're on it. We'll call you back soon. If you have any photos of the job, send them here: [upload link] — [Owner First Name]
-
-**AI Summary format (shown in dashboard):**
-```
-Service: Pressure washing
-Location mention: Front driveway and back patio
-Urgency: Wants it done before the weekend
-Notes: Caller mentioned a HOA inspection coming up
-Phone: (555) 210-4400
-```
-
----
-
-### Flow C — Photo Upload
+### Flow C - Live Call Intake
 
 ```
-Customer receives SMS with upload link
-     ↓
-Taps link → opens mobile web page (no login, token in URL)
-     ↓
-Page shows: "[Business Name] — Upload your job photos"
-     ↓
-Customer selects/takes up to 5 photos and submits
-     ↓
-Photos stored and attached to the lead in dashboard
-     ↓
-Owner sees photo count badge on the lead card
+Owner/customer live call happens
+     ->
+Call audio or post-call notes are captured
+     ->
+Backend transcribes or receives summary data
+     ->
+AI extraction identifies customer info, address, requested service, quote notes, and next steps
+     ->
+Dashboard profile is created or updated
 ```
 
-**Photo upload page UI:**
-- Business name and logo at top
-- Simple "Tap to add photos" button (camera or gallery)
-- Up to 5 photos, 10MB each
-- One "Send Photos" button
-- Thank-you confirmation screen after submit
-- Link expires after 7 days or after the lead is closed
+Live-call automation should be passive by default: listen, transcribe, summarize, and draft. It should not speak for the owner or promise prices/times unless explicitly approved.
 
----
-
-### Flow D — Callback Reminder
+### Flow D - Inbound SMS
 
 ```
-Lead created with status: New
-     ↓
-If owner has not changed status within [reminder window]:
-  → Send reminder SMS to owner:
-    "Reminder: You have an uncalled lead from [Caller Name/Number].
-     They called [X hours] ago. View: [dashboard link]"
-     ↓
-Owner calls back → marks lead as "Called Back" in dashboard
-     ↓
-No further reminders sent for that lead
+Customer texts business number
+     ->
+SMS webhook reaches backend
+     ->
+Message is linked to an existing profile by phone number or creates a new profile
+     ->
+Message history and profile notes are updated
+     ->
+Owner sees unread message/task in dashboard
 ```
 
-**Reminder windows (configurable, defaults):**
-- First reminder: 4 hours after missed call (or next morning if after 8 PM)
-- Second reminder: 24 hours if still untouched
-- No reminders after 48 hours (lead goes stale, stays in dashboard)
-
----
-
-### Flow E — Follow-Up Tracking
+### Flow E - Quote Draft Capture
 
 ```
-Owner views lead in dashboard
-     ↓
-Owner updates status:
-  New → Called Back → Quoted → Won / Lost / No Answer
-     ↓
-Each status change is timestamped and logged
-     ↓
-Owner can add a note at any step
-     ↓
-Owner can schedule a manual follow-up text from dashboard
-  → Text sent via Twilio at scheduled time
+Call/message mentions quote-relevant details
+     ->
+AI extraction pulls service, address, size/scope, timeline, constraints, budget, and photos requested
+     ->
+Backend stores a QuoteDraft attached to the profile
+     ->
+Owner reviews and edits in dashboard
+```
+
+AI quote data is draft-only. The owner makes final pricing and sends any real quote.
+
+### Flow F - Follow-Up Tasks
+
+```
+Profile needs owner action
+     ->
+Backend creates task: call back, review quote, request photos, follow up, or close lead
+     ->
+Dashboard shows task queue
+     ->
+Owner completes, dismisses, or reschedules task
 ```
 
 ---
 
-## 5. Data Models
+## 5. Data Model Draft
 
-### Lead
+### Business
+
 ```
-id               UUID, primary key
-phone            string, caller's phone number (E.164)
-name             string, nullable (from caller ID or owner entry)
-call_time        datetime, when the call came in
-voicemail_url    string, nullable, Twilio recording URL
-transcript       text, nullable, plain text transcription
-ai_summary       text, nullable, Claude-generated summary
-status           enum: new | called_back | quoted | won | lost | no_answer
-notes            text, nullable
-photos           array of photo record IDs
-upload_token     UUID, unique per lead, used in upload URL
-upload_expires   datetime
-follow_up_at     datetime, nullable
-created_at       datetime
-updated_at       datetime
+id
+name
+owner_name
+owner_phone
+business_phone
+timezone
+settings_json
+created_at
+updated_at
 ```
 
-### Photo
+### CustomerProfile
+
 ```
-id               UUID
-lead_id          UUID, foreign key
-filename         string
-storage_url      string (S3 or local path)
-uploaded_at      datetime
+id
+business_id
+display_name
+phone
+email
+address_line1
+address_line2
+city
+state
+postal_code
+source
+status
+summary
+notes
+last_contact_at
+created_at
+updated_at
+```
+
+### CallRecord
+
+```
+id
+business_id
+customer_profile_id
+provider
+provider_call_id
+direction
+call_type            missed | voicemail | live | manual
+from_phone
+to_phone
+started_at
+ended_at
+duration_seconds
+recording_url
+transcript
+ai_summary
+extracted_json
+needs_review
+created_at
+updated_at
 ```
 
 ### Message
-```
-id               UUID
-lead_id          UUID, foreign key
-direction        enum: inbound | outbound
-channel          enum: sms | call
-body             text
-status           enum: queued | sent | delivered | failed
-sent_at          datetime
-```
 
-### Reminder
 ```
-id               UUID
-lead_id          UUID, foreign key
-remind_at        datetime
-sent             boolean
-dismissed        boolean
-created_at       datetime
+id
+business_id
+customer_profile_id
+provider
+provider_message_id
+direction
+channel              sms | mms | email | web
+body
+media_json
+status
+sent_at
+created_at
 ```
 
----
+### QuoteDraft
 
-## 6. Dashboard — Screens & UI
-
-### 6.1 Lead List (Home Screen)
-
-**Layout:** Scrollable card list, newest at top.
-
-**Each card shows:**
-- Caller phone (and name if available)
-- Time since call (e.g., "2 hours ago")
-- Status badge: color-coded pill (New = red, Called Back = yellow, Quoted = blue, Won = green, Lost = gray)
-- Icons: voicemail mic if transcript exists, camera if photos attached
-- Tap to open lead detail
-
-**Filters (top bar):**
-- All / New / Called Back / Quoted / Won / Lost
-
-**Header:**
-- Business name
-- "New leads" count badge
-- Settings gear icon
-
----
-
-### 6.2 Lead Detail Screen
-
-**Sections (top to bottom):**
-
-1. **Caller info:** Phone, name (editable), call time
-2. **Status selector:** Pill row — tap to change status
-3. **AI Summary card:** Plain English summary in a highlighted box
-4. **Voicemail:** Play button + full transcript (expandable)
-5. **Photos:** Thumbnail grid — tap to enlarge. Shows "No photos yet" if none.
-6. **Message log:** Chronological list of outbound auto-texts and any inbound replies
-7. **Notes:** Free-text field, auto-saved
-8. **Actions:**
-   - "Call Now" — dials from device
-   - "Send Follow-Up Text" — opens text composer pre-filled with template
-   - "Schedule Reminder" — set date/time for reminder
-
----
-
-### 6.3 Settings Screen
-
-- Business name (used in SMS templates)
-- Owner first name (used in SMS sign-off)
-- Owner phone number (for reminder SMS delivery)
-- Reminder window: First reminder after [_] hours (default: 4)
-- Auto-text on missed call: On/Off toggle
-- Auto-text template preview (read-only in MVP)
-- Twilio number displayed (read-only)
-
----
-
-## 7. SMS Copy Library
-
-All outbound SMS messages are sent from the business's Twilio number.
-
-### Auto-text: Missed call, no voicemail
-> Hey, this is [Business Name]! Sorry we missed your call. We'll be in touch soon. Want to share photos of the job? [upload link] — [Owner First Name]
-
-### Auto-text: Missed call, voicemail received
-> Hey, this is [Business Name]! Got your voicemail and we'll call you back shortly. Feel free to send photos here in the meantime: [upload link] — [Owner First Name]
-
-### Owner reminder: First
-> [Business Name] Reminder: You have a new missed call from [Phone] ([X] hrs ago). View lead: [dashboard link]
-
-### Owner reminder: Second
-> [Business Name]: Still haven't followed up with [Phone] from [X] hours ago. They may still be looking. View: [dashboard link]
-
-### Follow-up text (owner-triggered, editable before send)
-> Hey [Name/there], this is [Owner First Name] from [Business Name] — just wanted to follow up on your inquiry. Still interested in getting a quote? Give us a call or reply here.
-
----
-
-## 8. Webhook & Integration Points
-
-### Twilio Incoming Call Webhook (POST /webhooks/call/incoming)
-- Triggered on every inbound call
-- If owner doesn't answer: mark as missed, trigger Flow A or B
-- TwiML response: send caller to voicemail greeting, record voicemail
-
-### Twilio Recording Status Callback (POST /webhooks/call/recording)
-- Triggered when voicemail recording is ready
-- Initiates transcription job
-- On completion, triggers AI summary + auto-text
-
-### Twilio Inbound SMS Webhook (POST /webhooks/sms/inbound)
-- Triggered when customer replies to the auto-text
-- Message logged to lead's message history
-- Owner notified of reply (SMS notification)
-
-### Photo Upload Endpoint (POST /upload/:token)
-- Validates token, checks expiry
-- Accepts multipart form, up to 5 files
-- Stores photos, attaches to lead
-- Returns thank-you confirmation
-
----
-
-## 9. AI Summary Prompt (Claude)
-
-**Input to Claude:**
 ```
-You are a lead intake assistant for a local service business.
-A potential customer just left a voicemail. Here is the transcription:
-
----
-[TRANSCRIPT]
----
-
-Extract the following in plain English, max 5 short lines:
-- Service requested (if mentioned)
-- Location or area details (if mentioned)
-- Urgency or timeline (if mentioned)
-- Anything else relevant to preparing a quote
-- Caller name (if mentioned)
-
-If a field is not mentioned, omit it. Be brief and factual. No filler phrases.
+id
+business_id
+customer_profile_id
+source_call_record_id
+service_requested
+job_address
+scope_notes
+timeline
+budget_hint
+estimated_amount
+status               draft | reviewed | sent | accepted | declined
+created_at
+updated_at
 ```
 
-**Output format (stored in `ai_summary` field):**
+### Task
+
 ```
-Service: [value]
-Timeline: [value]
-Location: [value]
-Notes: [value]
-Name heard: [value]
+id
+business_id
+customer_profile_id
+task_type            callback | quote_review | follow_up | request_photos | manual
+title
+notes
+due_at
+status               open | completed | dismissed
+created_at
+updated_at
+```
+
+### Attachment
+
+```
+id
+business_id
+customer_profile_id
+source_type          call | message | upload | manual
+filename
+content_type
+storage_url
+uploaded_at
+```
+
+### AuditEvent
+
+```
+id
+business_id
+customer_profile_id
+actor                system | owner | provider
+event_type
+event_json
+created_at
 ```
 
 ---
 
-## 10. Tech Stack (Recommended)
+## 6. Backend/API Contract
 
-| Layer | Choice | Notes |
+The dashboard should be able to consume these backend surfaces:
+
+- `GET /api/profiles` - list customer/lead profiles with status, last contact, task count, and quote state.
+- `GET /api/profiles/:id` - profile detail with calls, messages, quote drafts, tasks, notes, and attachments.
+- `PATCH /api/profiles/:id` - owner edits to customer info, address, notes, and status.
+- `GET /api/tasks` - owner task queue.
+- `PATCH /api/tasks/:id` - complete, dismiss, or reschedule a task.
+- `GET /api/quotes/:id` - quote draft detail.
+- `PATCH /api/quotes/:id` - owner edits to draft quote data.
+
+Webhook surfaces:
+
+- `POST /webhooks/calls/incoming`
+- `POST /webhooks/calls/recording`
+- `POST /webhooks/sms/inbound`
+- `POST /webhooks/live-call/summary` for future or provider-specific live-call intake
+
+Provider names should stay abstract in internal code when possible so Twilio or another call provider can be swapped later.
+
+---
+
+## 7. AI Extraction
+
+The extraction pipeline should accept transcript/message text and return structured JSON plus a short owner-facing summary.
+
+Required extracted fields:
+
+```
+customer_name
+phone
+email
+address
+service_requested
+urgency
+quote_details
+photos_requested
+follow_up_recommendation
+confidence
+needs_review
+summary
+```
+
+Rules:
+- Omit unknown fields instead of guessing.
+- Mark `needs_review = true` when key details are ambiguous.
+- Never produce a final price unless explicitly provided by the caller or owner.
+- Store the raw transcript and structured extraction.
+- Keep prompts factual and short.
+
+---
+
+## 8. Integration and Safety Defaults
+
+All real providers must be controlled by environment variables.
+
+Required defaults:
+- `SANDBOX_MODE=true`
+- `REAL_MESSAGE_SENDING_ENABLED=false`
+- `REAL_CALL_AUTOMATION_ENABLED=false`
+- Fake/sandbox transcription and AI providers allowed for local tests.
+- No credentials in source code.
+- No real outbound SMS or calls until explicitly approved.
+
+---
+
+## 9. Suggested Backend Stack
+
+Pick one simple backend stack when implementation starts:
+
+| Layer | Recommended choice | Notes |
 |---|---|---|
-| Backend | Node.js (Express) or Python (FastAPI) | Simple REST API |
-| Database | PostgreSQL | Hosted on Railway or Supabase |
-| Phone / SMS | Twilio | Calls, SMS, voicemail recording |
-| Transcription | Twilio built-in transcription or OpenAI Whisper | Whisper for better accuracy |
-| AI Summary | Anthropic Claude API (claude-sonnet-4-6) | Via API key in env vars |
-| Photo Storage | AWS S3 or Cloudflare R2 | Token-based access |
-| Dashboard | React (Vite) or plain HTML/CSS/JS | Mobile-responsive |
-| Auth (owner) | Simple session token or Clerk | Email/password, single user |
-| Hosting | Railway, Render, or Fly.io | Simple deploy |
+| API | Node.js Express or Python FastAPI | Keep the first pass simple |
+| Database | SQLite locally, PostgreSQL for hosted | Use migrations |
+| Call/SMS provider | Twilio first | Abstract provider boundary |
+| Transcription | Sandbox fake first, then Whisper/provider transcription | Test without real calls |
+| AI extraction | Provider adapter with sandbox fake | Use env vars |
+| Storage | Local dev storage, S3/R2 later | Attachments/photos/recordings |
+| Dashboard | Existing `dashboard/` GUI owned by Claude | Codex exposes backend contract |
 
 ---
 
-## 11. MVP Scope Summary
+## 10. MVP Implementation Phases
 
-### In Scope
-- [x] Missed call detection via Twilio webhook
-- [x] Voicemail recording and retrieval
-- [x] Voicemail transcription
-- [x] AI lead summary (Claude)
-- [x] Auto-text to caller (missed call acknowledgment)
-- [x] Photo upload link in SMS
-- [x] Mobile-friendly photo upload page (no login)
-- [x] Lead dashboard: list view with status and badges
-- [x] Lead detail: voicemail player, transcript, AI summary, photos, message log
-- [x] Status tracking: New → Called Back → Quoted → Won/Lost
-- [x] Notes field per lead
-- [x] Callback reminders (timed SMS to owner)
-- [x] Inbound SMS reply logging
-- [x] Owner-triggered follow-up text with editable template
-- [x] Settings: business name, owner name, reminder window
+### Phase 1 - Backend foundation
+- Choose backend stack.
+- Add typed data models.
+- Add local database and migrations.
+- Add sandbox provider interfaces for calls, SMS, transcription, and AI extraction.
+- Add tests for profile creation/update logic.
 
-### Out of Scope (Post-MVP)
-- [ ] Multi-user / team access
-- [ ] Quoting or invoicing
-- [ ] Payment collection
-- [ ] Customer login or portal
-- [ ] Calendar / scheduling integration
-- [ ] Google Business Profile integration
-- [ ] Review request automation
-- [ ] AI call answering
+### Phase 2 - Call and message intake
+- Implement webhook endpoints.
+- Create/update profiles from missed calls, voicemails, and inbound SMS.
+- Store transcripts and message history.
+- Create callback/follow-up tasks.
 
----
+### Phase 3 - AI extraction and quote drafts
+- Convert transcripts/messages into structured profile fields.
+- Create quote drafts from extracted service and scope details.
+- Mark low-confidence fields for owner review.
 
-## 12. Key Constraints & Rules
+### Phase 4 - Dashboard integration contract
+- Expose profile, call, message, quote, and task APIs.
+- Document payloads for Claude's dashboard work.
+- Add seed/demo data endpoint or script for dashboard testing.
 
-1. No customer app, no customer login. All customer interaction is SMS + web link only.
-2. No auto-sending real customer messages until feature is explicitly approved and tested in sandbox mode.
-3. All credentials (Twilio, Claude, S3) must use environment variables — never hardcoded.
-4. Upload links must be token-based with expiry. No open upload endpoints.
-5. Owner dashboard requires authentication (single owner login, no public access).
-6. AI summary is informational only — owner makes all decisions and sends all quotes manually.
-7. Default to sandbox/test mode. Real SMS sending must be explicitly enabled per environment.
+### Phase 5 - Real provider setup
+- Add Twilio or selected provider credentials through env vars.
+- Keep sandbox mode default.
+- Add production safety flags for real outbound actions.
 
 ---
 
-## 13. Success Metrics (MVP)
+## 11. Key Constraints
 
-- Owner responds to missed leads within 4 hours (measured by status change time)
-- Auto-text delivered within 60 seconds of missed call
-- At least 30% of callers who receive the upload link submit at least one photo
-- Zero leads lost due to system error (all missed calls create a lead record)
-- Owner setup time under 15 minutes from first visit to first live call handled
+1. No customer app.
+2. No customer login unless explicitly approved.
+3. Owner dashboard is allowed.
+4. Customer interaction stays phone, SMS, and secure web links.
+5. AI notes and quote data are drafts until owner review.
+6. Do not auto-send real customer messages without approval.
+7. Do not place real outbound calls without approval.
+8. Credentials must come from environment variables.
+9. Backend records should be auditable and testable.
+10. Codex should avoid GUI/dashboard source unless explicitly asked.

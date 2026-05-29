@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Product direction clarified
+
+### Changed
+- `AI_RULES.md`: reframed the project as small-business automation software with call/message intake creating dashboard profiles.
+- `SPEC.md`: replaced the narrow missed-call assistant MVP with a broader backend/call-intake automation spec, data model draft, API contract, and phased implementation plan.
+- `TASKS.md`: added Codex backend tasks and Claude-owned dashboard responsibilities.
+- `.env.example`: added sandbox-first backend, provider, transcription, AI extraction, storage, and safety flag placeholders.
+
+### Notes
+- Codex should avoid `dashboard/` GUI source unless explicitly asked; Claude owns dashboard GUI work.
+- Real SMS sending and outbound calling remain disabled by default.
+
 ## [2026-05-29] — Dashboard source added
 
 ### Added
