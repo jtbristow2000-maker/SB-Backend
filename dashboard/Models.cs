@@ -16,6 +16,7 @@ public class Appointment
     public int Id { get; set; }
     public string CustomerName { get; set; } = "";
     public string Phone { get; set; } = "";
+    public string Address { get; set; } = "";
     public string AppDate { get; set; } = "";
     public string AppTime { get; set; } = "";
     public string Service { get; set; } = "";

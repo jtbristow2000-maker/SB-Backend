@@ -210,9 +210,9 @@ public class MainForm : Form
 
         // Logo-only brand block. The business name now lives in the persistent
         // content header, so the sidebar stays readable at minimum width.
-        const int LogoSize = 70;
+        const int LogoSize = 84;
         const int LogoLeft = 12;
-        const int BrandBlockH = 100;
+        const int BrandBlockH = 112;
 
         var brand = new Panel { Dock = DockStyle.Top, Height = BrandBlockH, BackColor = Ui.SidebarBg };
         brand.Disposed += (s, e) => logoImage?.Dispose();
@@ -431,8 +431,9 @@ public class MainForm : Form
         {
             new("CustomerName", "Customer", a.CustomerName, required: true),
             new("Phone", "Phone", a.Phone),
+            new("Address", "Address", a.Address),
             new("AppDate", "Date", a.AppDate) { Kind = FieldKind.Date },
-            new("AppTime", "Time", a.AppTime),
+            new("AppTime", "Time", a.AppTime) { Kind = FieldKind.Time },
             new("Service", "Service / Job", a.Service),
             new("Notes", "Notes", a.Notes) { Kind = FieldKind.Multiline },
             new("Status", "Status", StageLabelForStatus("appointments", a.Status)) { Kind = FieldKind.Combo, Options = StageLabelsForDropdown("appointments", a.Status) },
@@ -440,6 +441,7 @@ public class MainForm : Form
         using var d = new FieldDialog(a.Id == 0 ? "New Appointment" : "Edit Appointment", fields);
         if (d.ShowDialog(this) != DialogResult.OK) return;
         a.CustomerName = d.Values["CustomerName"]; a.Phone = d.Values["Phone"];
+        a.Address = d.Values["Address"];
         a.AppDate = d.Values["AppDate"]; a.AppTime = d.Values["AppTime"];
         a.Service = d.Values["Service"]; a.Notes = d.Values["Notes"]; a.Status = StageIdForSelection("appointments", d.Values["Status"]);
         Database.SaveAppointment(a);
@@ -452,7 +454,7 @@ public class MainForm : Form
         var data = Database.GetAppointments(_apptPage.Query);
         var cards = data.Select(a => new EntityCard(
             a.CustomerName,
-            Join(Join2(a.AppDate, a.AppTime), a.Service, a.Phone),
+            Join(Join2(a.AppDate, a.AppTime), a.Service, a.Phone, a.Address),
             StageLabelForStatus("appointments", a.Status),
             () => EditAppointmentDialog(a),
             () => Delete("appointment", () => Database.DeleteAppointment(a.Id), RefreshAppointments),
@@ -771,16 +773,16 @@ public class MainForm : Form
 
         graphics.FillPath(background, path);
         graphics.SetClip(path);
-        graphics.DrawImage(image, FitImageRect(image, bounds));
+        graphics.DrawImage(image, CoverImageRect(image, bounds));
         graphics.Restore(state);
         graphics.DrawPath(border, path);
     }
 
-    private static Rectangle FitImageRect(Image image, Rectangle bounds)
+    private static Rectangle CoverImageRect(Image image, Rectangle bounds)
     {
         if (image.Width <= 0 || image.Height <= 0) return bounds;
 
-        var scale = Math.Min((float)bounds.Width / image.Width, (float)bounds.Height / image.Height);
+        var scale = Math.Max((float)bounds.Width / image.Width, (float)bounds.Height / image.Height);
         var width = Math.Max(1, (int)Math.Round(image.Width * scale));
         var height = Math.Max(1, (int)Math.Round(image.Height * scale));
         return new Rectangle(
@@ -793,6 +795,7 @@ public class MainForm : Form
     private CalendarItem? AppointmentCalendarItem(Appointment appointment)
     {
         if (!DateTime.TryParse(appointment.AppDate, out var date)) return null;
+        var status = StageLabelForStatus("appointments", appointment.Status);
 
         return new CalendarItem
         {
@@ -800,9 +803,33 @@ public class MainForm : Form
             Time = appointment.AppTime,
             Title = TextOrDefault(appointment.CustomerName, "Appointment"),
             Subtitle = Join(appointment.Service, appointment.Phone),
+            Details = AppointmentDetailsText(appointment, status),
             Color = StageColorForStatus("appointments", appointment.Status),
             IsReminder = false,
         };
+    }
+
+    private static string AppointmentDetailsText(Appointment appointment, string status)
+    {
+        var lines = new List<string>
+        {
+            TextOrDefault(appointment.CustomerName, "Appointment"),
+            Join(appointment.AppDate, appointment.AppTime),
+        };
+
+        AddDetail(lines, "Service", appointment.Service);
+        AddDetail(lines, "Phone", appointment.Phone);
+        AddDetail(lines, "Address", appointment.Address);
+        AddDetail(lines, "Status", status);
+        AddDetail(lines, "Notes", appointment.Notes);
+
+        return string.Join(Environment.NewLine, lines.Where(line => !string.IsNullOrWhiteSpace(line)));
+    }
+
+    private static void AddDetail(List<string> lines, string label, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            lines.Add($"{label}: {value.Trim()}");
     }
 
     private void Delete(string noun, Action doDelete, Action refresh)

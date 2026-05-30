@@ -18,7 +18,7 @@ public static class Database
             CREATE TABLE IF NOT EXISTS Appointments (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 CustomerName TEXT NOT NULL,
-                Phone TEXT, AppDate TEXT, AppTime TEXT,
+                Phone TEXT, Address TEXT, AppDate TEXT, AppTime TEXT,
                 Service TEXT, Notes TEXT, Status TEXT DEFAULT 'Scheduled'
             );
             CREATE TABLE IF NOT EXISTS Quotes (
@@ -40,6 +40,7 @@ public static class Database
                 Notes TEXT, Status TEXT DEFAULT 'New'
             );";
         cmd.ExecuteNonQuery();
+        EnsureColumn(conn, "Appointments", "Address", "TEXT");
     }
 
     public static SqliteConnection Connect() => new($"Data Source={DbPath}");
@@ -50,15 +51,19 @@ public static class Database
         var list = new List<Appointment>();
         using var conn = Connect(); conn.Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT * FROM Appointments WHERE CustomerName LIKE $s OR Service LIKE $s OR Status LIKE $s OR Phone LIKE $s ORDER BY AppDate, AppTime";
+        cmd.CommandText = @"
+            SELECT Id, CustomerName, Phone, Address, AppDate, AppTime, Service, Notes, Status
+            FROM Appointments
+            WHERE CustomerName LIKE $s OR Service LIKE $s OR Status LIKE $s OR Phone LIKE $s OR Address LIKE $s
+            ORDER BY AppDate, AppTime";
         cmd.Parameters.AddWithValue("$s", $"%{search}%");
         using var r = cmd.ExecuteReader();
         while (r.Read())
             list.Add(new Appointment
             {
                 Id = r.GetInt32(0), CustomerName = r.GetString(1),
-                Phone = Str(r, 2), AppDate = Str(r, 3), AppTime = Str(r, 4),
-                Service = Str(r, 5), Notes = Str(r, 6), Status = Str(r, 7, "Scheduled")
+                Phone = Str(r, 2), Address = Str(r, 3), AppDate = Str(r, 4), AppTime = Str(r, 5),
+                Service = Str(r, 6), Notes = Str(r, 7), Status = Str(r, 8, "Scheduled")
             });
         return list;
     }
@@ -68,10 +73,11 @@ public static class Database
         using var conn = Connect(); conn.Open();
         using var cmd = conn.CreateCommand();
         if (a.Id == 0)
-            cmd.CommandText = "INSERT INTO Appointments (CustomerName,Phone,AppDate,AppTime,Service,Notes,Status) VALUES ($n,$p,$d,$t,$s,$no,$st)";
-        else { cmd.CommandText = "UPDATE Appointments SET CustomerName=$n,Phone=$p,AppDate=$d,AppTime=$t,Service=$s,Notes=$no,Status=$st WHERE Id=$id"; cmd.Parameters.AddWithValue("$id", a.Id); }
+            cmd.CommandText = "INSERT INTO Appointments (CustomerName,Phone,Address,AppDate,AppTime,Service,Notes,Status) VALUES ($n,$p,$a,$d,$t,$s,$no,$st)";
+        else { cmd.CommandText = "UPDATE Appointments SET CustomerName=$n,Phone=$p,Address=$a,AppDate=$d,AppTime=$t,Service=$s,Notes=$no,Status=$st WHERE Id=$id"; cmd.Parameters.AddWithValue("$id", a.Id); }
         cmd.Parameters.AddWithValue("$n", a.CustomerName);
         cmd.Parameters.AddWithValue("$p", a.Phone);
+        cmd.Parameters.AddWithValue("$a", a.Address);
         cmd.Parameters.AddWithValue("$d", a.AppDate);
         cmd.Parameters.AddWithValue("$t", a.AppTime);
         cmd.Parameters.AddWithValue("$s", a.Service);
@@ -196,6 +202,24 @@ public static class Database
 
     // ---------------------------------------------------------- helpers
     private static string Str(SqliteDataReader r, int i, string fallback = "") => r.IsDBNull(i) ? fallback : r.GetString(i);
+
+    private static void EnsureColumn(SqliteConnection conn, string table, string column, string definition)
+    {
+        using (var check = conn.CreateCommand())
+        {
+            check.CommandText = $"PRAGMA table_info({table})";
+            using var reader = check.ExecuteReader();
+            while (reader.Read())
+            {
+                if (string.Equals(Str(reader, 1), column, StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+        }
+
+        using var alter = conn.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
+        alter.ExecuteNonQuery();
+    }
 
     private static void DeleteById(string table, int id)
     {

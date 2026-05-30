@@ -3,7 +3,7 @@ using System.Windows.Forms;
 
 namespace BusinessDashboard;
 
-public enum FieldKind { Text, Multiline, Combo, Date }
+public enum FieldKind { Text, Multiline, Combo, Date, Time }
 
 public class FieldDef
 {
@@ -124,6 +124,21 @@ public class FieldDialog : Form
                 picker.Value = ParseDate(f.Value, DateTime.Today);
                 input = picker;
             }
+            else if (f.Kind == FieldKind.Time)
+            {
+                var picker = new DateTimePicker
+                {
+                    Font = Ui.F(10.5f),
+                    Width = FormWidth - 56,
+                    Height = 36,
+                    Format = DateTimePickerFormat.Custom,
+                    CustomFormat = "h:mm tt",
+                    ShowUpDown = true,
+                    Margin = new Padding(0, 0, 0, 4),
+                };
+                picker.Value = ParseTime(f.Value, DateTime.Today.AddHours(9));
+                input = picker;
+            }
             else if (f.Kind == FieldKind.Multiline)
             {
                 var tb = new TextBox
@@ -218,12 +233,21 @@ public class FieldDialog : Form
     private static string ReadInputValue(Control ctrl) => ctrl switch
     {
         ComboBox cb => cb.SelectedItem?.ToString() ?? "",
+        DateTimePicker { ShowUpDown: true } picker => picker.Value.ToString("h:mm tt"),
         DateTimePicker picker => picker.Value.ToString("MM/dd/yyyy"),
         _ => ctrl.Text.Trim(),
     };
 
     private static DateTime ParseDate(string? value, DateTime fallback) =>
         DateTime.TryParse(value, out var parsed) ? parsed : fallback;
+
+    private static DateTime ParseTime(string? value, DateTime fallback)
+    {
+        if (DateTime.TryParse(value, out var parsed))
+            return DateTime.Today.Add(parsed.TimeOfDay);
+
+        return fallback;
+    }
 
     protected override void OnPaint(PaintEventArgs e)
     {

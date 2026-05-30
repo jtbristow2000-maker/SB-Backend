@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-05-30] - Appointment calendar details and time picker
+
+### Added
+- `Database.cs` and `Models.cs`: added a local appointment address field with a safe SQLite column add for existing databases.
+- `CalendarMonthView.cs`: appointment chips now show a hover tooltip with customer, date/time, service, phone, address, status, and notes when available.
+
+### Changed
+- `FieldDialog.cs`: appointment time now uses an up/down time selector instead of free typing.
+- `MainForm.cs`: appointment forms include address, appointment cards include address in their subtitle, and the sidebar logo uses a larger cover-fill image area.
+
+### Notes
+- Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
+- No Twilio, Supabase, auth, payments, AI, customer messaging, or external backend integrations were implemented.
+
 ## [2026-05-29] - Premium dialogs and appointment calendar
 
 ### Added

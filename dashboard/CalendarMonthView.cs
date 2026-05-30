@@ -9,6 +9,7 @@ public sealed class CalendarItem
     public string Time { get; init; } = "";
     public string Title { get; init; } = "";
     public string Subtitle { get; init; } = "";
+    public string Details { get; init; } = "";
     public Color Color { get; init; } = Ui.Accent;
     public bool IsReminder { get; init; }
 }
@@ -17,8 +18,18 @@ public class CalendarMonthView : Control
 {
     private readonly List<CalendarItem> _items = new();
     private readonly Dictionary<DateTime, Rectangle> _dayRects = new();
+    private readonly List<(Rectangle Rect, CalendarItem Item)> _itemRects = new();
+    private readonly ToolTip _detailsTip = new()
+    {
+        AutomaticDelay = 180,
+        AutoPopDelay = 12000,
+        InitialDelay = 180,
+        ReshowDelay = 80,
+        ShowAlways = true,
+    };
     private DateTime _month = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime? _hoverDate;
+    private CalendarItem? _hoverItem;
     private Rectangle _prevRect;
     private Rectangle _nextRect;
 
@@ -42,18 +53,23 @@ public class CalendarMonthView : Control
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        var hitItem = HitItem(e.Location);
         var hitDate = HitDate(e.Location);
-        if (_hoverDate == hitDate) return;
+        if (_hoverDate == hitDate && ReferenceEquals(_hoverItem, hitItem)) return;
 
         _hoverDate = hitDate;
-        Cursor = hitDate.HasValue ? Cursors.Hand : Cursors.Default;
+        _hoverItem = hitItem;
+        Cursor = hitDate.HasValue || hitItem != null ? Cursors.Hand : Cursors.Default;
+        ShowDetailsTip(hitItem, e.Location);
         Invalidate();
     }
 
     protected override void OnMouseLeave(EventArgs e)
     {
         _hoverDate = null;
+        _hoverItem = null;
         Cursor = Cursors.Default;
+        _detailsTip.Hide(this);
         Invalidate();
         base.OnMouseLeave(e);
     }
@@ -135,6 +151,7 @@ public class CalendarMonthView : Control
     private void DrawGrid(Graphics g, Rectangle outer)
     {
         _dayRects.Clear();
+        _itemRects.Clear();
         var grid = new Rectangle(18, 76, outer.Width - 36, outer.Height - 94);
         var dayHeaderH = 26;
         var days = new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
@@ -208,6 +225,7 @@ public class CalendarMonthView : Control
         {
             var chip = new Rectangle(cell.Left + 6, chipY, cell.Width - 12, 19);
             DrawChip(g, chip, item);
+            _itemRects.Add((chip, item));
             chipY += 22;
         }
 
@@ -243,5 +261,35 @@ public class CalendarMonthView : Control
         }
 
         return null;
+    }
+
+    private CalendarItem? HitItem(Point point)
+    {
+        foreach (var pair in _itemRects)
+        {
+            if (pair.Rect.Contains(point))
+                return pair.Item;
+        }
+
+        return null;
+    }
+
+    private void ShowDetailsTip(CalendarItem? item, Point location)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(item.Details))
+        {
+            _detailsTip.Hide(this);
+            return;
+        }
+
+        _detailsTip.Show(item.Details, this, location.X + 14, location.Y + 18, 12000);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _detailsTip.Dispose();
+
+        base.Dispose(disposing);
     }
 }
