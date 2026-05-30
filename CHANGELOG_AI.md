@@ -129,6 +129,20 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Calendar: click-to-edit chips + new Week view with time axis
+
+### Added
+- **Click a calendar appointment to edit it.** `CalendarItem` now carries the source `Id`; `CalendarMonthView` and the new week view raise `ItemClicked`, which `CardListPage` forwards as `CalendarItemClicked`. `MainForm.OpenAppointment(id)` opens the edit dialog for the clicked chip.
+- **New `CalendarWeekView`** (`dashboard/CalendarWeekView.cs`): a 7-day week with an **hourly time axis (7 AM–7 PM)** on the left. Appointment chips are positioned vertically to **correlate with their parsed start time** on the axis, with simple per-day overlap nudging. Prev/next week navigation, today highlight, click-to-edit, and double-click-day-to-add.
+- **List / Month / Week toggle** on the Appointments page. `CardListPage` view mode is now a 3-state enum (`List`/`Month`/`Week`) hosting both calendar views; toggles appear when the header is wide enough (≥820px).
+
+### Changed
+- Month view hint updated to "Double-click a day to add • click an appointment to edit"; clicking a chip in the month view now edits it.
+
+### Notes
+- Time parsing uses `DateTime.TryParse` on the appointment's time string; unparseable times stack at the top of the day column.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - Message reader is resizable + taller default
 
 ### Changed — `dashboard/MessageReaderForm.cs`

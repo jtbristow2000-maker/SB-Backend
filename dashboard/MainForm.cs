@@ -364,6 +364,7 @@ public class MainForm : Form
                     _apptPage = new CardListPage(module.Label, "appointments", module.AddButtonLabel, showCalendar: true);
                     _apptPage.AddClicked += (s, e) => AddAppointment();
                     _apptPage.CalendarDateDoubleClicked += date => AddAppointment(date);
+                    _apptPage.CalendarItemClicked += item => OpenAppointment(item.Id);
                     _apptPage.SearchChanged += (s, e) => RefreshAppointments();
                     _content.Controls.Add(_apptPage);
                     break;
@@ -906,6 +907,13 @@ public class MainForm : Form
             height);
     }
 
+    // Opens the edit dialog for an appointment clicked in the calendar.
+    private void OpenAppointment(int id)
+    {
+        var appointment = Database.GetAppointments().FirstOrDefault(a => a.Id == id);
+        if (appointment != null) EditAppointmentDialog(appointment);
+    }
+
     private CalendarItem? AppointmentCalendarItem(Appointment appointment)
     {
         if (!DateTime.TryParse(appointment.AppDate, out var date)) return null;
@@ -913,6 +921,7 @@ public class MainForm : Form
 
         return new CalendarItem
         {
+            Id = appointment.Id,
             Date = date.Date,
             Time = appointment.AppTime,
             Title = TextOrDefault(appointment.CustomerName, "Appointment"),

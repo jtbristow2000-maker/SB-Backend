@@ -22,25 +22,30 @@ public class CardListPage : Panel
     private readonly SearchBox _search;
     private readonly PillButton _add;
     private readonly PillButton? _listToggle;
-    private readonly PillButton? _calendarToggle;
+    private readonly PillButton? _monthToggle;
+    private readonly PillButton? _weekToggle;
     private readonly Panel _host;
     private readonly Panel _listArea;
     private readonly EmptyStatePanel _empty;
-    private readonly CalendarMonthView? _calendar;
+    private readonly CalendarMonthView? _monthView;
+    private readonly CalendarWeekView? _weekView;
     private readonly string _noun;
     private readonly bool _calendarEnabled;
-    private bool _showCalendar;
+    private ViewMode _mode = ViewMode.List;
+
+    private enum ViewMode { List, Month, Week }
 
     public event EventHandler? AddClicked;
     public event EventHandler? SearchChanged;
     public event Action<DateTime>? CalendarDateDoubleClicked;
+    public event Action<CalendarItem>? CalendarItemClicked;
     public string Query => _search.Query;
 
     public CardListPage(string title, string noun, string addLabel, bool showCalendar = false)
     {
         _noun = noun;
         _calendarEnabled = showCalendar;
-        _showCalendar = showCalendar;
+        _mode = showCalendar ? ViewMode.Month : ViewMode.List;
         Dock = DockStyle.Fill;
         BackColor = Ui.ContentBg;
         Padding = new Padding(30, 24, 30, 14);
@@ -74,12 +79,15 @@ public class CardListPage : Panel
         _search.QueryChanged += (s, e) => SearchChanged?.Invoke(this, EventArgs.Empty);
         if (_calendarEnabled)
         {
-            _listToggle = new PillButton { Text = "List", Width = 76, Height = 34, Radius = 9 };
-            _calendarToggle = new PillButton { Text = "Calendar", Width = 104, Height = 34, Radius = 9 };
-            _listToggle.Click += (s, e) => SetViewMode(showCalendar: false);
-            _calendarToggle.Click += (s, e) => SetViewMode(showCalendar: true);
+            _listToggle = new PillButton { Text = "List", Width = 64, Height = 34, Radius = 9 };
+            _monthToggle = new PillButton { Text = "Month", Width = 78, Height = 34, Radius = 9 };
+            _weekToggle = new PillButton { Text = "Week", Width = 70, Height = 34, Radius = 9 };
+            _listToggle.Click += (s, e) => SetViewMode(ViewMode.List);
+            _monthToggle.Click += (s, e) => SetViewMode(ViewMode.Month);
+            _weekToggle.Click += (s, e) => SetViewMode(ViewMode.Week);
             header.Controls.Add(_listToggle);
-            header.Controls.Add(_calendarToggle);
+            header.Controls.Add(_monthToggle);
+            header.Controls.Add(_weekToggle);
         }
 
         header.Controls.Add(_title);
@@ -99,23 +107,26 @@ public class CardListPage : Panel
                 _search.Location = new Point(_add.Left - _search.Width - 12, 12);
                 textRight = Math.Max(120, _search.Left - 16);
 
-                if (_calendarEnabled && _listToggle != null && _calendarToggle != null)
+                if (_calendarEnabled && _listToggle != null && _monthToggle != null && _weekToggle != null)
                 {
-                    var showToggles = header.Width >= 760;
+                    var showToggles = header.Width >= 820;
                     _listToggle.Visible = showToggles;
-                    _calendarToggle.Visible = showToggles;
+                    _monthToggle.Visible = showToggles;
+                    _weekToggle.Visible = showToggles;
                     if (showToggles)
                     {
-                        _calendarToggle.Location = new Point(_search.Left - _calendarToggle.Width - 12, 16);
-                        _listToggle.Location = new Point(_calendarToggle.Left - _listToggle.Width - 6, 16);
+                        _weekToggle.Location = new Point(_search.Left - _weekToggle.Width - 12, 16);
+                        _monthToggle.Location = new Point(_weekToggle.Left - _monthToggle.Width - 6, 16);
+                        _listToggle.Location = new Point(_monthToggle.Left - _listToggle.Width - 6, 16);
                         textRight = Math.Max(120, _listToggle.Left - 16);
                     }
                 }
             }
-            else if (_calendarEnabled && _listToggle != null && _calendarToggle != null)
+            else if (_calendarEnabled && _listToggle != null && _monthToggle != null && _weekToggle != null)
             {
                 _listToggle.Visible = false;
-                _calendarToggle.Visible = false;
+                _monthToggle.Visible = false;
+                _weekToggle.Visible = false;
             }
 
             _title.Width = Math.Max(120, textRight);
@@ -147,14 +158,16 @@ public class CardListPage : Panel
 
         if (_calendarEnabled)
         {
-            _calendar = new CalendarMonthView
-            {
-                Dock = DockStyle.Fill,
-                Visible = _showCalendar,
-                Margin = new Padding(0),
-            };
-            _calendar.DateDoubleClicked += date => CalendarDateDoubleClicked?.Invoke(date);
-            _listArea.Controls.Add(_calendar);
+            _monthView = new CalendarMonthView { Dock = DockStyle.Fill, Visible = false, Margin = new Padding(0) };
+            _monthView.DateDoubleClicked += date => CalendarDateDoubleClicked?.Invoke(date);
+            _monthView.ItemClicked += item => CalendarItemClicked?.Invoke(item);
+
+            _weekView = new CalendarWeekView { Dock = DockStyle.Fill, Visible = false, Margin = new Padding(0) };
+            _weekView.DateDoubleClicked += date => CalendarDateDoubleClicked?.Invoke(date);
+            _weekView.ItemClicked += item => CalendarItemClicked?.Invoke(item);
+
+            _listArea.Controls.Add(_monthView);
+            _listArea.Controls.Add(_weekView);
         }
 
         _listArea.Controls.Add(_empty);
@@ -187,17 +200,18 @@ public class CardListPage : Panel
 
     public void SetCalendarItems(List<CalendarItem> items)
     {
-        if (_calendar == null) return;
+        if (!_calendarEnabled) return;
 
-        _calendar.SetItems(items);
+        _monthView?.SetItems(items);
+        _weekView?.SetItems(items);
         UpdateContentVisibility(_host.Controls.Count);
     }
 
-    private void SetViewMode(bool showCalendar)
+    private void SetViewMode(ViewMode mode)
     {
         if (!_calendarEnabled) return;
 
-        _showCalendar = showCalendar;
+        _mode = mode;
         UpdateToggleStyles();
         UpdateContentVisibility(_host.Controls.Count);
     }
@@ -206,16 +220,15 @@ public class CardListPage : Panel
     {
         _count.Text = cardCount == 1 ? $"1 {_noun.TrimEnd('s')}" : $"{cardCount} {_noun}";
 
-        if (_calendarEnabled && _showCalendar && _calendar != null)
-        {
-            _host.Visible = false;
-            _empty.Visible = false;
-            _calendar.Visible = true;
-            _calendar.BringToFront();
-            return;
-        }
+        var monthMode = _calendarEnabled && _mode == ViewMode.Month && _monthView != null;
+        var weekMode = _calendarEnabled && _mode == ViewMode.Week && _weekView != null;
 
-        if (_calendar != null) _calendar.Visible = false;
+        if (_monthView != null) _monthView.Visible = monthMode;
+        if (_weekView != null) _weekView.Visible = weekMode;
+
+        if (monthMode) { _host.Visible = false; _empty.Visible = false; _monthView!.BringToFront(); return; }
+        if (weekMode) { _host.Visible = false; _empty.Visible = false; _weekView!.BringToFront(); return; }
+
         _host.Visible = cardCount > 0;
         _empty.Visible = cardCount == 0;
         if (_empty.Visible) _empty.BringToFront();
@@ -223,10 +236,11 @@ public class CardListPage : Panel
 
     private void UpdateToggleStyles()
     {
-        if (_listToggle == null || _calendarToggle == null) return;
+        if (_listToggle == null || _monthToggle == null || _weekToggle == null) return;
 
-        StyleToggle(_listToggle, !_showCalendar);
-        StyleToggle(_calendarToggle, _showCalendar);
+        StyleToggle(_listToggle, _mode == ViewMode.List);
+        StyleToggle(_monthToggle, _mode == ViewMode.Month);
+        StyleToggle(_weekToggle, _mode == ViewMode.Week);
     }
 
     private static void StyleToggle(PillButton button, bool selected)

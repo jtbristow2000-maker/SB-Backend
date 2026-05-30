@@ -5,6 +5,7 @@ namespace BusinessDashboard;
 
 public sealed class CalendarItem
 {
+    public int Id { get; init; }   // source record id, so a clicked chip can be edited
     public DateTime Date { get; init; }
     public string Time { get; init; } = "";
     public string Title { get; init; } = "";
@@ -34,6 +35,7 @@ public class CalendarMonthView : Control
     private Rectangle _nextRect;
 
     public event Action<DateTime>? DateDoubleClicked;
+    public event Action<CalendarItem>? ItemClicked;
 
     public CalendarMonthView()
     {
@@ -89,6 +91,10 @@ public class CalendarMonthView : Control
             _month = _month.AddMonths(1);
             Invalidate();
         }
+        else if (HitItem(e.Location) is { } item)
+        {
+            ItemClicked?.Invoke(item);   // click an appointment chip to edit it
+        }
     }
 
     protected override void OnMouseDoubleClick(MouseEventArgs e)
@@ -132,7 +138,7 @@ public class CalendarMonthView : Control
         DrawHeaderButton(g, _prevRect, "<");
         DrawHeaderButton(g, _nextRect, ">");
 
-        TextRenderer.DrawText(g, "Double-click a day to add an appointment", Ui.F(8.5f),
+        TextRenderer.DrawText(g, "Double-click a day to add • click an appointment to edit", Ui.F(8.5f),
             new Rectangle(header.Left, header.Bottom - 5, header.Width, 20), Ui.TextMuted,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
