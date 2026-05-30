@@ -42,7 +42,7 @@ public class CardListPage : Panel
             RowCount = 2,
             BackColor = Ui.ContentBg,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         // ---- Header ----
@@ -50,11 +50,13 @@ public class CardListPage : Panel
         _title = new Label
         {
             Text = title, Font = Ui.F(20f, FontStyle.Bold), ForeColor = Ui.TextDark,
-            AutoSize = true, Location = new Point(0, 2),
+            AutoSize = false, Location = new Point(0, 0), Height = 38,
+            TextAlign = ContentAlignment.MiddleLeft,
         };
         _count = new Label
         {
-            Font = Ui.F(10f), ForeColor = Ui.TextMuted, AutoSize = true, Location = new Point(2, 36),
+            Font = Ui.F(10f), ForeColor = Ui.TextMuted, AutoSize = false, Location = new Point(2, 42),
+            Height = 22, TextAlign = ContentAlignment.MiddleLeft,
         };
         _add = new PillButton { Text = addLabel, BaseColor = Ui.Accent, Width = 140, Height = 42 };
         _add.Click += (s, e) => AddClicked?.Invoke(this, EventArgs.Empty);
@@ -67,8 +69,20 @@ public class CardListPage : Panel
         header.Controls.Add(_search);
         header.Resize += (s, e) =>
         {
-            _add.Location = new Point(header.Width - _add.Width, 10);
-            _search.Location = new Point(_add.Left - _search.Width - 12, 10);
+            var showActions = header.Width >= 560;
+            _add.Visible = showActions;
+            _search.Visible = showActions;
+
+            var textRight = header.Width;
+            if (showActions)
+            {
+                _add.Location = new Point(header.Width - _add.Width, 12);
+                _search.Location = new Point(_add.Left - _search.Width - 12, 12);
+                textRight = Math.Max(120, _search.Left - 16);
+            }
+
+            _title.Width = Math.Max(120, textRight);
+            _count.Width = Math.Max(120, textRight - 2);
         };
 
         // ---- List area (host + empty-state overlay) ----

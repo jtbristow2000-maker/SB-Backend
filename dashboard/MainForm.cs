@@ -101,10 +101,22 @@ public class MainForm : Form
         split.Panel2.BackColor = Ui.ContentBg;
         split.Panel2.Controls.Add(_content);
 
+        var splitterInitialized = false;
+        void ApplyInitialSplitterBounds()
+        {
+            if (splitterInitialized || split.Width <= 0) return;
+
+            ApplySidebarSplitterBounds(split, preserveCurrentDistance: false);
+            splitterInitialized = true;
+        }
+
+        split.HandleCreated += (s, e) => ApplyInitialSplitterBounds();
+        split.Layout += (s, e) => ApplyInitialSplitterBounds();
+        split.SizeChanged += (s, e) =>
+            ApplySidebarSplitterBounds(split, preserveCurrentDistance: splitterInitialized);
+
         Controls.Add(split);
-        ApplySidebarSplitterBounds(split, preserveCurrentDistance: false);
-        BeginInvoke(new Action(() => ApplySidebarSplitterBounds(split, preserveCurrentDistance: false)));
-        split.SizeChanged += (s, e) => ApplySidebarSplitterBounds(split, preserveCurrentDistance: true);
+        ApplyInitialSplitterBounds();
 
         if (_navRoutes.Count > 0) Select(_navRoutes[0].Item, _navRoutes[0].Page);
         RefreshAll();
@@ -154,13 +166,13 @@ public class MainForm : Form
             e.Graphics.DrawLine(pen, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
         };
 
-        // Brand block — tall enough for the larger 54×54 logo.
+        // Brand block — the text compresses at the minimum sidebar width.
         // All x/width values are relative to brand.Width so the block adapts when
         // the owner drags the SplitContainer divider.
-        const int LogoSize = 54;
+        const int LogoSize = 64;
         const int LogoLeft = 12;
         const int TextLeft = LogoLeft + LogoSize + 10;
-        const int BrandBlockH = 96;
+        const int BrandBlockH = 112;
 
         var brand = new Panel { Dock = DockStyle.Top, Height = BrandBlockH, BackColor = Ui.SidebarBg };
         brand.Disposed += (s, e) => logoImage?.Dispose();
@@ -171,7 +183,7 @@ public class MainForm : Form
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            // Vertically centre the logo in the brand block.
+            // Vertically centre the larger logo in the brand block.
             var logo = new Rectangle(LogoLeft, (BrandBlockH - LogoSize) / 2, LogoSize, LogoSize);
             if (logoImage != null)
             {
@@ -186,19 +198,26 @@ public class MainForm : Form
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
 
-            // Text region adapts to current sidebar width — handles long business names.
+            // Text region adapts to current sidebar width. At narrow widths, the
+            // company name becomes the only text so it does not collide with subtitle.
             int textW = Math.Max(40, brand.Width - TextLeft - 10);
+            var compact = brand.Width < 215;
 
-            // Business name — up to 2 lines so long names wrap instead of truncating.
             TextRenderer.DrawText(g, businessName, Ui.F(11.5f, FontStyle.Bold),
-                new Rectangle(TextLeft, 18, textW, 40), Color.White,
-                TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
+                compact
+                    ? new Rectangle(TextLeft, 22, textW, 68)
+                    : new Rectangle(TextLeft, 22, textW, 42),
+                Color.White,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+                TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
 
-            // Subtitle (e.g. "Owner Dashboard") — single line below the name.
-            TextRenderer.DrawText(g, subtitle, Ui.F(8.5f),
-                new Rectangle(TextLeft, 62, textW, 18),
-                Color.FromArgb(150, 162, 185),
-                TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            if (!compact)
+            {
+                TextRenderer.DrawText(g, subtitle, Ui.F(8.5f),
+                    new Rectangle(TextLeft, 68, textW, 18),
+                    Color.FromArgb(150, 162, 185),
+                    TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            }
         };
 
         var navItems = new List<NavItem>();

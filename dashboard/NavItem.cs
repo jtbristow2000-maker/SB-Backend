@@ -53,18 +53,28 @@ public class NavItem : Panel
             new Rectangle(18, 0, 28, Height), textColor,
             TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
 
-        TextRenderer.DrawText(g, _label, Ui.F(10.5f, _active ? FontStyle.Bold : FontStyle.Regular),
-            new Rectangle(52, 0, Width - 100, Height), textColor,
-            TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+        var labelLeft = 52;
+        var labelRight = Width - 12;
+        Rectangle? badgeRect = null;
 
-        // count badge
         if (_count > 0)
         {
             string txt = _count.ToString();
             var sz = TextRenderer.MeasureText(g, txt, Ui.F(8.5f, FontStyle.Bold));
             int w = Math.Max(22, sz.Width + 14), h = 20;
-            var rect = new Rectangle(Width - w - 16, (Height - h) / 2, w, h);
-            using (var path = Ui.RoundedRect(rect, h / 2))
+            badgeRect = new Rectangle(Width - w - 16, (Height - h) / 2, w, h);
+            labelRight = Math.Max(labelLeft + 24, badgeRect.Value.Left - 8);
+        }
+
+        TextRenderer.DrawText(g, _label, Ui.F(10.5f, _active ? FontStyle.Bold : FontStyle.Regular),
+            new Rectangle(labelLeft, 0, Math.Max(24, labelRight - labelLeft), Height), textColor,
+            TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+
+        if (badgeRect.HasValue)
+        {
+            string txt = _count.ToString();
+            var rect = badgeRect.Value;
+            using (var path = Ui.RoundedRect(rect, rect.Height / 2))
             {
                 using var b = new SolidBrush(_active ? Ui.Accent : Color.FromArgb(48, 60, 88));
                 g.FillPath(b, path);
