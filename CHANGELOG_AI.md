@@ -129,6 +129,23 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Live home metrics + message reader + message status dropdown
+
+### Fixed
+- **Home metrics were stale** (showed 0 while tabs had data). `MainForm.Select()` now calls `RefreshHome()` whenever Home is opened, so the metric cards always reflect current data. Counts also use a new robust `IsStage()` helper that resolves a stored status to its stage id (handles id-vs-label storage).
+
+### Added
+- **Click a message to read it.** `EntityCard` gained an optional `onActivate` (single-click on the card body). Message cards now open a new **`MessageReaderForm`** — a rounded read-only bubble showing sender, channel · date · phone, and the full message text. On close, an unread message is **automatically marked Read** (status → `read`), then the list, sidebar badge, and Home all refresh.
+- **Message status dropdown.** Messages are now config-driven like Quotes/Leads: a new `messages` pipeline (Unread / Read / Replied / Archived, with colors) was added to `ConfigManager` defaults. The message status badge is clickable and opens the same rounded status menu as the other tabs; the edit dialog's Status field is config-driven; stored values use stable stage ids.
+
+### Changed
+- Sidebar unread badge and Home "Unread messages" metric now detect unread via `IsStage("messages", …, "unread")` instead of an exact `== "Unread"` string match.
+
+### Notes
+- Existing saved configs without a `messages` pipeline fall back to defaults automatically (no reset required); resetting also makes Messages editable in the builder's Pipeline tab.
+- Home metrics are intentionally "today/actionable" (new leads, unread, pending quotes, appointments *today*) — these may differ from the sidebar's total counts by design.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - Fixes: swatch sizing, button ampersand, home overlap + branding surfaced
 
 ### Fixed

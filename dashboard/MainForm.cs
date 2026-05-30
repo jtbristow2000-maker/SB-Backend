@@ -332,6 +332,11 @@ public class MainForm : Form
         foreach (Control c in _content.Controls) c.Visible = false;
         page.Visible = true;
         page.BringToFront();
+
+        // Home metrics are derived from the other tabs' data, so recompute them
+        // every time Home is opened — keeps the numbers in sync without rebuilding
+        // Home on every search keystroke elsewhere.
+        if (page == _homePage) RefreshHome();
     }
 
     // ---------------------------------------------------------------- pages
@@ -404,22 +409,19 @@ public class MainForm : Form
         var appts = Database.GetAppointments();
         var today = DateTime.Today.ToString("MM/dd/yyyy");
 
-        bool IsNew(string s) => SameText(s, "new");
-        bool IsUnread(string s) => SameText(s, "Unread");
-        bool IsPending(string s) => SameText(s, "pending");
         bool IsToday(string d) => SameText(d, today);
 
         _homePage.SetMetrics(new[]
         {
-            new HomePage.Metric("New leads", leads.Count(l => IsNew(l.Status)), Ui.Accent, "leads"),
-            new HomePage.Metric("Unread messages", messages.Count(m => IsUnread(m.Status)), Ui.Info, "messages"),
-            new HomePage.Metric("Quotes pending", quotes.Count(q => IsPending(q.Status)), Ui.Warning, "quotes"),
+            new HomePage.Metric("New leads", leads.Count(l => IsStage("leads", l.Status, "new")), Ui.Accent, "leads"),
+            new HomePage.Metric("Unread messages", messages.Count(m => IsStage("messages", m.Status, "unread")), Ui.Info, "messages"),
+            new HomePage.Metric("Quotes pending", quotes.Count(q => IsStage("quotes", q.Status, "pending")), Ui.Warning, "quotes"),
             new HomePage.Metric("Appointments today", appts.Count(a => IsToday(a.AppDate)), Ui.Success, "appointments"),
         });
 
         var cards = new List<EntityCard>();
 
-        foreach (var lead in leads.Where(l => IsNew(l.Status)).Take(4))
+        foreach (var lead in leads.Where(l => IsStage("leads", l.Status, "new")).Take(4))
         {
             var l = lead;
             cards.Add(new EntityCard(l.Name, Join("New lead", l.Phone, l.Source),
@@ -429,14 +431,15 @@ public class MainForm : Form
                 StageColorForStatus("leads", l.Status)));
         }
 
-        foreach (var message in messages.Where(m => IsUnread(m.Status)).Take(4))
+        foreach (var message in messages.Where(m => IsStage("messages", m.Status, "unread")).Take(4))
         {
             var m = message;
             cards.Add(new EntityCard(m.ContactName, Join("Unread", m.Channel, m.Phone),
-                "Unread",
+                StageLabelForStatus("messages", m.Status),
                 () => { EditMessageDialog(m); RefreshAll(); },
                 () => Delete("message", () => Database.DeleteMessage(m.Id), RefreshAll),
-                Ui.StatusColor("Unread")));
+                StageColorForStatus("messages", m.Status),
+                onActivate: () => OpenMessageReader(m)));
         }
 
         foreach (var appointment in appts.Where(a => IsToday(a.AppDate)).Take(4))
@@ -556,13 +559,13 @@ public class MainForm : Form
             new("Channel", "Channel", m.Channel) { Kind = FieldKind.Combo, Options = ["Phone Call", "Text", "Email", "Voicemail", "Website"] },
             new("DateReceived", "Date", m.DateReceived) { Kind = FieldKind.Date },
             new("Content", "Message", m.Content) { Kind = FieldKind.Multiline },
-            new("Status", "Status", m.Status) { Kind = FieldKind.Combo, Options = ["Unread", "Read", "Replied", "Archived"] },
+            new("Status", "Status", StageLabelForStatus("messages", m.Status)) { Kind = FieldKind.Combo, Options = StageLabelsForDropdown("messages", m.Status) },
         };
         using var d = new FieldDialog(m.Id == 0 ? "New Message" : "Edit Message", fields);
         if (d.ShowDialog(this) != DialogResult.OK) return;
         m.ContactName = d.Values["ContactName"]; m.Phone = d.Values["Phone"];
         m.Channel = d.Values["Channel"]; m.DateReceived = d.Values["DateReceived"];
-        m.Content = d.Values["Content"]; m.Status = d.Values["Status"];
+        m.Content = d.Values["Content"]; m.Status = StageIdForSelection("messages", d.Values["Status"]);
         Database.SaveMessage(m);
         RefreshMessages();
     }
@@ -574,11 +577,39 @@ public class MainForm : Form
         var cards = data.Select(m => new EntityCard(
             m.ContactName,
             Join(m.Channel, m.DateReceived, Snippet(m.Content)),
-            m.Status,
+            StageLabelForStatus("messages", m.Status),
             () => EditMessageDialog(m),
-            () => Delete("message", () => Database.DeleteMessage(m.Id), RefreshMessages))).ToList();
+            () => Delete("message", () => Database.DeleteMessage(m.Id), RefreshMessages),
+            StageColorForStatus("messages", m.Status),
+            (owner, location) => ShowStatusMenu(owner, location, "messages", m.Status, status =>
+            {
+                m.Status = status;
+                Database.SaveMessage(m);
+            }, RefreshMessages),
+            () => OpenMessageReader(m))).ToList();
         _msgPage.SetCards(cards);
-        if (_navMsg != null) _navMsg.Count = data.Count(x => x.Status == "Unread");
+        if (_navMsg != null) _navMsg.Count = data.Count(x => IsStage("messages", x.Status, "unread"));
+    }
+
+    // Opens a read-only message bubble, then marks an unread message as read.
+    private void OpenMessageReader(Message m)
+    {
+        using (var reader = new MessageReaderForm(m.ContactName, Join(m.Channel, m.DateReceived, m.Phone), m.Content))
+            reader.ShowDialog(this);
+
+        if (IsStage("messages", m.Status, "unread"))
+        {
+            m.Status = ReadStatusId();
+            Database.SaveMessage(m);
+        }
+        RefreshMessages();
+        RefreshHome();
+    }
+
+    private string ReadStatusId()
+    {
+        var read = PipelineStages("messages").FirstOrDefault(s => SameText(s.Id, "read"));
+        return read != null ? read.Id : "read";
     }
 
     // ---------------------------------------------------------------- Quotes
@@ -751,6 +782,14 @@ public class MainForm : Form
         return stage == null
             ? Ui.StatusColor(status)
             : ColorFromHex(stage.Color, Ui.StatusColor(StageDisplayText(stage)));
+    }
+
+    // True when a stored status resolves to the given stable stage id (matches id or label,
+    // case-insensitive). Robust to whether the DB stored the id ("new") or a legacy label ("New").
+    private bool IsStage(string pipelineId, string status, string stageId)
+    {
+        var resolved = FindStage(pipelineId, status)?.Id ?? status;
+        return SameText(resolved, stageId);
     }
 
     private StageConfig? FindStage(string pipelineId, string value)

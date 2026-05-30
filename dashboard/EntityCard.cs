@@ -30,6 +30,7 @@ public class EntityCard : Panel
     private readonly Action _onEdit;
     private readonly Action _onDelete;
     private readonly Action<Control, Point>? _onStatusClick;
+    private readonly Action? _onActivate;
 
     private bool _hover;
     private bool _hoverStatus;
@@ -48,7 +49,8 @@ public class EntityCard : Panel
         Action onEdit,
         Action onDelete,
         Color? statusColor = null,
-        Action<Control, Point>? onStatusClick = null)
+        Action<Control, Point>? onStatusClick = null,
+        Action? onActivate = null)
     {
         _title = title;
         _subtitle = subtitle;
@@ -59,6 +61,7 @@ public class EntityCard : Panel
         _onEdit = onEdit;
         _onDelete = onDelete;
         _onStatusClick = onStatusClick;
+        _onActivate = onActivate;
 
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -109,11 +112,14 @@ public class EntityCard : Panel
             _onStatusClick(this, new Point(_badgeRect.Left, _badgeRect.Bottom + 3));
         else if (_editRect.Contains(e.Location)) _onEdit();
         else if (_deleteRect.Contains(e.Location)) _onDelete();
+        else if (_onActivate != null) _onActivate();   // single-click body opens (e.g. message reader)
     }
 
     protected override void OnMouseDoubleClick(MouseEventArgs e)
     {
         base.OnMouseDoubleClick(e);
+        // When the card has a single-click activate action, don't also open the edit dialog on double-click.
+        if (_onActivate != null) return;
         if (!_badgeRect.Contains(e.Location) && !_editRect.Contains(e.Location) && !_deleteRect.Contains(e.Location)) _onEdit();
     }
 

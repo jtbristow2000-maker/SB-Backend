@@ -134,6 +134,16 @@ public static class ConfigManager
                     new StageConfig { Id = "invoiced", Label = "Invoiced", Color = "#0284C7", Description = "Quote has been invoiced." },
                 ],
             },
+            ["messages"] = new PipelineConfig
+            {
+                Stages =
+                [
+                    new StageConfig { Id = "unread", Label = "Unread", Color = "#3884FF", Description = "Message has not been read yet." },
+                    new StageConfig { Id = "read", Label = "Read", Color = "#8A909C", Description = "Message has been read." },
+                    new StageConfig { Id = "replied", Label = "Replied", Color = "#16A34A", Description = "You have replied." },
+                    new StageConfig { Id = "archived", Label = "Archived", Color = "#94A3B8", Description = "Message archived." },
+                ],
+            },
         },
     };
 }
