@@ -87,9 +87,9 @@ public static class ConfigManager
         },
         Theme = new ThemeConfig
         {
-            SidebarBg = "#182136",
-            Accent = "#3884FF",
-            ContentBg = "#F3F5F9",
+            SidebarBg = "#16181D",  // graphite chrome (matches Ui.SidebarBg default)
+            Accent = "#5B5BD6",     // calm indigo  (matches Ui.Accent default)
+            ContentBg = "#F6F7F9",  // soft warm-grey canvas (matches Ui.ContentBg default)
         },
         Modules =
         [

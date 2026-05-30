@@ -129,6 +129,28 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - UI-01 palette rework (calm/premium foundation)
+
+### Changed — `dashboard/UiKit.cs`
+- Reworked the `Ui` palette from saturated slate-navy + loud blue to a calm, premium system:
+  - **Chrome desaturated to graphite:** `SidebarBg` 24,33,54 → 22,24,29; `SidebarHover`/`SidebarActive` retuned to graphite tints.
+  - **Accent → calm indigo:** 56,132,255 → 91,91,214.
+  - **Canvas → soft warm-grey:** `ContentBg` 243,245,249 → 246,247,249.
+  - **Borders softened:** `CardBorder` 226,231,238 → 236,238,242 (now an alias of new `Hairline`).
+  - **Text neutralised:** `TextDark` 28,37,56 → 30,32,38; `TextMuted` 120,132,153 → 138,144,156.
+  - **Semantic colours calmed:** Success/Warning/Danger/Info retuned to less-shouty hues (status meaning only).
+- Added new tokens (all additive, no existing name removed): `SurfaceAlt`, `Hairline`, `TextStrong`, `TextBody`, and `-Soft` tint variants `AccentSoft`/`SuccessSoft`/`WarningSoft`/`DangerSoft`/`InfoSoft`.
+- Added `Ui.Soft(Color, alpha)` helper for translucent badge/chip fills from arbitrary (configured) colours.
+
+### Changed — `dashboard/ConfigManager.cs`
+- `GetDefaults().Theme` updated to match the new chrome (`#16181D` sidebar, `#5B5BD6` accent, `#F6F7F9` canvas) so a fresh install / Reset to Defaults reflects the new palette.
+
+### Notes
+- First task of the premium-UI redesign roadmap. Palette/token foundation only — no layout, card, or sidebar structure changed yet.
+- Cards, text, borders, surfaces, and status colours re-theme immediately.
+- Sidebar background + accent are overridden by any *saved* `dashboard.config.json`, so an existing config keeps its current chrome until the owner clicks **Reset to Defaults** (or a fresh config is created).
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - Appearance/Branding pickers, resizable sidebar, logo, Codex docs
 
 ### Changed — `dashboard/BuilderForm.cs`

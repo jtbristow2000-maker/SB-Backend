@@ -23,21 +23,47 @@ namespace BusinessDashboard;
 /// <summary>Central color palette + drawing helpers for a consistent modern look.</summary>
 public static class Ui
 {
-    // Core palette (slate + blue)
-    public static Color SidebarBg   = Color.FromArgb(24, 33, 54);
-    public static readonly Color SidebarHover = Color.FromArgb(36, 47, 74);
-    public static readonly Color SidebarActive = Color.FromArgb(45, 60, 95);
-    public static Color Accent      = Color.FromArgb(56, 132, 255);
-    public static Color ContentBg   = Color.FromArgb(243, 245, 249);
-    public static readonly Color CardBg       = Color.White;
-    public static readonly Color CardBorder   = Color.FromArgb(226, 231, 238);
-    public static readonly Color CardBorderHover = Color.FromArgb(56, 132, 255);
-    public static readonly Color TextDark     = Color.FromArgb(28, 37, 56);
-    public static readonly Color TextMuted    = Color.FromArgb(120, 132, 153);
-    public static readonly Color Success      = Color.FromArgb(22, 163, 74);
-    public static readonly Color Warning      = Color.FromArgb(202, 138, 4);
-    public static readonly Color Danger       = Color.FromArgb(220, 38, 38);
-    public static readonly Color Info         = Color.FromArgb(2, 132, 199);
+    // -----------------------------------------------------------------------
+    // Calm, premium palette — graphite chrome, warm-grey canvas, indigo accent.
+    // Chrome is near-neutral; saturated colour is reserved for status meaning.
+    // SidebarBg / Accent / ContentBg stay mutable (overridden by ThemeConfig).
+    // Every legacy field name is preserved so existing paint code keeps working.
+    // -----------------------------------------------------------------------
+
+    // Chrome (mutable — themed by ApplyTheme)
+    public static Color SidebarBg   = Color.FromArgb(22, 24, 29);    // graphite, not navy
+    public static Color Accent      = Color.FromArgb(91, 91, 214);   // calm indigo
+    public static Color ContentBg   = Color.FromArgb(246, 247, 249); // soft warm-grey canvas
+
+    // Sidebar states
+    public static readonly Color SidebarHover  = Color.FromArgb(30, 33, 40);
+    public static readonly Color SidebarActive = Color.FromArgb(38, 42, 51);
+
+    // Surfaces
+    public static readonly Color CardBg          = Color.White;                  // primary surface
+    public static readonly Color SurfaceAlt      = Color.FromArgb(251, 251, 253); // hover / raised row
+    public static readonly Color Hairline        = Color.FromArgb(236, 238, 242); // faint divider
+    public static readonly Color CardBorder      = Color.FromArgb(236, 238, 242); // alias of Hairline (compat)
+    public static readonly Color CardBorderHover = Color.FromArgb(110, 106, 224); // soft indigo
+
+    // Text
+    public static readonly Color TextStrong = Color.FromArgb(21, 23, 27);    // titles
+    public static readonly Color TextDark   = Color.FromArgb(30, 32, 38);    // strong body (legacy name)
+    public static readonly Color TextBody   = Color.FromArgb(60, 65, 75);    // body copy
+    public static readonly Color TextMuted  = Color.FromArgb(138, 144, 156); // metadata only
+
+    // Semantic — status meaning only, never chrome
+    public static readonly Color Success = Color.FromArgb(31, 157, 107);
+    public static readonly Color Warning = Color.FromArgb(199, 125, 20);
+    public static readonly Color Danger  = Color.FromArgb(220, 76, 76);
+    public static readonly Color Info    = Color.FromArgb(58, 123, 208);
+
+    // Soft fills (~10% tint) for badges, chips, metric cards
+    public static readonly Color AccentSoft  = Color.FromArgb(26, 91, 91, 214);
+    public static readonly Color SuccessSoft = Color.FromArgb(26, 31, 157, 107);
+    public static readonly Color WarningSoft = Color.FromArgb(26, 199, 125, 20);
+    public static readonly Color DangerSoft  = Color.FromArgb(26, 220, 76, 76);
+    public static readonly Color InfoSoft    = Color.FromArgb(26, 58, 123, 208);
 
     public static readonly string FontName = "Segoe UI";
 
@@ -75,6 +101,9 @@ public static class Ui
         if (parts.Length == 1) return parts[0][..Math.Min(2, parts[0].Length)].ToUpper();
         return ($"{parts[0][0]}{parts[^1][0]}").ToUpper();
     }
+
+    /// <summary>Returns a translucent tint of a colour for soft badge/chip fills (~12% by default).</summary>
+    public static Color Soft(Color c, int alpha = 30) => Color.FromArgb(alpha, c.R, c.G, c.B);
 
     /// <summary>Maps a status string to a semantic color.</summary>
     public static Color StatusColor(string status) => status switch
