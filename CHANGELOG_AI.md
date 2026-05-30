@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Builder border and interaction polish
+
+### Changed
+- `BuilderForm.cs`: added a real outer modal frame so the Customize Dashboard window no longer blends into the background.
+- `BuilderForm.cs`: added smoother drag/drop feedback for Modules and Pipeline rows with rounded drop-target highlighting while keeping arrow buttons as fallback.
+- `UiKit.cs` and `MainForm.cs`: added a rounded status menu renderer for card status dropdowns.
+
+### Notes
+- No backend services, Twilio, Supabase, auth, payments, AI, customer messaging, export/import, backups, theme presets, or unrelated roadmap items were implemented.
+
 ## [2026-05-29] - Builder polish and editable status badges
 
 ### Changed
@@ -48,6 +58,29 @@
 ### Notes
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
+
+## [2026-05-29] - GUI polish pass
+
+### Changed
+- `dashboard/FieldDialog.cs`:
+  - Added `using System.Drawing.Drawing2D`.
+  - Added `ModalRadius = 12` and `ModalBorderColor = Color.FromArgb(132, 146, 170)` constants.
+  - Added `ApplyRoundedRegion()` method; called in constructor after `ClientSize` is set and in `OnResize` override.
+  - Updated `OnPaint` to draw a 2 px anti-aliased rounded border (replaces the old flat `CardBorder` rectangle). Add/edit dialogs now match the `BuilderForm` modal visual style.
+
+- `dashboard/BuilderForm.cs`:
+  - `BuildHeader`: changed close button `Text = "X"` to `Text = "✕"` to match `FieldDialog`.
+  - `SaveAndApply`: removed the success `MessageBox.Show(...)` — the dashboard re-rendering immediately after close is the confirmation; errors still show a `MessageBox`.
+  - `BuilderTabButton`: expanded from a simple `Active` auto-property to a full interactive control:
+    - `Active` setter now calls `UpdateBackColor()` and `Invalidate()`.
+    - Added `_hover` field, `OnMouseEnter`, `OnMouseLeave` overrides.
+    - Added `UpdateBackColor()`: active → white background; hover → light accent tint `(231, 238, 252)`; default → `Ui.ContentBg`.
+    - Updated `OnPaint` to adjust `ForeColor` across active/hover/default states (darker text on hover, `Ui.TextDark` when active).
+
+### Notes
+- No architecture changes. `DashboardConfig` remains the source of truth. No backend, Twilio, Supabase, auth, payments, or messaging was touched.
+- Build confirmed clean: 0 C# warnings, 0 C# errors.
+- The running app must be closed before `dotnet run` picks up the new exe (file was locked during build verification — expected).
 
 ## [2026-05-29] - Save/Load Reliability Tasks added
 

@@ -1,3 +1,4 @@
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace BusinessDashboard;
@@ -28,6 +29,8 @@ public class FieldDialog : Form
     private const int FormWidth = 460;
     private const int HeaderH = 62;
     private const int FooterH = 66;
+    private const int ModalRadius = 12;
+    private static readonly Color ModalBorderColor = Color.FromArgb(132, 146, 170);
 
     public FieldDialog(string title, List<FieldDef> fields)
     {
@@ -140,6 +143,22 @@ public class FieldDialog : Form
         body.PerformLayout();
         int bodyH = Math.Min(560, body.PreferredSize.Height + 6);
         ClientSize = new Size(FormWidth, HeaderH + bodyH + FooterH);
+        ApplyRoundedRegion();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyRoundedRegion();
+    }
+
+    private void ApplyRoundedRegion()
+    {
+        if (Width <= 0 || Height <= 0) return;
+        var oldRegion = Region;
+        using var path = Ui.RoundedRect(new Rectangle(0, 0, Width, Height), ModalRadius);
+        Region = new Region(path);
+        oldRegion?.Dispose();
     }
 
     private void Save_Click(object? sender, EventArgs e)
@@ -163,8 +182,11 @@ public class FieldDialog : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        using var pen = new Pen(Ui.CardBorder);
-        e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        var rect = new Rectangle(1, 1, Width - 3, Height - 3);
+        using var pen = new Pen(ModalBorderColor, 2f);
+        using var path = Ui.RoundedRect(rect, ModalRadius);
+        e.Graphics.DrawPath(pen, path);
     }
 
     private const int WM_NCLBUTTONDOWN = 0xA1;

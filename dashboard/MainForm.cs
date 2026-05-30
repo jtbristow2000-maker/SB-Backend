@@ -512,7 +512,7 @@ public class MainForm : Form
         if (stages.Count == 0) return;
 
         var currentLabel = StageLabelForStatus(pipelineId, currentStatus);
-        var menu = new ContextMenuStrip { Font = Ui.F(9.5f) };
+        var menu = new RoundedContextMenuStrip { Font = Ui.F(9.5f) };
 
         foreach (var stage in stages)
         {

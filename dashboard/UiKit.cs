@@ -96,6 +96,87 @@ public static class Ui
     }
 }
 
+public class RoundedContextMenuStrip : ContextMenuStrip
+{
+    private const int MenuRadius = 10;
+
+    public RoundedContextMenuStrip()
+    {
+        Renderer = new RoundedContextMenuRenderer();
+        BackColor = Color.White;
+        ForeColor = Ui.TextDark;
+        Padding = new Padding(6);
+        ShowImageMargin = true;
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        ApplyRoundedRegion();
+    }
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        ApplyRoundedRegion();
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+
+        using var path = Ui.RoundedRect(rect, MenuRadius);
+        using var fill = new SolidBrush(Color.White);
+        g.FillPath(fill, path);
+    }
+
+    private void ApplyRoundedRegion()
+    {
+        if (Width <= 0 || Height <= 0) return;
+
+        var oldRegion = Region;
+        using var path = Ui.RoundedRect(new Rectangle(0, 0, Width, Height), MenuRadius);
+        Region = new Region(path);
+        oldRegion?.Dispose();
+    }
+}
+
+internal class RoundedContextMenuRenderer : ToolStripProfessionalRenderer
+{
+    protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        var rect = new Rectangle(0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
+
+        using var path = Ui.RoundedRect(rect, 10);
+        using var pen = new Pen(Ui.CardBorder);
+        g.DrawPath(pen, path);
+    }
+
+    protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+    {
+        if (!e.Item.Selected && !e.Item.Pressed) return;
+
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        var rect = new Rectangle(3, 1, e.Item.Width - 6, e.Item.Height - 2);
+        if (rect.Width <= 0 || rect.Height <= 0) return;
+
+        using var path = Ui.RoundedRect(rect, 7);
+        using var fill = new SolidBrush(Color.FromArgb(e.Item.Pressed ? 42 : 28, Ui.Accent));
+        g.FillPath(fill, path);
+    }
+
+    protected override void OnRenderImageMargin(ToolStripRenderEventArgs e)
+    {
+        using var fill = new SolidBrush(Color.White);
+        e.Graphics.FillRectangle(fill, e.AffectedBounds);
+    }
+}
+
 /// <summary>A flat, rounded, hover-aware button drawn entirely by us.</summary>
 public class PillButton : Control
 {
