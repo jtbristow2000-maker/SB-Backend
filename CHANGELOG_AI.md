@@ -7,6 +7,7 @@
 - `EntityCard.cs`: made configured status badges clickable and hoverable so dashboard records can open a status menu directly from the card.
 - `MainForm.cs`: wired Lead, Appointment, and Quote card status menus to configured `DashboardConfig` pipeline stages and saved selected stage IDs back to the existing local data store.
 - `MainForm.cs`: status badge colors now come from configured pipeline stage colors, with `Ui.StatusColor()` kept as a fallback for unknown legacy statuses.
+- `MainForm.cs`: fixed a WinForms `ContextMenuStrip` disposal crash after selecting a card status.
 
 ### Notes
 - No backend services, Twilio, Supabase, auth, payments, AI, customer messaging, export/import, backups, theme presets, or unrelated roadmap items were implemented.

@@ -513,7 +513,6 @@ public class MainForm : Form
 
         var currentLabel = StageLabelForStatus(pipelineId, currentStatus);
         var menu = new ContextMenuStrip { Font = Ui.F(9.5f) };
-        menu.Closed += (s, e) => menu.Dispose();
 
         foreach (var stage in stages)
         {
