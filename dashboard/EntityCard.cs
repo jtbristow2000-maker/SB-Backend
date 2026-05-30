@@ -11,10 +11,9 @@ namespace BusinessDashboard;
 //    manually in OnMouseMove / OnMouseDown for reliability.
 //  • statusColor? — when null, falls back to Ui.StatusColor(status).
 //    MainForm passes the explicit color from config.Pipelines[id].Stages[].Color.
-//  • onStatusClick — optional callback.  When provided, the status badge renders
-//    a "v" chevron and clicking it calls the callback with the card Control and
-//    the badge's bottom-left Point so MainForm can show a ContextMenu there.
-//    When null, the badge is display-only.
+//  • onStatusClick — optional callback.  When provided, clicking the status badge
+//    calls the callback with the card Control and the badge's bottom-left Point
+//    so MainForm can show a ContextMenu there. When null, the badge is display-only.
 //  • Double-clicking anywhere except the action icons opens the edit dialog.
 // ---------------------------------------------------------------------------
 
@@ -54,7 +53,7 @@ public class EntityCard : Panel
         _title = title;
         _subtitle = subtitle;
         _status = string.IsNullOrWhiteSpace(status) ? "—" : status;
-        _statusText = onStatusClick == null ? _status : $"{_status}  v";
+        _statusText = _status;
         _statusColor = statusColor;
         _avatarColor = Ui.AvatarColor(title);
         _onEdit = onEdit;

@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Status badge text cleanup
+
+### Fixed
+- `EntityCard.cs`: removed the literal trailing `v` from clickable status badges while preserving status menu click behavior.
+
+### Notes
+- No backend services, Twilio, Supabase, auth, payments, AI, customer messaging, export/import, backups, theme presets, or unrelated roadmap items were implemented.
+
 ## [2026-05-29] - Persistent brand header layout
 
 ### Changed
