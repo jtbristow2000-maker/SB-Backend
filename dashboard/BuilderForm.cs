@@ -167,11 +167,11 @@ public class BuilderForm : Form
             Ghost = true,
             Width = 146,
             Height = 40,
-            Enabled = false,
         };
 
         save.Click += (s, e) => SaveAndApply();
         cancel.Click += (s, e) => CloseWith(DialogResult.Cancel);
+        reset.Click += (s, e) => ResetToDefaults();
 
         footer.Controls.Add(save);
         footer.Controls.Add(cancel);
@@ -306,8 +306,8 @@ public class BuilderForm : Form
             BackColor = Color.White,
             Margin = new Padding(0, 7, 0, 0),
         };
-        var up = new Button { Text = "Up", Width = 48, Height = 28, Enabled = index > 0 };
-        var down = new Button { Text = "Down", Width = 56, Height = 28, Enabled = index < ordered.Count - 1 };
+        var up = new BuilderIconButton { Text = "↑", Width = 34, Height = 28, Enabled = index > 0 };
+        var down = new BuilderIconButton { Text = "↓", Width = 34, Height = 28, Enabled = index < ordered.Count - 1 };
 
         enabled.CheckedChanged += (s, e) =>
         {
@@ -472,7 +472,7 @@ public class BuilderForm : Form
         {
             Dock = DockStyle.Top,
             Height = 32,
-            ColumnCount = 6,
+            ColumnCount = 5,
             RowCount = 1,
             BackColor = Color.White,
             Padding = new Padding(0, 0, 0, 2),
@@ -481,9 +481,8 @@ public class BuilderForm : Form
         header.Controls.Add(HeaderLabel("Order"), 0, 0);
         header.Controls.Add(HeaderLabel("Color"), 1, 0);
         header.Controls.Add(HeaderLabel("Stage name"), 2, 0);
-        header.Controls.Add(HeaderLabel("Stage ID"), 3, 0);
-        header.Controls.Add(HeaderLabel("Move"), 4, 0);
-        header.Controls.Add(HeaderLabel("Remove"), 5, 0);
+        header.Controls.Add(HeaderLabel("Move"), 3, 0);
+        header.Controls.Add(HeaderLabel("Remove"), 4, 0);
         return header;
     }
 
@@ -491,9 +490,9 @@ public class BuilderForm : Form
     {
         var row = new TableLayoutPanel
         {
-            Width = Math.Max(660, list.ClientSize.Width - 10),
+            Width = Math.Max(620, list.ClientSize.Width - 10),
             Height = 48,
-            ColumnCount = 6,
+            ColumnCount = 5,
             RowCount = 1,
             BackColor = Color.White,
             Margin = new Padding(0, 0, 0, 8),
@@ -526,15 +525,6 @@ public class BuilderForm : Form
             BorderStyle = BorderStyle.FixedSingle,
             Margin = new Padding(0, 10, 12, 0),
         };
-        var id = new Label
-        {
-            Text = stage.Id,
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = Ui.TextMuted,
-            Font = Ui.F(9f),
-            Padding = new Padding(0, 0, 8, 0),
-        };
         var move = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -543,15 +533,16 @@ public class BuilderForm : Form
             BackColor = Color.White,
             Margin = new Padding(0, 7, 0, 0),
         };
-        var up = new Button { Text = "Up", Width = 40, Height = 28, Enabled = index > 0 };
-        var down = new Button { Text = "Down", Width = 52, Height = 28, Enabled = index < stages.Count - 1 };
-        var delete = new Button
+        var up = new BuilderIconButton { Text = "↑", Width = 34, Height = 28, Enabled = index > 0 };
+        var down = new BuilderIconButton { Text = "↓", Width = 34, Height = 28, Enabled = index < stages.Count - 1 };
+        var delete = new BuilderIconButton
         {
-            Text = "Delete",
+            Text = "×",
             Dock = DockStyle.Fill,
             Height = 28,
             Enabled = stages.Count > 1,
             Margin = new Padding(0, 10, 0, 0),
+            AccentColor = Ui.Danger,
         };
 
         color.Click += (s, e) => PickStageColor(stage, color);
@@ -565,9 +556,8 @@ public class BuilderForm : Form
         row.Controls.Add(order, 0, 0);
         row.Controls.Add(color, 1, 0);
         row.Controls.Add(label, 2, 0);
-        row.Controls.Add(id, 3, 0);
-        row.Controls.Add(move, 4, 0);
-        row.Controls.Add(delete, 5, 0);
+        row.Controls.Add(move, 3, 0);
+        row.Controls.Add(delete, 4, 0);
         return row;
     }
 
@@ -663,17 +653,16 @@ public class BuilderForm : Form
     {
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
         table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
     }
 
     private static void ResizeStageRows(FlowLayoutPanel list)
     {
         foreach (Control control in list.Controls)
-            control.Width = control is PillButton ? control.Width : Math.Max(660, list.ClientSize.Width - 10);
+            control.Width = control is PillButton ? control.Width : Math.Max(620, list.ClientSize.Width - 10);
     }
 
     private static string NextStageId(List<StageConfig> stages)
@@ -1164,11 +1153,35 @@ public class BuilderForm : Form
         try
         {
             ConfigManager.Save(_workingConfig);
+            MessageBox.Show("Dashboard settings saved.", "Save & Apply",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
             CloseWith(DialogResult.OK);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Dashboard settings could not be saved.\n\n{ex.Message}", "Save & Apply",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void ResetToDefaults()
+    {
+        var confirm = MessageBox.Show(
+            "This will restore dashboard settings to defaults.\n\nContinue?",
+            "Reset to Defaults",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+
+        if (confirm != DialogResult.Yes) return;
+
+        try
+        {
+            ConfigManager.Save(ConfigManager.GetDefaults());
+            CloseWith(DialogResult.OK);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Dashboard settings could not be reset.\n\n{ex.Message}", "Reset to Defaults",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -1294,5 +1307,85 @@ internal class BuilderTabButton : Label
 
         using var pen = new Pen(Ui.Accent, 3f);
         e.Graphics.DrawLine(pen, 14, Height - 3, Width - 14, Height - 3);
+    }
+}
+
+internal class BuilderIconButton : Control
+{
+    public Color AccentColor { get; set; } = Ui.TextMuted;
+
+    private bool _hover;
+    private bool _down;
+
+    public BuilderIconButton()
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Cursor = Cursors.Hand;
+        Font = Ui.F(10f, FontStyle.Bold);
+        Width = 34;
+        Height = 28;
+    }
+
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        Cursor = Enabled ? Cursors.Hand : Cursors.Default;
+        Invalidate();
+        base.OnEnabledChanged(e);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hover = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hover = false;
+        _down = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        _down = true;
+        Invalidate();
+        base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        _down = false;
+        Invalidate();
+        base.OnMouseUp(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+        var color = Enabled ? AccentColor : Color.FromArgb(176, 184, 198);
+        var fill = Enabled && (_hover || _down)
+            ? Color.FromArgb(_down ? 42 : 28, AccentColor)
+            : Color.FromArgb(246, 248, 251);
+        var border = Enabled && _hover ? AccentColor : Ui.CardBorder;
+
+        using (var path = Ui.RoundedRect(rect, 7))
+        using (var brush = new SolidBrush(fill))
+        using (var pen = new Pen(border))
+        {
+            g.FillPath(brush, path);
+            g.DrawPath(pen, path);
+        }
+
+        TextRenderer.DrawText(g, Text, Font, rect, color,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 }

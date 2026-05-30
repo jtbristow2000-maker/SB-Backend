@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Demo readiness polish D3-D6
+
+### Changed
+- `BuilderForm.cs`: enabled Reset to Defaults with confirmation, default config save, OK reload path, and graceful error handling.
+- `BuilderForm.cs`: removed the Stage ID column from the Pipeline tab while preserving internal stage IDs.
+- `BuilderForm.cs`: replaced raw Up/Down/Delete controls in Modules and Pipeline with cleaner compact icon buttons.
+- `BuilderForm.cs`: added visible Save & Apply success feedback after a successful config save.
+
+### Notes
+- Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
+- MigrationRunner, backup logic, export/import, drag-and-drop, theme presets, backend integrations, Twilio, auth, payments, messaging, and AI features were not implemented.
+
 ## [2026-05-29] - BUILDER-10 Branding tab
 
 ### Added
