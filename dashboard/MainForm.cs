@@ -44,6 +44,9 @@ public class MainForm : Form
     private DashboardConfig _config = ConfigManager.GetDefaults();
     private List<ModuleConfig> _activeModules = new();
     private static readonly string[] KnownModuleIds = ["leads", "appointments", "messages", "quotes"];
+    private const int SidebarDefaultWidth = 232;
+    private const int SidebarMinWidth = 180;
+    private const int ContentMinWidth = 320;
 
     public MainForm(DashboardConfig config)
     {
@@ -91,8 +94,6 @@ public class MainForm : Form
         {
             Dock = DockStyle.Fill,
             SplitterWidth = 5,
-            Panel1MinSize = 180,
-            Panel2MinSize = 320,
             BackColor = Ui.SidebarBg,  // splitter track matches sidebar colour
             BorderStyle = BorderStyle.None,
         };
@@ -100,20 +101,40 @@ public class MainForm : Form
         split.Panel2.BackColor = Ui.ContentBg;
         split.Panel2.Controls.Add(_content);
 
-        // Defer SplitterDistance until the control has been laid out and has a real Width.
-        var splitterReady = false;
-        split.Layout += (s, e) =>
-        {
-            if (splitterReady) return;
-            splitterReady = true;
-            try { split.SplitterDistance = Math.Min(232, split.Width - split.Panel2MinSize - 1); }
-            catch { /* leave at default if still too narrow */ }
-        };
-
         Controls.Add(split);
+        ApplySidebarSplitterBounds(split, preserveCurrentDistance: false);
+        BeginInvoke(new Action(() => ApplySidebarSplitterBounds(split, preserveCurrentDistance: false)));
+        split.SizeChanged += (s, e) => ApplySidebarSplitterBounds(split, preserveCurrentDistance: true);
 
         if (_navRoutes.Count > 0) Select(_navRoutes[0].Item, _navRoutes[0].Page);
         RefreshAll();
+    }
+
+    private static void ApplySidebarSplitterBounds(SplitContainer split, bool preserveCurrentDistance)
+    {
+        if (split.IsDisposed || split.Width <= 0) return;
+
+        var maxDistance = split.Width - ContentMinWidth;
+        if (maxDistance <= 0) return;
+
+        split.Panel1MinSize = 0;
+        split.Panel2MinSize = 0;
+
+        var desired = preserveCurrentDistance && split.SplitterDistance > 0
+            ? split.SplitterDistance
+            : SidebarDefaultWidth;
+
+        desired = maxDistance < SidebarMinWidth
+            ? Math.Max(0, maxDistance)
+            : Math.Clamp(desired, SidebarMinWidth, maxDistance);
+
+        split.SplitterDistance = desired;
+
+        if (maxDistance >= SidebarMinWidth)
+        {
+            split.Panel1MinSize = SidebarMinWidth;
+            split.Panel2MinSize = ContentMinWidth;
+        }
     }
 
     // ---------------------------------------------------------------- sidebar

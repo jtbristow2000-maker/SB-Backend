@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Startup splitter crash fix
+
+### Fixed
+- `MainForm.cs`: fixed startup crash caused by applying `SplitContainer` minimum panel sizes before the splitter had a valid width.
+- `MainForm.cs`: added safe sidebar splitter clamping so the dashboard can launch and still keep the sidebar resizable.
+
+### Notes
+- Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
+- No backend services, Twilio, Supabase, auth, payments, AI, customer messaging, export/import, backups, theme presets, or unrelated roadmap items were implemented.
+
 ## [2026-05-29] - Builder border and interaction polish
 
 ### Changed
