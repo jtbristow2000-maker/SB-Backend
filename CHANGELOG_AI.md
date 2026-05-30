@@ -1,5 +1,36 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - D1 Save & Apply persistence fix
+
+### Changed
+- `BuilderForm.cs`: wired `Save & Apply` to commit pending edits and save the working-copy `DashboardConfig` through `ConfigManager.Save()`.
+- Existing `MainForm` behavior reloads the saved config with `ConfigManager.Load()` after the builder closes with `DialogResult.OK`.
+
+### Notes
+- Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
+
+## [2026-05-29] - Save/Load Reliability Tasks added
+
+### Added
+- `TASKS.md`: new **Save/Load Reliability Tasks** section with 6 Codex-ready tasks (SAVE-01 through SAVE-06).
+
+### Task summary
+
+| ID | Task | Files affected |
+|---|---|---|
+| SAVE-01 | Add `MigrationRunner` with `CurrentSchemaVersion = 1`; wire version extraction into `ConfigManager.Load()` | `ConfigManager.cs`, new `MigrationRunner.cs` |
+| SAVE-02 | Backup current config to `.backup.json` before every save | `ConfigManager.cs` |
+| SAVE-03 | Extend `Load()` with three-level fallback: main → backup → defaults | `ConfigManager.cs` |
+| SAVE-04 | Fix critical bug: call `ConfigManager.Save(_workingConfig)` in `BuilderForm` Save & Apply | `BuilderForm.cs` |
+| SAVE-05 | Enable Reset to Defaults button; confirmation → save defaults → reload | `BuilderForm.cs` |
+| SAVE-06 | Create `dashboard/SMOKE_TESTS.md` with full manual end-to-end checklist | New `SMOKE_TESTS.md` |
+
+### Notes
+- No code was changed. Planning pass only.
+- SAVE-04 is the highest-priority fix: the builder currently discards all changes on save.
+- Correct implementation order: SAVE-01 → SAVE-02 → SAVE-03 → SAVE-04 → SAVE-05 → SAVE-06.
+- SAVE-02 must exist before SAVE-05 so Reset to Defaults automatically backs up before overwriting.
+
 ## [2026-05-29] - BUILDER-09 Appearance tab editor
 
 ### Added

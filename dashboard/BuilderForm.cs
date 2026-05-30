@@ -167,7 +167,7 @@ public class BuilderForm : Form
             Enabled = false,
         };
 
-        save.Click += (s, e) => CloseWith(DialogResult.OK);
+        save.Click += (s, e) => SaveAndApply();
         cancel.Click += (s, e) => CloseWith(DialogResult.Cancel);
 
         footer.Controls.Add(save);
@@ -852,6 +852,48 @@ public class BuilderForm : Form
     {
         DialogResult = result;
         Close();
+    }
+
+    private void SaveAndApply()
+    {
+        CommitPendingEdits();
+
+        try
+        {
+            ConfigManager.Save(_workingConfig);
+            CloseWith(DialogResult.OK);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Dashboard settings could not be saved.\n\n{ex.Message}", "Save & Apply",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void CommitPendingEdits()
+    {
+        var focused = FocusedControl(this);
+        if (focused != null && focused != this)
+        {
+            SelectNextControl(focused, true, true, true, true);
+            if (focused.Focused)
+                focused.Parent?.Focus();
+        }
+
+        ValidateChildren();
+    }
+
+    private static Control? FocusedControl(Control parent)
+    {
+        if (parent.Focused) return parent;
+
+        foreach (Control child in parent.Controls)
+        {
+            var focused = FocusedControl(child);
+            if (focused != null) return focused;
+        }
+
+        return null;
     }
 
     protected override void OnPaint(PaintEventArgs e)
