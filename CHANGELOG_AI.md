@@ -7,6 +7,7 @@
 - Existing `MainForm` behavior reloads the saved config with `ConfigManager.Load()` after the builder closes with `DialogResult.OK`.
 
 ### Notes
+- Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
 ## [2026-05-29] - Save/Load Reliability Tasks added
