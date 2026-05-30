@@ -2,6 +2,25 @@ using System.Text.Json;
 
 namespace BusinessDashboard;
 
+// ---------------------------------------------------------------------------
+// ConfigManager — owns all file I/O for DashboardConfig.
+//
+// Design decisions (for Codex):
+//  • Load()   reads the JSON, runs any pending migrations, then deserialises.
+//             If the file is missing or corrupt it returns GetDefaults() silently.
+//  • Save()   writes to a temp file first, then atomically renames it.
+//             This prevents partial writes from corrupting the live config.
+//  • GetDefaults() is the single source of default values.  It must always
+//             set Version = 1 (the current schema version).
+//
+// File location:  %LOCALAPPDATA%\BusinessDashboard\dashboard.config.json
+// Backup location: same folder, dashboard.config.backup.json (written by Save).
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Loads, saves, and provides factory defaults for <see cref="DashboardConfig"/>.
+/// The only class allowed to touch the config JSON file on disk.
+/// </summary>
 public static class ConfigManager
 {
     private static readonly string ConfigDirectory = Path.Combine(

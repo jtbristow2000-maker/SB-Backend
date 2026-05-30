@@ -2,6 +2,17 @@ using System.Windows.Forms;
 
 namespace BusinessDashboard;
 
+// ---------------------------------------------------------------------------
+// CardListPage — the content panel for each dashboard module section.
+//
+// Architecture notes for Codex:
+//  • One CardListPage is created per enabled module in MainForm.BuildPages().
+//  • The page is config-driven: title, noun, and addLabel come from ModuleConfig.
+//  • SetCards() rebuilds the scrollable list; caller passes pre-built EntityCard list.
+//  • SearchChanged event fires on every keystroke; caller re-queries the database.
+//  • Empty-state label is shown automatically when SetCards() receives an empty list.
+// ---------------------------------------------------------------------------
+
 /// <summary>A section page: title + count, search, "Add" button, and a scrollable list of cards.</summary>
 public class CardListPage : Panel
 {

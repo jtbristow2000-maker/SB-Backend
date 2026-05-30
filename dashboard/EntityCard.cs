@@ -3,6 +3,21 @@ using System.Windows.Forms;
 
 namespace BusinessDashboard;
 
+// ---------------------------------------------------------------------------
+// EntityCard — the full-width row card used across all four dashboard modules.
+//
+// Architecture notes for Codex:
+//  • Everything is drawn via OnPaint (no child controls).  Hit-testing is done
+//    manually in OnMouseMove / OnMouseDown for reliability.
+//  • statusColor? — when null, falls back to Ui.StatusColor(status).
+//    MainForm passes the explicit color from config.Pipelines[id].Stages[].Color.
+//  • onStatusClick — optional callback.  When provided, the status badge renders
+//    a "v" chevron and clicking it calls the callback with the card Control and
+//    the badge's bottom-left Point so MainForm can show a ContextMenu there.
+//    When null, the badge is display-only.
+//  • Double-clicking anywhere except the action icons opens the edit dialog.
+// ---------------------------------------------------------------------------
+
 /// <summary>A full-width row card: avatar, title, subtitle, status badge, edit/delete.
 /// Everything is painted (no child controls) and clicks are hit-tested for reliability.</summary>
 public class EntityCard : Panel

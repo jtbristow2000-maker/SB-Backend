@@ -59,6 +59,32 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Appearance/Branding pickers, resizable sidebar, logo, Codex docs
+
+### Changed — `dashboard/BuilderForm.cs`
+- `AddThemeRow`: replaced flat `Button picker` with `ColorSwatchButton swatch` — Appearance and Branding color pickers now use the same rounded custom-painted swatch as Pipeline stages.
+- `PickThemeColor`: updated parameter from `Button` to `ColorSwatchButton`; sets `SwatchColor + Invalidate()`.
+- `UpdateThemeColor`: updated parameter from `Button` to `ColorSwatchButton`; reads previous color from `ColorToHex(swatch.SwatchColor)`.
+- Added file-level architecture comment explaining the builder's tab structure, save flow, and inner control class map (for Codex).
+
+### Changed — `dashboard/MainForm.cs`
+- `RebuildLayout()`: replaced `TableLayoutPanel` 2-column fixed layout with `SplitContainer`. Owner can now drag the divider to resize the sidebar. `Panel1MinSize = 180`, `Panel2MinSize = 480`, default split at 232px. Splitter track color matches `Ui.SidebarBg`.
+- `BuildSidebar()`: brand block height increased from 78 → 96 px. Logo size increased from 36×36 → 54×54. Logo is vertically centred in the block. Business name now uses `TextFormatFlags.WordBreak` so long names wrap to 2 lines instead of truncating. All text x/width values are computed from `brand.Width` dynamically — adapts when the owner resizes the sidebar. Added `brand.Resize` handler to repaint on width change.
+- Added file-level architecture comment explaining layout, config-driven rendering, and pipeline/status helper methods (for Codex).
+
+### Changed — documentation (Codex-targeted)
+- `DashboardConfig.cs`: full XML doc comments on every class and property; architecture rules block explaining Id/Label stability contract and schema migration policy.
+- `ConfigManager.cs`: file-level comment explaining Load/Save/GetDefaults contract and file locations.
+- `Models.cs`: file-level comment explaining status ID storage rule and DB layer boundary.
+- `Program.cs`: file-level comment explaining startup order and `--seed` flag.
+- `UiKit.cs`: file-level comment explaining mutable colours, StatusColor fallback chain, RoundedRect disposal, and UserPaint pattern.
+- `EntityCard.cs`: file-level comment explaining paint-only rendering, statusColor/onStatusClick parameters, and double-click behaviour.
+- `CardListPage.cs`: file-level comment explaining config-driven construction, SetCards contract, and empty-state behaviour.
+
+### Notes
+- No backend, Twilio, Supabase, auth, payments, or messaging touched.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - GUI visual fixes — corner artifacts, color swatches, pipeline header
 
 ### Fixed — `dashboard/BuilderForm.cs`

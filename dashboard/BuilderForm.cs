@@ -2,6 +2,42 @@ using System.Windows.Forms;
 
 namespace BusinessDashboard;
 
+// ---------------------------------------------------------------------------
+// BuilderForm — the no-code dashboard builder modal.
+//
+// Architecture overview for Codex:
+//
+//  Opening:
+//    MainForm.OpenBuilder() calls new BuilderForm(_config) as ShowDialog().
+//    BuilderForm clones the live config into _workingConfig so every edit is
+//    isolated until the owner explicitly clicks "Save & Apply".
+//
+//  Tabs  (each is a Panel inside BuilderSurfacePanel):
+//    Modules    — ToggleSwitch + StyledInputPanel rows; up/↓ arrows + drag-drop reorder.
+//    Pipeline   — per-pipeline stage editor with ColorSwatchButton colour pickers.
+//    Appearance — ThemeConfig hex inputs + ColorSwatchButton pickers.
+//    Branding   — BrandingConfig text inputs + ColorSwatchButton pickers + logo browser.
+//
+//  Saving:
+//    CommitPendingEdits() flushes any in-progress TextBox edit (fires Leave events).
+//    ConfigManager.Save(_workingConfig) writes the JSON file atomically.
+//    MainForm.OpenBuilder() then calls ApplyConfig(ConfigManager.Load()) to
+//    re-render the open dashboard without restarting the app.
+//
+//  Inner control classes (defined at the bottom of this file):
+//    BuilderTabButton   — custom-painted tab with active underline and hover state.
+//    BuilderSurfacePanel — white rounded card drawn on the ContentBg grey background.
+//    BuilderDropRow     — TableLayoutPanel row with animated drag-drop highlight.
+//    BuilderIconButton  — small rounded ↑/↓/× action button with hover/press states.
+//    ToggleSwitch       — custom-painted pill on/off toggle (replaces CheckBox).
+//    StyledInputPanel   — borderless TextBox in a rounded focus-aware panel.
+//    ColorSwatchButton  — rounded colour swatch that opens ColorDialog on click.
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Modal dashboard builder. Edits a deep copy of DashboardConfig and persists on Save.
+/// Opened from MainForm's sidebar "Customize" entry point.
+/// </summary>
 public class BuilderForm : Form
 {
     private readonly DashboardConfig _workingConfig;
@@ -930,43 +966,42 @@ public class BuilderForm : Form
             Margin = new Padding(0, 9, 14, 9),
         };
         var hex = hexInput.Inner;
-        var picker = new Button
+        // ColorSwatchButton gives the same rounded, custom-painted look as Pipeline stage swatches.
+        var swatch = new ColorSwatchButton
         {
+            SwatchColor = ColorFromHex(hex.Text, ColorFromHex(fallback, Color.Gray)),
             Dock = DockStyle.Fill,
-            BackColor = ColorFromHex(hex.Text, Color.Black),
-            FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(0, 9, 0, 1),
-            Text = "",
+            Margin = new Padding(0, 8, 0, 8),
         };
-        picker.FlatAppearance.BorderColor = Ui.CardBorder;
 
-        hex.Leave += (s, e) => UpdateThemeColor(hex, picker, update, title);
-        picker.Click += (s, e) => PickThemeColor(hex, picker, update);
+        hex.Leave += (s, e) => UpdateThemeColor(hex, swatch, update, title);
+        swatch.Click += (s, e) => PickThemeColor(hex, swatch, update);
 
         update(hex.Text);
         table.Controls.Add(name, 0, row);
         table.Controls.Add(hexInput, 1, row);
-        table.Controls.Add(picker, 2, row);
+        table.Controls.Add(swatch, 2, row);
     }
 
-    private void PickThemeColor(TextBox hex, Button picker, Action<string> update)
+    private void PickThemeColor(TextBox hex, ColorSwatchButton swatch, Action<string> update)
     {
         using var dialog = new ColorDialog
         {
-            Color = ColorFromHex(hex.Text, Ui.Accent),
+            Color = swatch.SwatchColor,
             FullOpen = true,
         };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
         var value = ColorToHex(dialog.Color);
         hex.Text = value;
-        picker.BackColor = dialog.Color;
+        swatch.SwatchColor = dialog.Color;
+        swatch.Invalidate();
         update(value);
     }
 
-    private static void UpdateThemeColor(TextBox hex, Button picker, Action<string> update, string title)
+    private static void UpdateThemeColor(TextBox hex, ColorSwatchButton swatch, Action<string> update, string title)
     {
-        var previous = NormalizeHex(picker.BackColor, "#000000");
+        var previous = ColorToHex(swatch.SwatchColor);
         var value = NormalizeHex(hex.Text, previous);
         if (!IsValidHexColor(hex.Text))
         {
@@ -977,7 +1012,8 @@ public class BuilderForm : Form
         }
 
         hex.Text = value;
-        picker.BackColor = ColorFromHex(value, picker.BackColor);
+        swatch.SwatchColor = ColorFromHex(value, swatch.SwatchColor);
+        swatch.Invalidate();
         update(value);
     }
 

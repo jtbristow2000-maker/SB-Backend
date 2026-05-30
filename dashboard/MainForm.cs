@@ -3,6 +3,36 @@ using System.Windows.Forms;
 
 namespace BusinessDashboard;
 
+// ---------------------------------------------------------------------------
+// MainForm — the owner dashboard shell.
+//
+// Architecture overview for Codex:
+//
+//  Layout:
+//    SplitContainer (resizable — owner can drag the divider)
+//      Panel1  →  sidebar (BuildSidebar)
+//      Panel2  →  _content Panel containing one CardListPage per active module
+//
+//  Config-driven rendering (never hardcode):
+//    • ApplyConfig(config) is the single entry point for applying a new config.
+//      It is called on startup and after BuilderForm.Save & Apply.
+//    • RebuildLayout() tears down and rebuilds all controls from the current config.
+//    • Module visibility, order, labels, and add-button text come from config.Modules.
+//    • Status dropdowns and card badge colours come from config.Pipelines.
+//
+//  Status / pipeline helpers (read these before editing status logic):
+//    • PipelineStages(moduleId)          — stages from config, or defaults.
+//    • StageLabelForStatus(id, status)   — maps stored id → current display label.
+//    • StageIdForSelection(id, label)    — maps selected label → stable id to store.
+//    • StageLabelsForDropdown(id, cur)   — builds the status ComboBox option list.
+//
+//  Database:
+//    Status values stored in SQLite are stage IDs, NOT labels.
+//    If an owner renames "Won" → "Closed", old records still load and display
+//    correctly because FindStage() matches on both id and label.
+// ---------------------------------------------------------------------------
+
+/// <summary>The owner-facing dashboard shell. Reads DashboardConfig for all layout decisions.</summary>
 public class MainForm : Form
 {
     private Panel _content = null!;
@@ -53,20 +83,22 @@ public class MainForm : Form
         BuildPages();                  // fills _content with the four pages
         var sidebar = BuildSidebar();  // returns the sidebar panel (Dock=Fill)
 
-        // Deterministic 2-column layout: fixed sidebar + fill content.
-        var root = new TableLayoutPanel
+        // SplitContainer gives the owner a draggable divider to resize the sidebar.
+        // Panel1 = sidebar (dark nav), Panel2 = main content area.
+        var split = new SplitContainer
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            BackColor = Ui.ContentBg,
+            SplitterWidth = 5,
+            Panel1MinSize = 180,
+            Panel2MinSize = 480,
+            SplitterDistance = 232,
+            BackColor = Ui.SidebarBg,  // splitter track matches sidebar colour
+            BorderStyle = BorderStyle.None,
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 232));
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.Controls.Add(sidebar, 0, 0);
-        root.Controls.Add(_content, 1, 0);
-        Controls.Add(root);
+        split.Panel1.Controls.Add(sidebar);
+        split.Panel2.BackColor = Ui.ContentBg;
+        split.Panel2.Controls.Add(_content);
+        Controls.Add(split);
 
         if (_navRoutes.Count > 0) Select(_navRoutes[0].Item, _navRoutes[0].Page);
         RefreshAll();
@@ -89,32 +121,51 @@ public class MainForm : Form
             e.Graphics.DrawLine(pen, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
         };
 
-        // brand block
-        var brand = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Ui.SidebarBg };
+        // Brand block — tall enough for the larger 54×54 logo.
+        // All x/width values are relative to brand.Width so the block adapts when
+        // the owner drags the SplitContainer divider.
+        const int LogoSize = 54;
+        const int LogoLeft = 12;
+        const int TextLeft = LogoLeft + LogoSize + 10;
+        const int BrandBlockH = 96;
+
+        var brand = new Panel { Dock = DockStyle.Top, Height = BrandBlockH, BackColor = Ui.SidebarBg };
         brand.Disposed += (s, e) => logoImage?.Dispose();
+        brand.Resize += (s, e) => brand.Invalidate();   // repaint when sidebar is resized
         brand.Paint += (s, e) =>
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            var logo = new Rectangle(20, 22, 36, 36);
+
+            // Vertically centre the logo in the brand block.
+            var logo = new Rectangle(LogoLeft, (BrandBlockH - LogoSize) / 2, LogoSize, LogoSize);
             if (logoImage != null)
             {
                 DrawBrandLogo(g, logoImage, logo);
             }
             else
             {
-                using (var path = Ui.RoundedRect(logo, 9))
+                using (var path = Ui.RoundedRect(logo, 12))
                 using (var b = new LinearGradientBrush(logo, brandPrimary, brandSecondary, 45f))
                     g.FillPath(b, path);
-                TextRenderer.DrawText(g, "B", Ui.F(15f, FontStyle.Bold), logo, Color.White,
+                TextRenderer.DrawText(g, "B", Ui.F(18f, FontStyle.Bold), logo, Color.White,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
 
-            TextRenderer.DrawText(g, businessName, Ui.F(13f, FontStyle.Bold),
-                new Rectangle(66, 20, 150, 22), Color.White, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            // Text region adapts to current sidebar width — handles long business names.
+            int textW = Math.Max(40, brand.Width - TextLeft - 10);
+
+            // Business name — up to 2 lines so long names wrap instead of truncating.
+            TextRenderer.DrawText(g, businessName, Ui.F(11.5f, FontStyle.Bold),
+                new Rectangle(TextLeft, 18, textW, 40), Color.White,
+                TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
+
+            // Subtitle (e.g. "Owner Dashboard") — single line below the name.
             TextRenderer.DrawText(g, subtitle, Ui.F(8.5f),
-                new Rectangle(66, 42, 150, 18), Color.FromArgb(150, 162, 185), TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+                new Rectangle(TextLeft, 62, textW, 18),
+                Color.FromArgb(150, 162, 185),
+                TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         };
 
         var navItems = new List<NavItem>();

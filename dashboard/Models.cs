@@ -1,5 +1,16 @@
 namespace BusinessDashboard;
 
+// ---------------------------------------------------------------------------
+// Models — SQLite-backed data entities for the four dashboard modules.
+//
+// Rules for Codex:
+//  • Status values stored in SQLite are STAGE IDs (e.g. "won"), not labels.
+//    MainForm.StageLabelForStatus() maps id → current configured label for display.
+//  • New fields should be nullable or have sensible defaults so existing rows
+//    can be loaded without a schema migration.
+//  • All CRUD is in Database.cs.  Do not add DB logic here.
+// ---------------------------------------------------------------------------
+
 public class Appointment
 {
     public int Id { get; set; }

@@ -3,6 +3,23 @@ using System.Windows.Forms;
 
 namespace BusinessDashboard;
 
+// ---------------------------------------------------------------------------
+// UiKit — shared colour palette, drawing primitives, and reusable controls.
+//
+// Architecture notes for Codex:
+//  • Ui is a static class.  SidebarBg, Accent, and ContentBg are MUTABLE —
+//    Ui.ApplyTheme(config.Theme) replaces them at startup and after Save & Apply.
+//    All other colours are readonly constants.
+//  • Ui.StatusColor(status) maps a stage ID/label to a semantic colour.
+//    It is the FALLBACK when a pipeline stage does not have a colour in config.
+//    MainForm passes explicit colours from StageConfig.Color to EntityCard,
+//    so StatusColor is only reached for unmapped or legacy status strings.
+//  • RoundedRect() returns a GraphicsPath — callers must dispose it.
+//  • Custom controls in this file (PillButton, SearchBox) use UserPaint +
+//    AllPaintingInWmPaint + OptimizedDoubleBuffer to eliminate flicker.
+//    When adding new custom controls follow the same pattern.
+// ---------------------------------------------------------------------------
+
 /// <summary>Central color palette + drawing helpers for a consistent modern look.</summary>
 public static class Ui
 {
