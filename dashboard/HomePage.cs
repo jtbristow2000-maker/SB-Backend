@@ -44,29 +44,37 @@ public class HomePage : Panel
             RowCount = 3,
             BackColor = Ui.ContentBg,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));    // greeting band
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));        // greeting band (sizes to content)
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 122));   // metric cards
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // attention
 
         // ---- Greeting band ----
-        var head = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
+        // AutoSize labels stacked top-down can never overlap, at any display scaling.
+        var head = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            BackColor = Ui.ContentBg,
+            Margin = new Padding(0),
+            Padding = new Padding(0, 0, 0, 10),
+        };
         _greeting = new Label
         {
-            Font = Ui.F(21f, FontStyle.Bold), ForeColor = Ui.TextStrong,
-            AutoSize = false, Location = new Point(0, 0), Width = 760, Height = 34,
-            TextAlign = ContentAlignment.MiddleLeft,
+            AutoSize = true, Font = Ui.F(20f, FontStyle.Bold), ForeColor = Ui.TextStrong,
+            Margin = new Padding(0, 0, 0, 3),
         };
         _sub = new Label
         {
-            Font = Ui.F(10.5f), ForeColor = Ui.TextMuted,
-            AutoSize = false, Location = new Point(2, 38), Width = 760, Height = 18,
-            TextAlign = ContentAlignment.MiddleLeft,
+            AutoSize = true, Font = Ui.F(10.5f), ForeColor = Ui.TextMuted,
+            Margin = new Padding(2, 0, 0, 2),
         };
         _contact = new Label
         {
-            Font = Ui.F(9f), ForeColor = Ui.TextMuted,
-            AutoSize = false, Location = new Point(2, 60), Width = 760, Height = 16,
-            TextAlign = ContentAlignment.MiddleLeft, Visible = false,
+            AutoSize = true, Font = Ui.F(9f), ForeColor = Ui.TextMuted,
+            Margin = new Padding(2, 0, 0, 0), Visible = false,
         };
         head.Controls.Add(_greeting);
         head.Controls.Add(_sub);

@@ -129,6 +129,14 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Fix Home greeting band overlap (DPI-safe stacking)
+
+### Fixed — `dashboard/HomePage.cs`
+- The greeting title, date/tagline line, and contact line could overlap (worse at higher display scaling) because they used fixed pixel heights while the 21pt title rendered taller. Replaced the absolutely-positioned fixed-height labels with **AutoSize labels in a top-down `FlowLayoutPanel`**, and made the greeting row `AutoSize`. The lines now stack by their natural height + margins and can't overlap at any DPI. Title trimmed 21→20pt.
+
+### Notes
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - Resizable dialogs, auto-hide scrollbars, click-to-view quotes
 
 ### Added
