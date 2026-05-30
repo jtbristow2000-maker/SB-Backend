@@ -37,13 +37,14 @@ public class MainForm : Form
 {
     private Panel _content = null!;
     private readonly List<NavItem> _navItems = new();
-    private readonly List<(NavItem Item, CardListPage Page)> _navRoutes = new();
+    private readonly List<(NavItem Item, Control Page)> _navRoutes = new();
 
+    private HomePage? _homePage;
     private CardListPage? _leadsPage, _apptPage, _msgPage, _quotePage;
-    private NavItem? _navLeads, _navAppt, _navMsg, _navQuote;
+    private NavItem? _navHome, _navLeads, _navAppt, _navMsg, _navQuote;
     private DashboardConfig _config = ConfigManager.GetDefaults();
     private List<ModuleConfig> _activeModules = new();
-    private static readonly string[] KnownModuleIds = ["leads", "appointments", "messages", "quotes"];
+    private static readonly string[] KnownModuleIds = ["home", "leads", "appointments", "messages", "quotes"];
     private const int SidebarDefaultWidth = 232;
     private const int SidebarMinWidth = 180;
     private const int ContentMinWidth = 320;
@@ -79,8 +80,9 @@ public class MainForm : Form
 
         _navItems.Clear();
         _navRoutes.Clear();
+        _homePage = null;
         _leadsPage = _apptPage = _msgPage = _quotePage = null;
-        _navLeads = _navAppt = _navMsg = _navQuote = null;
+        _navHome = _navLeads = _navAppt = _navMsg = _navQuote = null;
 
         _content = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
         BuildPages();                  // fills _content with the four pages
@@ -314,7 +316,7 @@ public class MainForm : Form
         ApplyConfig(ConfigManager.Load());
     }
 
-    private NavItem NewNav(string iconKey, string glyph, string label, CardListPage page)
+    private NavItem NewNav(string iconKey, string glyph, string label, Control page)
     {
         // iconKey resolves to a crisp vector icon (Icons); glyph is the emoji fallback.
         var item = new NavItem(iconKey, glyph, label);
@@ -324,7 +326,7 @@ public class MainForm : Form
         return item;
     }
 
-    private void Select(NavItem active, CardListPage page)
+    private void Select(NavItem active, Control page)
     {
         foreach (var n in _navItems) n.SetActive(n == active);
         foreach (Control c in _content.Controls) c.Visible = false;
@@ -341,6 +343,11 @@ public class MainForm : Form
         {
             switch (module.Id)
             {
+                case "home":
+                    _homePage = new HomePage();
+                    _content.Controls.Add(_homePage);
+                    break;
+
                 case "leads":
                     _leadsPage = new CardListPage(module.Label, "leads", module.AddButtonLabel);
                     _leadsPage.AddClicked += (s, e) => AddLead();
@@ -379,6 +386,66 @@ public class MainForm : Form
         RefreshAppointments();
         RefreshMessages();
         RefreshQuotes();
+        RefreshHome();
+    }
+
+    // ---------------------------------------------------------------- Home (Today)
+    private void RefreshHome()
+    {
+        if (_homePage == null) return;
+
+        var leads = Database.GetLeads();
+        var messages = Database.GetMessages();
+        var quotes = Database.GetQuotes();
+        var appts = Database.GetAppointments();
+        var today = DateTime.Today.ToString("MM/dd/yyyy");
+
+        bool IsNew(string s) => SameText(s, "new");
+        bool IsUnread(string s) => SameText(s, "Unread");
+        bool IsPending(string s) => SameText(s, "pending");
+        bool IsToday(string d) => SameText(d, today);
+
+        _homePage.SetMetrics(new[]
+        {
+            new HomePage.Metric("New leads", leads.Count(l => IsNew(l.Status)), Ui.Accent, "leads"),
+            new HomePage.Metric("Unread messages", messages.Count(m => IsUnread(m.Status)), Ui.Info, "messages"),
+            new HomePage.Metric("Quotes pending", quotes.Count(q => IsPending(q.Status)), Ui.Warning, "quotes"),
+            new HomePage.Metric("Appointments today", appts.Count(a => IsToday(a.AppDate)), Ui.Success, "appointments"),
+        });
+
+        var cards = new List<EntityCard>();
+
+        foreach (var lead in leads.Where(l => IsNew(l.Status)).Take(4))
+        {
+            var l = lead;
+            cards.Add(new EntityCard(l.Name, Join("New lead", l.Phone, l.Source),
+                StageLabelForStatus("leads", l.Status),
+                () => { EditLeadDialog(l); RefreshAll(); },
+                () => Delete("lead", () => Database.DeleteLead(l.Id), RefreshAll),
+                StageColorForStatus("leads", l.Status)));
+        }
+
+        foreach (var message in messages.Where(m => IsUnread(m.Status)).Take(4))
+        {
+            var m = message;
+            cards.Add(new EntityCard(m.ContactName, Join("Unread", m.Channel, m.Phone),
+                "Unread",
+                () => { EditMessageDialog(m); RefreshAll(); },
+                () => Delete("message", () => Database.DeleteMessage(m.Id), RefreshAll),
+                Ui.StatusColor("Unread")));
+        }
+
+        foreach (var appointment in appts.Where(a => IsToday(a.AppDate)).Take(4))
+        {
+            var a = appointment;
+            cards.Add(new EntityCard(a.CustomerName, Join("Today", a.AppTime, a.Service),
+                StageLabelForStatus("appointments", a.Status),
+                () => { EditAppointmentDialog(a); RefreshAll(); },
+                () => Delete("appointment", () => Database.DeleteAppointment(a.Id), RefreshAll),
+                StageColorForStatus("appointments", a.Status)));
+        }
+
+        _homePage.SetAttentionCards(cards.Take(6).ToList());
     }
 
     // ---------------------------------------------------------------- Leads
@@ -554,8 +621,9 @@ public class MainForm : Form
     }
 
     // ---------------------------------------------------------------- helpers
-    private CardListPage? PageFor(string moduleId) => moduleId switch
+    private Control? PageFor(string moduleId) => moduleId switch
     {
+        "home" => _homePage,
         "leads" => _leadsPage,
         "appointments" => _apptPage,
         "messages" => _msgPage,
@@ -567,6 +635,7 @@ public class MainForm : Form
     {
         switch (moduleId)
         {
+            case "home": _navHome = nav; break;
             case "leads": _navLeads = nav; break;
             case "appointments": _navAppt = nav; break;
             case "messages": _navMsg = nav; break;
@@ -606,10 +675,11 @@ public class MainForm : Form
 
     private static ModuleConfig DefaultModule(string id) => id switch
     {
-        "leads" => new ModuleConfig { Id = "leads", Label = "Leads", Icon = "\U0001F465", AddButtonLabel = "+  Add Lead", Enabled = true, Order = 0 },
-        "appointments" => new ModuleConfig { Id = "appointments", Label = "Appointments", Icon = "\U0001F4C5", AddButtonLabel = "+  Add Appt", Enabled = true, Order = 1 },
-        "messages" => new ModuleConfig { Id = "messages", Label = "Messages", Icon = "\U0001F4AC", AddButtonLabel = "+  Add Message", Enabled = true, Order = 2 },
-        "quotes" => new ModuleConfig { Id = "quotes", Label = "Quotes", Icon = "\U0001F4DD", AddButtonLabel = "+  Add Quote", Enabled = true, Order = 3 },
+        "home" => new ModuleConfig { Id = "home", Label = "Home", Icon = "\U0001F3E0", AddButtonLabel = "", Enabled = true, Order = 0 },
+        "leads" => new ModuleConfig { Id = "leads", Label = "Leads", Icon = "\U0001F465", AddButtonLabel = "+  Add Lead", Enabled = true, Order = 1 },
+        "appointments" => new ModuleConfig { Id = "appointments", Label = "Appointments", Icon = "\U0001F4C5", AddButtonLabel = "+  Add Appt", Enabled = true, Order = 2 },
+        "messages" => new ModuleConfig { Id = "messages", Label = "Messages", Icon = "\U0001F4AC", AddButtonLabel = "+  Add Message", Enabled = true, Order = 3 },
+        "quotes" => new ModuleConfig { Id = "quotes", Label = "Quotes", Icon = "\U0001F4DD", AddButtonLabel = "+  Add Quote", Enabled = true, Order = 4 },
         _ => new ModuleConfig { Id = id, Label = id, Icon = "", AddButtonLabel = "+  Add", Enabled = false, Order = int.MaxValue },
     };
 

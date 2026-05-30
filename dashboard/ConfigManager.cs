@@ -93,10 +93,11 @@ public static class ConfigManager
         },
         Modules =
         [
-            new ModuleConfig { Id = "leads", Label = "Leads", Icon = "\U0001F465", AddButtonLabel = "+  Add Lead", Enabled = true, Order = 0 },
-            new ModuleConfig { Id = "appointments", Label = "Appointments", Icon = "\U0001F4C5", AddButtonLabel = "+  Add Appt", Enabled = true, Order = 1 },
-            new ModuleConfig { Id = "messages", Label = "Messages", Icon = "\U0001F4AC", AddButtonLabel = "+  Add Message", Enabled = true, Order = 2 },
-            new ModuleConfig { Id = "quotes", Label = "Quotes", Icon = "\U0001F4DD", AddButtonLabel = "+  Add Quote", Enabled = true, Order = 3 },
+            new ModuleConfig { Id = "home", Label = "Home", Icon = "\U0001F3E0", AddButtonLabel = "", Enabled = true, Order = 0 },
+            new ModuleConfig { Id = "leads", Label = "Leads", Icon = "\U0001F465", AddButtonLabel = "+  Add Lead", Enabled = true, Order = 1 },
+            new ModuleConfig { Id = "appointments", Label = "Appointments", Icon = "\U0001F4C5", AddButtonLabel = "+  Add Appt", Enabled = true, Order = 2 },
+            new ModuleConfig { Id = "messages", Label = "Messages", Icon = "\U0001F4AC", AddButtonLabel = "+  Add Message", Enabled = true, Order = 3 },
+            new ModuleConfig { Id = "quotes", Label = "Quotes", Icon = "\U0001F4DD", AddButtonLabel = "+  Add Quote", Enabled = true, Order = 4 },
         ],
         Pipelines = new Dictionary<string, PipelineConfig>
         {

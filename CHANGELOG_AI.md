@@ -129,6 +129,26 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - UI-10..13 "Today" home page (overview as default landing)
+
+### Added — `dashboard/HomePage.cs`
+- New `HomePage` overview screen: time-aware greeting + date band, a row of metric cards, and a "NEEDS ATTENTION" list. Reads **no new data** — populated by `MainForm.RefreshHome()` from existing SQLite tables.
+- New `MetricCard` painted control: big value, label, and a soft accent icon chip (same shadow/surface language as `EntityCard`).
+
+### Changed — `dashboard/MainForm.cs`
+- Generalised the page/route model from `CardListPage` to `Control` (`_navRoutes`, `Select`, `PageFor`, `NewNav`) so non-list pages can be hosted.
+- Added `home` as a first-class module: `KnownModuleIds` now leads with `"home"`; `DefaultModule("home")` added and the other modules' default orders bumped (leads 1, appts 2, messages 3, quotes 4).
+- `BuildPages` builds `HomePage` for the `home` module; `PageFor`/`SetNavFor` handle it; `_homePage`/`_navHome` fields added and reset in `RebuildLayout`.
+- Added `RefreshHome()`: computes 4 metrics (new leads, unread messages, pending quotes, today's appointments) and builds up to 6 attention cards (new leads + unread messages + today's appointments). Cards reuse `EntityCard`; edit/delete route through existing dialogs + `RefreshAll`.
+- `RefreshAll()` now also refreshes Home.
+
+### Changed — `dashboard/ConfigManager.cs`
+- `GetDefaults().Modules` includes the Home module at order 0 (others bumped). Existing saved configs without `home` still get it via `GetActiveModules` fallback, so Home appears for everyone and is the default landing screen.
+
+### Notes
+- Home is a normal configurable module — it can be renamed, reordered, or disabled in the builder like any other.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - UI-04 card redesign (soft surfaces, status edge, calm rows)
 
 ### Changed — `dashboard/EntityCard.cs`
