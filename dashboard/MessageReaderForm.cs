@@ -101,9 +101,11 @@ public class MessageReaderForm : Form
         root.Controls.Add(footer, 0, 2);
         Controls.Add(root);
 
-        // Size to fit the body (clamped), then round the window.
-        int bodyTextH = Math.Min(320, Math.Max(80, MeasureBody(body)));
+        // Size to fit the body (clamped to a readable default), then round the window.
+        // The window is user-resizable (see WndProc) so long messages can be enlarged.
+        int bodyTextH = Math.Min(420, Math.Max(170, MeasureBody(body)));
         ClientSize = new Size(FormWidth, HeaderH + bodyTextH + FooterH);
+        MinimumSize = new Size(360, 240);
         ApplyRoundedRegion();
     }
 
@@ -137,6 +139,44 @@ public class MessageReaderForm : Form
         using var pen = new Pen(ModalBorderColor, 2f);
         using var path = Ui.RoundedRect(new Rectangle(1, 1, Width - 3, Height - 3), ModalRadius);
         e.Graphics.DrawPath(pen, path);
+
+        // Resize grip — three small dots in the bottom-right corner (drag to resize).
+        using var grip = new SolidBrush(Color.FromArgb(110, 150, 158, 172));
+        int gx = Width - 9, gy = Height - 9;
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j <= i; j++)
+                e.Graphics.FillEllipse(grip, gx - i * 4, gy - j * 4, 2, 2);
+    }
+
+    // Make the borderless window resizable by reporting edge/corner hit zones to Windows.
+    // NOTE: fully-qualified Message — this namespace also defines a Message model class.
+    protected override void WndProc(ref System.Windows.Forms.Message m)
+    {
+        const int WM_NCHITTEST = 0x0084;
+        if (m.Msg == WM_NCHITTEST)
+        {
+            int lp = (int)m.LParam.ToInt64();
+            int sx = unchecked((short)(lp & 0xFFFF));
+            int sy = unchecked((short)((lp >> 16) & 0xFFFF));
+            var p = PointToClient(new Point(sx, sy));
+
+            const int g = 8;
+            bool left = p.X <= g, right = p.X >= ClientSize.Width - g;
+            bool top = p.Y <= g, bottom = p.Y >= ClientSize.Height - g;
+
+            int ht =
+                (right && bottom) ? 17 :   // HTBOTTOMRIGHT
+                (left && bottom) ? 16 :    // HTBOTTOMLEFT
+                (right && top) ? 14 :      // HTTOPRIGHT
+                (left && top) ? 13 :       // HTTOPLEFT
+                right ? 11 :               // HTRIGHT
+                left ? 10 :                // HTLEFT
+                bottom ? 15 :              // HTBOTTOM
+                top ? 12 : 0;              // HTTOP
+
+            if (ht != 0) { m.Result = (IntPtr)ht; return; }
+        }
+        base.WndProc(ref m);
     }
 
     private const int WM_NCLBUTTONDOWN = 0xA1;

@@ -129,6 +129,17 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Message reader is resizable + taller default
+
+### Changed — `dashboard/MessageReaderForm.cs`
+- The reader bubble is now **user-resizable**: added a `WndProc` override that reports edge/corner hit zones (`HTLEFT`/`RIGHT`/`TOP`/`BOTTOM` + corners) so the borderless rounded window can be dragged from any edge. Added a subtle three-dot resize grip in the bottom-right corner.
+- Taller, more readable default (min body height 170, up to 420) and a `MinimumSize` of 360×240 so short messages are fully visible without resizing.
+- Fully-qualified `System.Windows.Forms.Message` in `WndProc` (this namespace also defines a `Message` model class).
+
+### Notes
+- The content text box (`Dock=Fill`) grows with the window, so enlarging the bubble reveals the full message; the rounded region re-applies live during resize.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - Live home metrics + message reader + message status dropdown
 
 ### Fixed
