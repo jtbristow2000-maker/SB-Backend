@@ -85,19 +85,31 @@ public class MainForm : Form
 
         // SplitContainer gives the owner a draggable divider to resize the sidebar.
         // Panel1 = sidebar (dark nav), Panel2 = main content area.
+        // NOTE: SplitterDistance cannot be set here — the control has no width yet
+        // (RebuildLayout runs before the form is shown).  It is applied on first Layout.
         var split = new SplitContainer
         {
             Dock = DockStyle.Fill,
             SplitterWidth = 5,
             Panel1MinSize = 180,
-            Panel2MinSize = 480,
-            SplitterDistance = 232,
+            Panel2MinSize = 320,
             BackColor = Ui.SidebarBg,  // splitter track matches sidebar colour
             BorderStyle = BorderStyle.None,
         };
         split.Panel1.Controls.Add(sidebar);
         split.Panel2.BackColor = Ui.ContentBg;
         split.Panel2.Controls.Add(_content);
+
+        // Defer SplitterDistance until the control has been laid out and has a real Width.
+        var splitterReady = false;
+        split.Layout += (s, e) =>
+        {
+            if (splitterReady) return;
+            splitterReady = true;
+            try { split.SplitterDistance = Math.Min(232, split.Width - split.Panel2MinSize - 1); }
+            catch { /* leave at default if still too narrow */ }
+        };
+
         Controls.Add(split);
 
         if (_navRoutes.Count > 0) Select(_navRoutes[0].Item, _navRoutes[0].Page);
