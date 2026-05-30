@@ -85,6 +85,7 @@ public class MainForm : Form
         _content = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
         BuildPages();                  // fills _content with the four pages
         var sidebar = BuildSidebar();  // returns the sidebar panel (Dock=Fill)
+        var mainArea = BuildMainArea();
 
         // SplitContainer gives the owner a draggable divider to resize the sidebar.
         // Panel1 = sidebar (dark nav), Panel2 = main content area.
@@ -99,7 +100,7 @@ public class MainForm : Form
         };
         split.Panel1.Controls.Add(sidebar);
         split.Panel2.BackColor = Ui.ContentBg;
-        split.Panel2.Controls.Add(_content);
+        split.Panel2.Controls.Add(mainArea);
 
         var splitterInitialized = false;
         void ApplyInitialSplitterBounds()
@@ -120,6 +121,49 @@ public class MainForm : Form
 
         if (_navRoutes.Count > 0) Select(_navRoutes[0].Item, _navRoutes[0].Page);
         RefreshAll();
+    }
+
+    private Control BuildMainArea()
+    {
+        var main = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            BackColor = Ui.ContentBg,
+        };
+        main.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
+        main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        main.Controls.Add(BuildPersistentBrandHeader(), 0, 0);
+        main.Controls.Add(_content, 0, 1);
+        return main;
+    }
+
+    private Control BuildPersistentBrandHeader()
+    {
+        var header = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Ui.ContentBg,
+            Padding = new Padding(28, 0, 28, 0),
+        };
+        var name = new Label
+        {
+            Dock = DockStyle.Fill,
+            Text = TextOrDefault(_config.Branding?.BusinessName, "Business Hub"),
+            ForeColor = Ui.TextDark,
+            Font = Ui.F(12f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleCenter,
+            AutoEllipsis = true,
+        };
+
+        header.Paint += (s, e) =>
+        {
+            using var pen = new Pen(Ui.CardBorder);
+            e.Graphics.DrawLine(pen, 0, header.Height - 1, header.Width, header.Height - 1);
+        };
+        header.Controls.Add(name);
+        return header;
     }
 
     private static void ApplySidebarSplitterBounds(SplitContainer split, bool preserveCurrentDistance)
@@ -153,8 +197,6 @@ public class MainForm : Form
     private Panel BuildSidebar()
     {
         var sidebar = new Panel { Dock = DockStyle.Fill, BackColor = Ui.SidebarBg };
-        var businessName = TextOrDefault(_config.Branding?.BusinessName, "Business Hub");
-        var subtitle = TextOrDefault(_config.Branding?.DashboardSubtitle, "Owner Dashboard");
         var logoImage = TryLoadImageCopy(_config.Branding?.LogoPath);
         var brandPrimary = ColorFromHex(_config.Branding?.PrimaryColor, Ui.Accent);
         var brandSecondary = ColorFromHex(_config.Branding?.SecondaryColor, Color.FromArgb(120, 90, 250));
@@ -166,13 +208,11 @@ public class MainForm : Form
             e.Graphics.DrawLine(pen, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
         };
 
-        // Brand block — the text compresses at the minimum sidebar width.
-        // All x/width values are relative to brand.Width so the block adapts when
-        // the owner drags the SplitContainer divider.
-        const int LogoSize = 64;
+        // Logo-only brand block. The business name now lives in the persistent
+        // content header, so the sidebar stays readable at minimum width.
+        const int LogoSize = 70;
         const int LogoLeft = 12;
-        const int TextLeft = LogoLeft + LogoSize + 10;
-        const int BrandBlockH = 112;
+        const int BrandBlockH = 100;
 
         var brand = new Panel { Dock = DockStyle.Top, Height = BrandBlockH, BackColor = Ui.SidebarBg };
         brand.Disposed += (s, e) => logoImage?.Dispose();
@@ -198,26 +238,6 @@ public class MainForm : Form
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
 
-            // Text region adapts to current sidebar width. At narrow widths, the
-            // company name becomes the only text so it does not collide with subtitle.
-            int textW = Math.Max(40, brand.Width - TextLeft - 10);
-            var compact = brand.Width < 215;
-
-            TextRenderer.DrawText(g, businessName, Ui.F(11.5f, FontStyle.Bold),
-                compact
-                    ? new Rectangle(TextLeft, 22, textW, 68)
-                    : new Rectangle(TextLeft, 22, textW, 42),
-                Color.White,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-                TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis);
-
-            if (!compact)
-            {
-                TextRenderer.DrawText(g, subtitle, Ui.F(8.5f),
-                    new Rectangle(TextLeft, 68, textW, 18),
-                    Color.FromArgb(150, 162, 185),
-                    TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-            }
         };
 
         var navItems = new List<NavItem>();

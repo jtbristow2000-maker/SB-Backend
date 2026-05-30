@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Persistent brand header layout
+
+### Changed
+- `MainForm.cs`: added a persistent centered brand header above the main dashboard content so the business name remains stable across modules.
+- `MainForm.cs`: changed the sidebar brand block to focus on a larger logo only, avoiding cramped brand-name text at narrow sidebar widths.
+- `CardListPage.cs`: increased page header spacing and title bounds so page names like Messages no longer clip.
+
+### Notes
+- Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
+- No backend services, Twilio, Supabase, auth, payments, AI, customer messaging, export/import, backups, theme presets, or unrelated roadmap items were implemented.
+
 ## [2026-05-29] - Narrow sidebar layout polish
 
 ### Changed

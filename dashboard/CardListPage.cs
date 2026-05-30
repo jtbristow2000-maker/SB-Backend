@@ -42,7 +42,7 @@ public class CardListPage : Panel
             RowCount = 2,
             BackColor = Ui.ContentBg,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         // ---- Header ----
@@ -50,12 +50,12 @@ public class CardListPage : Panel
         _title = new Label
         {
             Text = title, Font = Ui.F(20f, FontStyle.Bold), ForeColor = Ui.TextDark,
-            AutoSize = false, Location = new Point(0, 0), Height = 38,
+            AutoSize = false, Location = new Point(0, 4), Width = 320, Height = 46,
             TextAlign = ContentAlignment.MiddleLeft,
         };
         _count = new Label
         {
-            Font = Ui.F(10f), ForeColor = Ui.TextMuted, AutoSize = false, Location = new Point(2, 42),
+            Font = Ui.F(10f), ForeColor = Ui.TextMuted, AutoSize = false, Location = new Point(2, 52),
             Height = 22, TextAlign = ContentAlignment.MiddleLeft,
         };
         _add = new PillButton { Text = addLabel, BaseColor = Ui.Accent, Width = 140, Height = 42 };
@@ -67,7 +67,7 @@ public class CardListPage : Panel
         header.Controls.Add(_count);
         header.Controls.Add(_add);
         header.Controls.Add(_search);
-        header.Resize += (s, e) =>
+        void LayoutHeader()
         {
             var showActions = header.Width >= 560;
             _add.Visible = showActions;
@@ -83,7 +83,10 @@ public class CardListPage : Panel
 
             _title.Width = Math.Max(120, textRight);
             _count.Width = Math.Max(120, textRight - 2);
-        };
+        }
+
+        header.Resize += (s, e) => LayoutHeader();
+        header.Layout += (s, e) => LayoutHeader();
 
         // ---- List area (host + empty-state overlay) ----
         var listArea = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
