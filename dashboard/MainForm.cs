@@ -348,8 +348,9 @@ public class MainForm : Form
                     break;
 
                 case "appointments":
-                    _apptPage = new CardListPage(module.Label, "appointments", module.AddButtonLabel);
+                    _apptPage = new CardListPage(module.Label, "appointments", module.AddButtonLabel, showCalendar: true);
                     _apptPage.AddClicked += (s, e) => AddAppointment();
+                    _apptPage.CalendarDateDoubleClicked += date => AddAppointment(date);
                     _apptPage.SearchChanged += (s, e) => RefreshAppointments();
                     _content.Controls.Add(_apptPage);
                     break;
@@ -421,14 +422,16 @@ public class MainForm : Form
     }
 
     // ---------------------------------------------------------------- Appointments
-    private void AddAppointment() => EditAppointmentDialog(new Appointment { AppDate = DateTime.Today.ToString("MM/dd/yyyy") });
+    private void AddAppointment() => AddAppointment(DateTime.Today);
+    private void AddAppointment(DateTime date) =>
+        EditAppointmentDialog(new Appointment { AppDate = date.ToString("MM/dd/yyyy") });
     private void EditAppointmentDialog(Appointment a)
     {
         var fields = new List<FieldDef>
         {
             new("CustomerName", "Customer", a.CustomerName, required: true),
             new("Phone", "Phone", a.Phone),
-            new("AppDate", "Date", a.AppDate),
+            new("AppDate", "Date", a.AppDate) { Kind = FieldKind.Date },
             new("AppTime", "Time", a.AppTime),
             new("Service", "Service / Job", a.Service),
             new("Notes", "Notes", a.Notes) { Kind = FieldKind.Multiline },
@@ -460,6 +463,11 @@ public class MainForm : Form
                 Database.SaveAppointment(a);
             }, RefreshAppointments))).ToList();
         _apptPage.SetCards(cards);
+        _apptPage.SetCalendarItems(data
+            .Select(AppointmentCalendarItem)
+            .Where(item => item != null)
+            .Cast<CalendarItem>()
+            .ToList());
         if (_navAppt != null) _navAppt.Count = data.Count;
     }
 
@@ -472,7 +480,7 @@ public class MainForm : Form
             new("ContactName", "From (name)", m.ContactName, required: true),
             new("Phone", "Phone", m.Phone),
             new("Channel", "Channel", m.Channel) { Kind = FieldKind.Combo, Options = ["Phone Call", "Text", "Email", "Voicemail", "Website"] },
-            new("DateReceived", "Date", m.DateReceived),
+            new("DateReceived", "Date", m.DateReceived) { Kind = FieldKind.Date },
             new("Content", "Message", m.Content) { Kind = FieldKind.Multiline },
             new("Status", "Status", m.Status) { Kind = FieldKind.Combo, Options = ["Unread", "Read", "Replied", "Archived"] },
         };
@@ -509,7 +517,7 @@ public class MainForm : Form
             new("Phone", "Phone", q.Phone),
             new("Service", "Service / Job", q.Service),
             new("Amount", "Amount ($)", q.Amount),
-            new("QuoteDate", "Date", q.QuoteDate),
+            new("QuoteDate", "Date", q.QuoteDate) { Kind = FieldKind.Date },
             new("Notes", "Notes", q.Notes) { Kind = FieldKind.Multiline },
             new("Status", "Status", StageLabelForStatus("quotes", q.Status)) { Kind = FieldKind.Combo, Options = StageLabelsForDropdown("quotes", q.Status) },
         };
@@ -780,6 +788,21 @@ public class MainForm : Form
             bounds.Top + (bounds.Height - height) / 2,
             width,
             height);
+    }
+
+    private CalendarItem? AppointmentCalendarItem(Appointment appointment)
+    {
+        if (!DateTime.TryParse(appointment.AppDate, out var date)) return null;
+
+        return new CalendarItem
+        {
+            Date = date.Date,
+            Time = appointment.AppTime,
+            Title = TextOrDefault(appointment.CustomerName, "Appointment"),
+            Subtitle = Join(appointment.Service, appointment.Phone),
+            Color = StageColorForStatus("appointments", appointment.Status),
+            IsReminder = false,
+        };
     }
 
     private void Delete(string noun, Action doDelete, Action refresh)

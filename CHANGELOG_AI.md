@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Premium dialogs and appointment calendar
+
+### Added
+- `CalendarMonthView.cs`: added an Outlook-style month calendar control with appointment chips, month navigation, and double-click day selection.
+- `CardListPage.cs` and `MainForm.cs`: added Calendar/List view switching on the Appointments page and wired appointment records into the calendar display.
+- `FieldDialog.cs`: added real `DateTimePicker` calendar selection for date fields.
+
+### Changed
+- `FieldDialog.cs`: refreshed add/edit dialogs with a more rounded bordered shell and softer input styling.
+- `MainForm.cs`: Appointment, Message, and Quote date fields now use calendar-backed date pickers.
+
+### Notes
+- Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
+- No Twilio, Supabase, auth, payments, AI, customer messaging, or external backend integrations were implemented.
+
 ## [2026-05-29] - Status badge text cleanup
 
 ### Fixed

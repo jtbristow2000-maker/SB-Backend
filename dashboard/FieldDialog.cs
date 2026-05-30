@@ -3,7 +3,7 @@ using System.Windows.Forms;
 
 namespace BusinessDashboard;
 
-public enum FieldKind { Text, Multiline, Combo }
+public enum FieldKind { Text, Multiline, Combo, Date }
 
 public class FieldDef
 {
@@ -29,7 +29,8 @@ public class FieldDialog : Form
     private const int FormWidth = 460;
     private const int HeaderH = 62;
     private const int FooterH = 66;
-    private const int ModalRadius = 12;
+    private const int ModalRadius = 16;
+    private const int BorderPad = 2;
     private static readonly Color ModalBorderColor = Color.FromArgb(132, 146, 170);
 
     public FieldDialog(string title, List<FieldDef> fields)
@@ -37,16 +38,17 @@ public class FieldDialog : Form
         Text = title;
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterParent;
-        BackColor = Color.White;
+        BackColor = ModalBorderColor;
         Font = Ui.F(10f);
         ShowInTaskbar = false;
+        Padding = new Padding(BorderPad);
 
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = Color.White,
+            BackColor = Ui.ContentBg,
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderH));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -79,8 +81,8 @@ public class FieldDialog : Form
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             AutoScroll = true,
-            BackColor = Color.White,
-            Padding = new Padding(22, 14, 22, 10),
+            BackColor = Ui.ContentBg,
+            Padding = new Padding(22, 16, 22, 10),
         };
 
         foreach (var f in fields)
@@ -99,29 +101,63 @@ public class FieldDialog : Form
                 var cb = new ComboBox
                 {
                     DropDownStyle = ComboBoxStyle.DropDownList, Font = Ui.F(10.5f),
-                    Width = FormWidth - 56, FlatStyle = FlatStyle.Flat, Margin = new Padding(0, 0, 0, 4),
+                    Width = FormWidth - 56, Height = 36, FlatStyle = FlatStyle.Flat, Margin = new Padding(0, 0, 0, 4),
+                    BackColor = Color.White,
                 };
                 cb.Items.AddRange(f.Options ?? []);
                 cb.SelectedItem = f.Value;
                 if (cb.SelectedIndex < 0 && cb.Items.Count > 0) cb.SelectedIndex = 0;
                 input = cb;
             }
-            else
+            else if (f.Kind == FieldKind.Date)
+            {
+                var picker = new DateTimePicker
+                {
+                    Font = Ui.F(10.5f),
+                    Width = FormWidth - 56,
+                    Height = 36,
+                    Format = DateTimePickerFormat.Custom,
+                    CustomFormat = "MM/dd/yyyy",
+                    CalendarFont = Ui.F(10f),
+                    Margin = new Padding(0, 0, 0, 4),
+                };
+                picker.Value = ParseDate(f.Value, DateTime.Today);
+                input = picker;
+            }
+            else if (f.Kind == FieldKind.Multiline)
             {
                 var tb = new TextBox
                 {
-                    Font = Ui.F(10.5f), Width = FormWidth - 56, Text = f.Value,
-                    BorderStyle = BorderStyle.FixedSingle, Margin = new Padding(0, 0, 0, 4),
+                    Font = Ui.F(10.5f),
+                    Width = FormWidth - 56,
+                    Height = 70,
+                    Text = f.Value,
+                    Multiline = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Margin = new Padding(0, 0, 0, 4),
                 };
-                if (f.Kind == FieldKind.Multiline) { tb.Multiline = true; tb.Height = 64; tb.ScrollBars = ScrollBars.Vertical; }
                 input = tb;
+            }
+            else
+            {
+                var wrapped = new StyledInputPanel(f.Value)
+                {
+                    Width = FormWidth - 56,
+                    Height = 36,
+                    Margin = new Padding(0, 0, 0, 4),
+                };
+                input = wrapped.Inner;
+                body.Controls.Add(wrapped);
+                _inputs[f.Key] = input;
+                continue;
             }
             _inputs[f.Key] = input;
             body.Controls.Add(input);
         }
 
         // ---- Footer (buttons) ----
-        var footer = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+        var footer = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
         var save = new PillButton { Text = "Save", BaseColor = Ui.Accent, Width = 112, Height = 40 };
         var cancel = new PillButton { Text = "Cancel", BaseColor = Color.FromArgb(228, 232, 238), ForeColor = Ui.TextDark, Width = 104, Height = 40 };
         save.Click += Save_Click;
@@ -141,7 +177,7 @@ public class FieldDialog : Form
 
         // Size the form to fit the fields.
         body.PerformLayout();
-        int bodyH = Math.Min(560, body.PreferredSize.Height + 6);
+        int bodyH = Math.Min(590, body.PreferredSize.Height + 6);
         ClientSize = new Size(FormWidth, HeaderH + bodyH + FooterH);
         ApplyRoundedRegion();
     }
@@ -165,7 +201,7 @@ public class FieldDialog : Form
     {
         foreach (var (key, ctrl) in _inputs)
         {
-            string val = ctrl is ComboBox cb ? cb.SelectedItem?.ToString() ?? "" : ctrl.Text.Trim();
+            string val = ReadInputValue(ctrl);
             if (_defs[key].Required && string.IsNullOrWhiteSpace(val))
             {
                 MessageBox.Show($"\"{_defs[key].Label}\" is required.", "Required field",
@@ -178,6 +214,16 @@ public class FieldDialog : Form
         DialogResult = DialogResult.OK;
         Close();
     }
+
+    private static string ReadInputValue(Control ctrl) => ctrl switch
+    {
+        ComboBox cb => cb.SelectedItem?.ToString() ?? "",
+        DateTimePicker picker => picker.Value.ToString("MM/dd/yyyy"),
+        _ => ctrl.Text.Trim(),
+    };
+
+    private static DateTime ParseDate(string? value, DateTime fallback) =>
+        DateTime.TryParse(value, out var parsed) ? parsed : fallback;
 
     protected override void OnPaint(PaintEventArgs e)
     {
