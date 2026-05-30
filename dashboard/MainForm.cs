@@ -78,6 +78,9 @@ public class MainForm : Form
         var sidebar = new Panel { Dock = DockStyle.Fill, BackColor = Ui.SidebarBg };
         var businessName = TextOrDefault(_config.Branding?.BusinessName, "Business Hub");
         var subtitle = TextOrDefault(_config.Branding?.DashboardSubtitle, "Owner Dashboard");
+        var logoImage = TryLoadImageCopy(_config.Branding?.LogoPath);
+        var brandPrimary = ColorFromHex(_config.Branding?.PrimaryColor, Ui.Accent);
+        var brandSecondary = ColorFromHex(_config.Branding?.SecondaryColor, Color.FromArgb(120, 90, 250));
 
         sidebar.Paint += (s, e) =>
         {
@@ -88,17 +91,26 @@ public class MainForm : Form
 
         // brand block
         var brand = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Ui.SidebarBg };
+        brand.Disposed += (s, e) => logoImage?.Dispose();
         brand.Paint += (s, e) =>
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             var logo = new Rectangle(20, 22, 36, 36);
-            using (var path = Ui.RoundedRect(logo, 9))
-            using (var b = new LinearGradientBrush(logo, Ui.Accent, Color.FromArgb(120, 90, 250), 45f))
-                g.FillPath(b, path);
-            TextRenderer.DrawText(g, "B", Ui.F(15f, FontStyle.Bold), logo, Color.White,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            if (logoImage != null)
+            {
+                DrawBrandLogo(g, logoImage, logo);
+            }
+            else
+            {
+                using (var path = Ui.RoundedRect(logo, 9))
+                using (var b = new LinearGradientBrush(logo, brandPrimary, brandSecondary, 45f))
+                    g.FillPath(b, path);
+                TextRenderer.DrawText(g, "B", Ui.F(15f, FontStyle.Bold), logo, Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+
             TextRenderer.DrawText(g, businessName, Ui.F(13f, FontStyle.Bold),
                 new Rectangle(66, 20, 150, 22), Color.White, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
             TextRenderer.DrawText(g, subtitle, Ui.F(8.5f),
@@ -520,6 +532,65 @@ public class MainForm : Form
 
     private static string TextOrDefault(string? value, string fallback) =>
         string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static Color ColorFromHex(string? value, Color fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return fallback;
+
+        try
+        {
+            var color = ColorTranslator.FromHtml(value.Trim());
+            return color.IsEmpty ? fallback : color;
+        }
+        catch (ArgumentException)
+        {
+            return fallback;
+        }
+    }
+
+    private static Image? TryLoadImageCopy(string? imagePath)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath)) return null;
+
+            using var stream = File.OpenRead(imagePath);
+            using var image = Image.FromStream(stream);
+            return new Bitmap(image);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static void DrawBrandLogo(Graphics graphics, Image image, Rectangle bounds)
+    {
+        using var background = new SolidBrush(Color.White);
+        using var border = new Pen(Color.FromArgb(45, 55, 72));
+        using var path = Ui.RoundedRect(bounds, 9);
+        var state = graphics.Save();
+
+        graphics.FillPath(background, path);
+        graphics.SetClip(path);
+        graphics.DrawImage(image, FitImageRect(image, bounds));
+        graphics.Restore(state);
+        graphics.DrawPath(border, path);
+    }
+
+    private static Rectangle FitImageRect(Image image, Rectangle bounds)
+    {
+        if (image.Width <= 0 || image.Height <= 0) return bounds;
+
+        var scale = Math.Min((float)bounds.Width / image.Width, (float)bounds.Height / image.Height);
+        var width = Math.Max(1, (int)Math.Round(image.Width * scale));
+        var height = Math.Max(1, (int)Math.Round(image.Height * scale));
+        return new Rectangle(
+            bounds.Left + (bounds.Width - width) / 2,
+            bounds.Top + (bounds.Height - height) / 2,
+            width,
+            height);
+    }
 
     private void Delete(string noun, Action doDelete, Action refresh)
     {

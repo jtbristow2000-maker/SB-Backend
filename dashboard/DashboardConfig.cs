@@ -13,6 +13,13 @@ public class BrandingConfig
 {
     public string BusinessName { get; set; } = "";
     public string DashboardSubtitle { get; set; } = "";
+    public string Tagline { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Website { get; set; } = "";
+    public string PrimaryColor { get; set; } = "";
+    public string SecondaryColor { get; set; } = "";
+    public string LogoPath { get; set; } = "";
 }
 
 public class ThemeConfig

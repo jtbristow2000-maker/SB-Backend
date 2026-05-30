@@ -18,6 +18,8 @@ public class BuilderForm : Form
     private const int TabsH = 46;
     private const int FooterH = 72;
 
+    private BrandingConfig Branding => _workingConfig.Branding ??= new BrandingConfig();
+
     public BuilderForm(DashboardConfig config)
     {
         _workingConfig = CloneConfig(config);
@@ -141,6 +143,7 @@ public class BuilderForm : Form
         RenderModulesTab();
         RenderPipelineTab();
         RenderAppearanceTab();
+        RenderBrandingTab();
 
         return host;
     }
@@ -734,7 +737,7 @@ public class BuilderForm : Form
         _appearancePanel.ResumeLayout();
     }
 
-    private void AddThemeRow(TableLayoutPanel table, int row, string labelText, string initialValue, Action<string> update)
+    private void AddThemeRow(TableLayoutPanel table, int row, string labelText, string initialValue, Action<string> update, string fallback = "#000000", string title = "Appearance")
     {
         var name = new Label
         {
@@ -746,7 +749,7 @@ public class BuilderForm : Form
         };
         var hex = new TextBox
         {
-            Text = NormalizeHex(initialValue, "#000000"),
+            Text = NormalizeHex(initialValue, fallback),
             Dock = DockStyle.Fill,
             Font = Ui.F(10f),
             BorderStyle = BorderStyle.FixedSingle,
@@ -762,7 +765,7 @@ public class BuilderForm : Form
         };
         picker.FlatAppearance.BorderColor = Ui.CardBorder;
 
-        hex.Leave += (s, e) => UpdateThemeColor(hex, picker, update);
+        hex.Leave += (s, e) => UpdateThemeColor(hex, picker, update, title);
         picker.Click += (s, e) => PickThemeColor(hex, picker, update);
 
         update(hex.Text);
@@ -786,13 +789,13 @@ public class BuilderForm : Form
         update(value);
     }
 
-    private static void UpdateThemeColor(TextBox hex, Button picker, Action<string> update)
+    private static void UpdateThemeColor(TextBox hex, Button picker, Action<string> update, string title)
     {
         var previous = NormalizeHex(picker.BackColor, "#000000");
         var value = NormalizeHex(hex.Text, previous);
         if (!IsValidHexColor(hex.Text))
         {
-            MessageBox.Show("Use a hex color like #3884FF.", "Appearance",
+            MessageBox.Show("Use a hex color like #3884FF.", title,
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             hex.Text = previous;
             return;
@@ -829,6 +832,306 @@ public class BuilderForm : Form
 
     private static string NormalizeHex(Color color, string fallback) =>
         color.IsEmpty ? fallback : ColorToHex(color);
+
+    private void RenderBrandingTab()
+    {
+        _brandingPanel.SuspendLayout();
+        foreach (Control control in _brandingPanel.Controls) DisposeControlTree(control);
+        _brandingPanel.Controls.Clear();
+
+        var list = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoScroll = true,
+            BackColor = Color.White,
+            Padding = new Padding(0, 0, 8, 0),
+        };
+        list.Resize += (s, e) => ResizeBrandingSections(list);
+
+        list.Controls.Add(BuildIdentitySection());
+        list.Controls.Add(BuildContactSection());
+        list.Controls.Add(BuildBrandColorsSection());
+        list.Controls.Add(BuildLogoSection());
+
+        _brandingPanel.Controls.Add(list);
+        _brandingPanel.ResumeLayout();
+        ResizeBrandingSections(list);
+    }
+
+    private Control BuildIdentitySection()
+    {
+        var table = NewBrandingTextSection("IDENTITY", 3);
+        AddBrandingTextRow(table, 1, "Business Name", Branding.BusinessName,
+            value => Branding.BusinessName = value, required: true, fallback: "Business Hub");
+        AddBrandingTextRow(table, 2, "Tagline", Branding.Tagline,
+            value => Branding.Tagline = value);
+        AddBrandingTextRow(table, 3, "Sidebar Subtitle", Branding.DashboardSubtitle,
+            value => Branding.DashboardSubtitle = value, required: true, fallback: "Owner Dashboard");
+        return table;
+    }
+
+    private Control BuildContactSection()
+    {
+        var table = NewBrandingTextSection("CONTACT INFO", 3);
+        AddBrandingTextRow(table, 1, "Phone", Branding.Phone, value => Branding.Phone = value);
+        AddBrandingTextRow(table, 2, "Email", Branding.Email, value => Branding.Email = value);
+        AddBrandingTextRow(table, 3, "Website", Branding.Website, value => Branding.Website = value);
+        return table;
+    }
+
+    private Control BuildBrandColorsSection()
+    {
+        var table = NewBrandingSection("BRAND COLORS", 3, 3, 128);
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+
+        AddThemeRow(table, 1, "Primary Color", Branding.PrimaryColor,
+            value => Branding.PrimaryColor = value, fallback: "#3884FF", title: "Branding");
+        AddThemeRow(table, 2, "Secondary Color", Branding.SecondaryColor,
+            value => Branding.SecondaryColor = value, fallback: "#7C3AED", title: "Branding");
+        return table;
+    }
+
+    private Control BuildLogoSection()
+    {
+        var table = NewBrandingSection("LOGO", 3, 4, 158);
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 84));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
+        table.RowStyles[2] = new RowStyle(SizeType.Absolute, 82);
+
+        var label = BrandingFieldLabel("Logo Path");
+        var path = new TextBox
+        {
+            Text = Branding.LogoPath,
+            Dock = DockStyle.Fill,
+            Font = Ui.F(10f),
+            BorderStyle = BorderStyle.FixedSingle,
+            Margin = new Padding(0, 10, 10, 0),
+        };
+        var browse = new Button
+        {
+            Text = "Browse",
+            Dock = DockStyle.Fill,
+            Height = 28,
+            Margin = new Padding(0, 9, 8, 1),
+        };
+        var clear = new Button
+        {
+            Text = "Clear",
+            Dock = DockStyle.Fill,
+            Height = 28,
+            Margin = new Padding(0, 9, 0, 1),
+        };
+        var previewLabel = BrandingFieldLabel("Preview");
+        var preview = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.FromArgb(248, 250, 252),
+            BorderStyle = BorderStyle.FixedSingle,
+            Margin = new Padding(0, 8, 0, 0),
+        };
+
+        path.Leave += (s, e) => UpdateLogoPath(path, preview);
+        browse.Click += (s, e) => BrowseLogo(path, preview);
+        clear.Click += (s, e) =>
+        {
+            path.Text = "";
+            UpdateLogoPath(path, preview);
+        };
+
+        table.Controls.Add(label, 0, 1);
+        table.Controls.Add(path, 1, 1);
+        table.Controls.Add(browse, 2, 1);
+        table.Controls.Add(clear, 3, 1);
+        table.Controls.Add(previewLabel, 0, 2);
+        table.Controls.Add(preview, 1, 2);
+        table.SetColumnSpan(preview, 3);
+
+        RenderLogoPreview(preview, path.Text);
+        return table;
+    }
+
+    private static TableLayoutPanel NewBrandingTextSection(string title, int fieldRows)
+    {
+        var table = NewBrandingSection(title, fieldRows + 1, 2, 34 + fieldRows * 42);
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        return table;
+    }
+
+    private static TableLayoutPanel NewBrandingSection(string title, int rows, int columns, int height)
+    {
+        var table = new TableLayoutPanel
+        {
+            Width = 680,
+            Height = height,
+            ColumnCount = columns,
+            RowCount = rows,
+            BackColor = Color.White,
+            Margin = new Padding(0, 0, 0, 16),
+        };
+
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        for (var i = 1; i < rows; i++)
+            table.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+
+        var header = SectionLabel(title);
+        table.Controls.Add(header, 0, 0);
+        table.SetColumnSpan(header, columns);
+        return table;
+    }
+
+    private static void AddBrandingTextRow(TableLayoutPanel table, int row, string labelText, string initialValue,
+        Action<string> update, bool required = false, string fallback = "")
+    {
+        var label = BrandingFieldLabel(labelText);
+        var textBox = new TextBox
+        {
+            Text = initialValue,
+            Dock = DockStyle.Fill,
+            Font = Ui.F(10f),
+            BorderStyle = BorderStyle.FixedSingle,
+            Margin = new Padding(0, 8, 0, 0),
+        };
+
+        var lastValidValue = TextOrDefault(initialValue, fallback);
+        textBox.Leave += (s, e) =>
+        {
+            var value = textBox.Text.Trim();
+            if (required && string.IsNullOrWhiteSpace(value))
+            {
+                MessageBox.Show("This field cannot be blank.", "Branding",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                textBox.Text = lastValidValue;
+                return;
+            }
+
+            textBox.Text = value;
+            lastValidValue = value;
+            update(value);
+        };
+
+        table.Controls.Add(label, 0, row);
+        table.Controls.Add(textBox, 1, row);
+    }
+
+    private void BrowseLogo(TextBox path, Panel preview)
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Select Logo",
+            Filter = "Image files (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false,
+        };
+
+        if (File.Exists(path.Text))
+            dialog.FileName = path.Text;
+
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        path.Text = dialog.FileName;
+        UpdateLogoPath(path, preview);
+    }
+
+    private void UpdateLogoPath(TextBox path, Panel preview)
+    {
+        var value = path.Text.Trim();
+        path.Text = value;
+        Branding.LogoPath = value;
+        RenderLogoPreview(preview, value);
+    }
+
+    private static void RenderLogoPreview(Panel preview, string? logoPath)
+    {
+        preview.SuspendLayout();
+        foreach (Control control in preview.Controls) DisposeControlTree(control);
+        preview.Controls.Clear();
+
+        var image = TryLoadImageCopy(logoPath);
+        if (image != null)
+        {
+            preview.Controls.Add(new PictureBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Image = image,
+            });
+        }
+        else
+        {
+            preview.Controls.Add(new Label
+            {
+                Dock = DockStyle.Fill,
+                Text = string.IsNullOrWhiteSpace(logoPath) ? "No logo selected" : "Logo file missing or unreadable",
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Ui.TextMuted,
+                Font = Ui.F(9f),
+            });
+        }
+
+        preview.ResumeLayout();
+    }
+
+    private static Image? TryLoadImageCopy(string? imagePath)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath)) return null;
+
+            using var stream = File.OpenRead(imagePath);
+            using var image = Image.FromStream(stream);
+            return new Bitmap(image);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static void DisposeControlTree(Control control)
+    {
+        foreach (Control child in control.Controls.Cast<Control>().ToList())
+            DisposeControlTree(child);
+
+        if (control is PictureBox pictureBox)
+        {
+            pictureBox.Image?.Dispose();
+            pictureBox.Image = null;
+        }
+
+        control.Dispose();
+    }
+
+    private static Label SectionLabel(string text) => new()
+    {
+        Text = text,
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.MiddleLeft,
+        ForeColor = Ui.TextMuted,
+        Font = Ui.F(8.5f, FontStyle.Bold),
+    };
+
+    private static Label BrandingFieldLabel(string text) => new()
+    {
+        Text = text,
+        Dock = DockStyle.Fill,
+        TextAlign = ContentAlignment.MiddleLeft,
+        ForeColor = Ui.TextDark,
+        Font = Ui.F(9.5f, FontStyle.Bold),
+    };
+
+    private static void ResizeBrandingSections(FlowLayoutPanel list)
+    {
+        foreach (Control control in list.Controls)
+            control.Width = Math.Max(660, list.ClientSize.Width - 10);
+    }
 
     private static bool SameText(string? left, string? right) =>
         string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -917,8 +1220,15 @@ public class BuilderForm : Form
             Version = source.Version,
             Branding = new BrandingConfig
             {
-                BusinessName = source.Branding?.BusinessName ?? "",
-                DashboardSubtitle = source.Branding?.DashboardSubtitle ?? "",
+                BusinessName = TextOrDefault(source.Branding?.BusinessName, "Business Hub"),
+                DashboardSubtitle = TextOrDefault(source.Branding?.DashboardSubtitle, "Owner Dashboard"),
+                Tagline = source.Branding?.Tagline ?? "",
+                Phone = source.Branding?.Phone ?? "",
+                Email = source.Branding?.Email ?? "",
+                Website = source.Branding?.Website ?? "",
+                PrimaryColor = NormalizeHex(source.Branding?.PrimaryColor, "#3884FF"),
+                SecondaryColor = NormalizeHex(source.Branding?.SecondaryColor, "#7C3AED"),
+                LogoPath = source.Branding?.LogoPath ?? "",
             },
             Theme = new ThemeConfig
             {

@@ -58,6 +58,13 @@ public static class ConfigManager
         {
             BusinessName = "Business Hub",
             DashboardSubtitle = "Owner Dashboard",
+            Tagline = "",
+            Phone = "",
+            Email = "",
+            Website = "",
+            PrimaryColor = "#3884FF",
+            SecondaryColor = "#7C3AED",
+            LogoPath = "",
         },
         Theme = new ThemeConfig
         {

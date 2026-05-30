@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - BUILDER-10 Branding tab
+
+### Added
+- `DashboardConfig.cs`: added extended branding fields for tagline, contact info, brand colors, and logo path.
+- `BuilderForm.cs`: implemented the Branding tab with identity fields, contact fields, brand color pickers, logo browsing, clearing, and preview.
+- `MainForm.cs`: sidebar branding now attempts to render a configured logo and falls back safely when the file is missing or unreadable.
+
+### Changed
+- `ConfigManager.cs`: default branding now includes primary and secondary brand colors.
+- `BuilderForm.cs`: working-copy cloning now carries all branding fields so Cancel still discards unsaved changes.
+
+### Notes
+- Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
+- MigrationRunner, backups, Reset to Defaults, theme presets, backend integration, SMS features, and later builder tasks were not implemented.
+
 ## [2026-05-29] - D1 Save & Apply persistence fix
 
 ### Changed
