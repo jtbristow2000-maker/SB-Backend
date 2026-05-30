@@ -595,7 +595,7 @@ public class MainForm : Form
     // Opens a read-only message bubble, then marks an unread message as read.
     private void OpenMessageReader(Message m)
     {
-        using (var reader = new MessageReaderForm(m.ContactName, Join(m.Channel, m.DateReceived, m.Phone), m.Content))
+        using (var reader = new InfoPopupForm(m.ContactName, Join(m.Channel, m.DateReceived, m.Phone), m.Content))
             reader.ShowDialog(this);
 
         if (IsStage("messages", m.Status, "unread"))
@@ -651,9 +651,30 @@ public class MainForm : Form
             {
                 q.Status = status;
                 Database.SaveQuote(q);
-            }, RefreshQuotes))).ToList();
+            }, RefreshQuotes),
+            () => OpenQuote(q.Id))).ToList();
         _quotePage.SetCards(cards);
         if (_navQuote != null) _navQuote.Count = data.Count;
+    }
+
+    // Click a quote card to view all its details in a popup.
+    private void OpenQuote(int id)
+    {
+        var q = Database.GetQuotes().FirstOrDefault(x => x.Id == id);
+        if (q == null) return;
+
+        var lines = new List<string>();
+        AddDetail(lines, "Service", q.Service);
+        AddDetail(lines, "Amount", FormatMoney(q.Amount));
+        AddDetail(lines, "Phone", q.Phone);
+        AddDetail(lines, "Status", StageLabelForStatus("quotes", q.Status));
+        AddDetail(lines, "Notes", q.Notes);
+
+        using var popup = new InfoPopupForm(
+            TextOrDefault(q.CustomerName, "Quote"),
+            Join("Quote", q.QuoteDate),
+            string.Join(Environment.NewLine, lines));
+        popup.ShowDialog(this);
     }
 
     // ---------------------------------------------------------------- helpers

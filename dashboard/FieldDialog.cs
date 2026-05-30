@@ -141,14 +141,14 @@ public class FieldDialog : Form
             }
             else if (f.Kind == FieldKind.Multiline)
             {
-                var tb = new TextBox
+                // RichTextBox only shows its scrollbar when the text actually overflows.
+                var tb = new RichTextBox
                 {
                     Font = Ui.F(10.5f),
                     Width = FormWidth - 56,
                     Height = 70,
                     Text = f.Value,
-                    Multiline = true,
-                    ScrollBars = ScrollBars.Vertical,
+                    ScrollBars = RichTextBoxScrollBars.Vertical,
                     BorderStyle = BorderStyle.FixedSingle,
                     Margin = new Padding(0, 0, 0, 4),
                 };
@@ -190,11 +190,24 @@ public class FieldDialog : Form
         root.Controls.Add(footer, 0, 2);
         Controls.Add(root);
 
-        // Size the form to fit the fields.
+        // Keep field inputs filling the body width as the dialog is resized.
+        body.Resize += (s, e) => ResizeFields(body);
+
+        // Size the form to fit the fields, then allow resizing down to a sensible minimum.
         body.PerformLayout();
         int bodyH = Math.Min(590, body.PreferredSize.Height + 6);
         ClientSize = new Size(FormWidth, HeaderH + bodyH + FooterH);
+        MinimumSize = new Size(380, 300);
+        ResizeFields(body);
         ApplyRoundedRegion();
+    }
+
+    // Field labels are AutoSize; every other child is an input that should fill the body width.
+    private static void ResizeFields(FlowLayoutPanel body)
+    {
+        int w = Math.Max(160, body.ClientSize.Width - body.Padding.Horizontal - 8);
+        foreach (Control c in body.Controls)
+            if (c is not Label) c.Width = w;
     }
 
     protected override void OnResize(EventArgs e)
@@ -257,6 +270,44 @@ public class FieldDialog : Form
         using var pen = new Pen(ModalBorderColor, 2f);
         using var path = Ui.RoundedRect(rect, ModalRadius);
         e.Graphics.DrawPath(pen, path);
+
+        // Resize grip — three small dots in the bottom-right corner.
+        using var grip = new SolidBrush(Color.FromArgb(120, 150, 158, 172));
+        int gx = Width - 9, gy = Height - 9;
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j <= i; j++)
+                e.Graphics.FillEllipse(grip, gx - i * 4, gy - j * 4, 2, 2);
+    }
+
+    // Make the borderless dialog resizable by reporting edge/corner hit zones.
+    // NOTE: fully-qualified Message — this namespace also defines a Message model class.
+    protected override void WndProc(ref System.Windows.Forms.Message m)
+    {
+        const int WM_NCHITTEST = 0x0084;
+        if (m.Msg == WM_NCHITTEST)
+        {
+            int lp = (int)m.LParam.ToInt64();
+            int sx = unchecked((short)(lp & 0xFFFF));
+            int sy = unchecked((short)((lp >> 16) & 0xFFFF));
+            var p = PointToClient(new Point(sx, sy));
+
+            const int g = 8;
+            bool left = p.X <= g, right = p.X >= ClientSize.Width - g;
+            bool top = p.Y <= g, bottom = p.Y >= ClientSize.Height - g;
+
+            int ht =
+                (right && bottom) ? 17 :
+                (left && bottom) ? 16 :
+                (right && top) ? 14 :
+                (left && top) ? 13 :
+                right ? 11 :
+                left ? 10 :
+                bottom ? 15 :
+                top ? 12 : 0;
+
+            if (ht != 0) { m.Result = (IntPtr)ht; return; }
+        }
+        base.WndProc(ref m);
     }
 
     private const int WM_NCLBUTTONDOWN = 0xA1;

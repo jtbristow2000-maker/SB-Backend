@@ -4,15 +4,16 @@ using System.Windows.Forms;
 namespace BusinessDashboard;
 
 // ---------------------------------------------------------------------------
-// MessageReaderForm — a small rounded popup for reading a single message.
+// InfoPopupForm — a small, resizable, read-only popup for viewing one record.
 //
-// Opened from MainForm.OpenMessageReader() when the owner clicks a message card.
-// Read-only: shows sender, channel/date/phone, and the full message body.
-// MainForm handles the "mark as read" side-effect after this closes.
+// Used by MainForm to show a message (click a message card) or a quote
+// (click a quote card). Title + meta line + body text. The body is a
+// RichTextBox so the scrollbar only appears when the text actually overflows.
+// The borderless rounded window is user-resizable (WndProc edge hit-testing).
 // ---------------------------------------------------------------------------
 
-/// <summary>A rounded, read-only popup that displays one message's full content.</summary>
-public class MessageReaderForm : Form
+/// <summary>A rounded, resizable, read-only popup that displays a title, meta line, and body.</summary>
+public class InfoPopupForm : Form
 {
     private const int FormWidth = 460;
     private const int HeaderH = 64;
@@ -20,9 +21,9 @@ public class MessageReaderForm : Form
     private const int ModalRadius = 12;
     private static readonly Color ModalBorderColor = Color.FromArgb(132, 146, 170);
 
-    public MessageReaderForm(string sender, string meta, string body)
+    public InfoPopupForm(string title, string meta, string body)
     {
-        Text = "Message";
+        Text = title;
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterParent;
         BackColor = Color.White;
@@ -40,11 +41,11 @@ public class MessageReaderForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, FooterH));
 
-        // ---- Header (sender + close) ----
+        // ---- Header (title + close) ----
         var header = new Panel { Dock = DockStyle.Fill, BackColor = Ui.SidebarBg };
-        var title = new Label
+        var titleLabel = new Label
         {
-            Text = string.IsNullOrWhiteSpace(sender) ? "Message" : sender,
+            Text = string.IsNullOrWhiteSpace(title) ? "Details" : title,
             ForeColor = Color.White, Font = Ui.F(13.5f, FontStyle.Bold),
             Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(22, 0, 0, 0),
@@ -57,13 +58,13 @@ public class MessageReaderForm : Form
         close.Click += (s, e) => Close();
         close.MouseEnter += (s, e) => close.ForeColor = Color.White;
         close.MouseLeave += (s, e) => close.ForeColor = Color.FromArgb(180, 190, 210);
-        header.Controls.Add(title);
+        header.Controls.Add(titleLabel);
         header.Controls.Add(close);
         header.MouseDown += (s, e) => DragWindow();
-        title.MouseDown += (s, e) => DragWindow();
+        titleLabel.MouseDown += (s, e) => DragWindow();
 
-        // ---- Body (meta + message text) ----
-        var bodyPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(22, 14, 22, 8) };
+        // ---- Body (meta + content) ----
+        var bodyPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(22, 14, 22, 10) };
         var metaLabel = new Label
         {
             Text = meta,
@@ -71,21 +72,20 @@ public class MessageReaderForm : Form
             ForeColor = Ui.TextMuted, Font = Ui.F(9.5f, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft,
         };
-        var content = new TextBox
+        // RichTextBox hides its scrollbar automatically when the text fits.
+        var content = new RichTextBox
         {
-            Text = string.IsNullOrWhiteSpace(body) ? "(No message content)" : body,
+            Text = string.IsNullOrWhiteSpace(body) ? "(No details)" : body,
             Dock = DockStyle.Fill,
-            Multiline = true,
             ReadOnly = true,
             BorderStyle = BorderStyle.None,
             BackColor = Color.White,
             ForeColor = Ui.TextBody,
             Font = Ui.F(11f),
-            ScrollBars = ScrollBars.Vertical,
-            Cursor = Cursors.Default,
+            ScrollBars = RichTextBoxScrollBars.Vertical,
             TabStop = false,
+            Cursor = Cursors.Default,
         };
-        content.GotFocus += (s, e) => close.Focus();   // avoid the caret/selection look
         bodyPanel.Controls.Add(content);
         bodyPanel.Controls.Add(metaLabel);
 
@@ -95,15 +95,14 @@ public class MessageReaderForm : Form
         ok.Click += (s, e) => Close();
         footer.Controls.Add(ok);
         footer.Resize += (s, e) => ok.Location = new Point(footer.Width - 22 - ok.Width, 11);
+        content.GotFocus += (s, e) => ok.Focus();   // avoid a blinking caret in the read-only body
 
         root.Controls.Add(header, 0, 0);
         root.Controls.Add(bodyPanel, 0, 1);
         root.Controls.Add(footer, 0, 2);
         Controls.Add(root);
 
-        // Size to fit the body (clamped to a readable default), then round the window.
-        // The window is user-resizable (see WndProc) so long messages can be enlarged.
-        int bodyTextH = Math.Min(420, Math.Max(170, MeasureBody(body)));
+        int bodyTextH = Math.Min(420, Math.Max(150, MeasureBody(body)));
         ClientSize = new Size(FormWidth, HeaderH + bodyTextH + FooterH);
         MinimumSize = new Size(360, 240);
         ApplyRoundedRegion();
@@ -114,7 +113,7 @@ public class MessageReaderForm : Form
         using var f = Ui.F(11f);
         var sz = TextRenderer.MeasureText(body ?? "", f, new Size(FormWidth - 44, 0),
             TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
-        return sz.Height + 40;   // + meta line + padding
+        return sz.Height + 44;   // + meta line + padding
     }
 
     protected override void OnResize(EventArgs e)
@@ -140,7 +139,7 @@ public class MessageReaderForm : Form
         using var path = Ui.RoundedRect(new Rectangle(1, 1, Width - 3, Height - 3), ModalRadius);
         e.Graphics.DrawPath(pen, path);
 
-        // Resize grip — three small dots in the bottom-right corner (drag to resize).
+        // Resize grip — three small dots in the bottom-right corner.
         using var grip = new SolidBrush(Color.FromArgb(110, 150, 158, 172));
         int gx = Width - 9, gy = Height - 9;
         for (int i = 0; i < 3; i++)
@@ -148,7 +147,7 @@ public class MessageReaderForm : Form
                 e.Graphics.FillEllipse(grip, gx - i * 4, gy - j * 4, 2, 2);
     }
 
-    // Make the borderless window resizable by reporting edge/corner hit zones to Windows.
+    // Make the borderless window resizable by reporting edge/corner hit zones.
     // NOTE: fully-qualified Message — this namespace also defines a Message model class.
     protected override void WndProc(ref System.Windows.Forms.Message m)
     {
@@ -165,14 +164,14 @@ public class MessageReaderForm : Form
             bool top = p.Y <= g, bottom = p.Y >= ClientSize.Height - g;
 
             int ht =
-                (right && bottom) ? 17 :   // HTBOTTOMRIGHT
-                (left && bottom) ? 16 :    // HTBOTTOMLEFT
-                (right && top) ? 14 :      // HTTOPRIGHT
-                (left && top) ? 13 :       // HTTOPLEFT
-                right ? 11 :               // HTRIGHT
-                left ? 10 :                // HTLEFT
-                bottom ? 15 :              // HTBOTTOM
-                top ? 12 : 0;              // HTTOP
+                (right && bottom) ? 17 :
+                (left && bottom) ? 16 :
+                (right && top) ? 14 :
+                (left && top) ? 13 :
+                right ? 11 :
+                left ? 10 :
+                bottom ? 15 :
+                top ? 12 : 0;
 
             if (ht != 0) { m.Result = (IntPtr)ht; return; }
         }

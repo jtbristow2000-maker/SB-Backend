@@ -129,6 +129,21 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Resizable dialogs, auto-hide scrollbars, click-to-view quotes
+
+### Added
+- **Click a quote to view all its details.** Quote cards gained `onActivate`; `MainForm.OpenQuote(id)` shows a popup with Service, Amount, Phone, Status, and Notes (single-click to view; edit via the ✎ icon — same pattern as messages).
+- Generalised the message reader into **`InfoPopupForm`** (title + meta + body), now reused for both messages and quotes. Removed `MessageReaderForm.cs`.
+
+### Changed
+- **`FieldDialog` is now resizable** (edge/corner drag, `MinimumSize` 380×300, bottom-right grip). Field inputs widen to fill the dialog as it grows (`ResizeFields`).
+- **Scrollbars only show when needed.** The dialog's multiline Notes field and the info popup body now use a `RichTextBox` (`ScrollBars = Vertical`), which auto-hides the scrollbar unless the text actually overflows — fixes the always-visible scrollbar on short content.
+- `InfoPopupForm` carries the same resize/grip behaviour as the former message reader.
+
+### Notes
+- The big "Customize Dashboard" builder modal is intentionally left fixed-size for now (dense absolute layout); say the word if you want it resizable too.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - Calendar: click-to-edit chips + new Week view with time axis
 
 ### Added
