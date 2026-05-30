@@ -11,21 +11,25 @@ namespace BusinessDashboard;
 //    "what needs my attention / what changed / what next" the moment it opens.
 //  • Reads NO new data — MainForm.RefreshHome() computes counts and builds the
 //    attention cards from the same SQLite tables the list pages already use,
-//    then pushes them in via SetMetrics() / SetAttentionCards().
-//  • HomePage is a dumb container: greeting band, metric row, attention list.
+//    then pushes them in via SetMetrics() / SetAttentionCards() / SetIdentity().
+//  • Surfaces branding: the greeting band shows the tagline + contact line so
+//    the values entered in the Branding tab actually appear in the app.
 // ---------------------------------------------------------------------------
 
-/// <summary>The "Today" overview page: greeting, metric cards, and a needs-attention list.</summary>
+/// <summary>The "Today" overview page: greeting, branding line, metric cards, needs-attention list.</summary>
 public class HomePage : Panel
 {
     /// <summary>A single headline metric shown as a card in the top row.</summary>
     public readonly record struct Metric(string Label, int Value, Color Accent, string IconKey);
 
     private readonly Label _greeting;
-    private readonly Label _date;
+    private readonly Label _sub;       // date (+ tagline)
+    private readonly Label _contact;   // phone · email · website
     private readonly FlowLayoutPanel _metrics;
     private readonly Panel _attentionHost;
     private readonly Label _attentionEmpty;
+
+    private string _tagline = "";
 
     public HomePage()
     {
@@ -40,26 +44,33 @@ public class HomePage : Panel
             RowCount = 3,
             BackColor = Ui.ContentBg,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));   // greeting
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 116));  // metric cards
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // attention
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));    // greeting band
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 122));   // metric cards
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // attention
 
         // ---- Greeting band ----
         var head = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
         _greeting = new Label
         {
             Font = Ui.F(21f, FontStyle.Bold), ForeColor = Ui.TextStrong,
-            AutoSize = false, Location = new Point(0, 2), Width = 600, Height = 36,
+            AutoSize = false, Location = new Point(0, 0), Width = 760, Height = 34,
             TextAlign = ContentAlignment.MiddleLeft,
         };
-        _date = new Label
+        _sub = new Label
         {
             Font = Ui.F(10.5f), ForeColor = Ui.TextMuted,
-            AutoSize = false, Location = new Point(2, 42), Width = 600, Height = 20,
+            AutoSize = false, Location = new Point(2, 38), Width = 760, Height = 18,
             TextAlign = ContentAlignment.MiddleLeft,
         };
+        _contact = new Label
+        {
+            Font = Ui.F(9f), ForeColor = Ui.TextMuted,
+            AutoSize = false, Location = new Point(2, 60), Width = 760, Height = 16,
+            TextAlign = ContentAlignment.MiddleLeft, Visible = false,
+        };
         head.Controls.Add(_greeting);
-        head.Controls.Add(_date);
+        head.Controls.Add(_sub);
+        head.Controls.Add(_contact);
 
         // ---- Metric row ----
         _metrics = new FlowLayoutPanel
@@ -68,7 +79,7 @@ public class HomePage : Panel
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             BackColor = Ui.ContentBg,
-            Padding = new Padding(0, 6, 0, 6),
+            Padding = new Padding(0, 8, 0, 8),
         };
 
         // ---- Attention area ----
@@ -112,9 +123,18 @@ public class HomePage : Panel
     private void UpdateGreeting()
     {
         var now = DateTime.Now;
-        var part = now.Hour < 12 ? "Good morning." : now.Hour < 18 ? "Good afternoon." : "Good evening.";
-        _greeting.Text = part;
-        _date.Text = now.ToString("dddd, MMMM d");
+        _greeting.Text = now.Hour < 12 ? "Good morning." : now.Hour < 18 ? "Good afternoon." : "Good evening.";
+        var date = now.ToString("dddd, MMMM d");
+        _sub.Text = string.IsNullOrWhiteSpace(_tagline) ? date : $"{date}     •     {_tagline}";
+    }
+
+    /// <summary>Surfaces branding entered in the builder: tagline + a combined contact line.</summary>
+    public void SetIdentity(string? tagline, string? contact)
+    {
+        _tagline = (tagline ?? "").Trim();
+        UpdateGreeting();
+        _contact.Text = (contact ?? "").Trim();
+        _contact.Visible = _contact.Text.Length > 0;
     }
 
     public void SetMetrics(IEnumerable<Metric> metrics)
@@ -158,8 +178,8 @@ internal class MetricCard : Panel
         _metric = metric;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-        Width = 196;
-        Height = 96;
+        Width = 198;
+        Height = 100;
         BackColor = Ui.ContentBg;
     }
 
@@ -188,20 +208,20 @@ internal class MetricCard : Panel
         }
 
         // Accent icon chip, top-right.
-        var chip = new Rectangle(w - 16 - 30, 16, 30, 30);
+        var chip = new Rectangle(w - 14 - 28, 14, 28, 28);
         using (var cp = Ui.RoundedRect(chip, 9))
         using (var cb = new SolidBrush(Ui.Soft(_metric.Accent, 30)))
             g.FillPath(cb, cp);
-        Icons.Draw(g, _metric.IconKey, new Rectangle(chip.X + 6, chip.Y + 6, 18, 18), _metric.Accent, 1.8f);
+        Icons.Draw(g, _metric.IconKey, new Rectangle(chip.X + 6, chip.Y + 6, 16, 16), _metric.Accent, 1.8f);
 
-        // Big value.
-        TextRenderer.DrawText(g, _metric.Value.ToString(), Ui.F(23f, FontStyle.Bold),
-            new Rectangle(16, 30, w - 60, 34), Ui.TextStrong,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+        // Big value — generous rect so the digits never clip, kept clear of the chip.
+        TextRenderer.DrawText(g, _metric.Value.ToString(), Ui.F(21f, FontStyle.Bold),
+            new Rectangle(16, 28, w - 60, 40), Ui.TextStrong,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
         // Label.
         TextRenderer.DrawText(g, _metric.Label, Ui.F(9.5f),
-            new Rectangle(17, 66, w - 24, 18), Ui.TextMuted,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            new Rectangle(17, 72, w - 26, 18), Ui.TextMuted,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
 }

@@ -394,6 +394,10 @@ public class MainForm : Form
     {
         if (_homePage == null) return;
 
+        // Surface branding entered in the builder (tagline + contact line).
+        var b = _config.Branding;
+        _homePage.SetIdentity(b?.Tagline, Join(b?.Phone ?? "", b?.Email ?? "", b?.Website ?? ""));
+
         var leads = Database.GetLeads();
         var messages = Database.GetMessages();
         var quotes = Database.GetQuotes();

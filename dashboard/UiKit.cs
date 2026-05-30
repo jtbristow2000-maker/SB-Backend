@@ -276,7 +276,8 @@ public class PillButton : Control
 
         TextRenderer.DrawText(g, Text, Font, rect,
             Ghost ? BaseColor : ForeColor,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+            TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
     }
 }
 

@@ -976,12 +976,16 @@ public class BuilderForm : Form
             Margin = new Padding(0, 9, 14, 9),
         };
         var hex = hexInput.Inner;
-        // ColorSwatchButton gives the same rounded, custom-painted look as Pipeline stage swatches.
+        // Fixed size + Anchor.None centres the swatch in its cell, so every swatch
+        // (Primary, Secondary, and all Appearance rows) renders pixel-identical
+        // regardless of the row height of the tab it lives in.
         var swatch = new ColorSwatchButton
         {
             SwatchColor = ColorFromHex(hex.Text, ColorFromHex(fallback, Color.Gray)),
-            Dock = DockStyle.Fill,
-            Margin = new Padding(0, 8, 0, 8),
+            Width = 72,
+            Height = 28,
+            Anchor = AnchorStyles.None,
+            Margin = new Padding(0),
         };
 
         hex.Leave += (s, e) => UpdateThemeColor(hex, swatch, update, title);

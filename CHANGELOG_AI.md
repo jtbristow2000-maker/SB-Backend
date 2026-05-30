@@ -129,6 +129,20 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Fixes: swatch sizing, button ampersand, home overlap + branding surfaced
+
+### Fixed
+- **`UiKit.cs` (PillButton):** added `TextFormatFlags.NoPrefix` so `&` renders literally. "Save & Apply" no longer shows as "Save _Apply" (the `&` was being eaten as a Windows mnemonic and underlining the following space).
+- **`BuilderForm.cs` (AddThemeRow):** color swatches are now a fixed 72×28 centred via `Anchor.None` instead of `Dock.Fill`. Primary, Secondary, and all Appearance swatches now render pixel-identical regardless of each tab's row height (previously they could differ).
+- **`HomePage.cs` (MetricCard):** reworked the metric card layout — value font 23→21, taller value rect, label moved down, card height 96→100 — so the big number no longer clips at the bottom and nothing overlaps the icon chip.
+
+### Added
+- **Branding now appears in the app.** `HomePage.SetIdentity(tagline, contact)` surfaces the Tagline next to the date in the greeting band and a combined Phone · Email · Website line beneath it. `MainForm.RefreshHome()` feeds these from `config.Branding`.
+  - Full branding visibility map: Business Name → window title + persistent header; Sidebar Subtitle → sidebar; Logo + Primary/Secondary colours → sidebar logo block; Tagline + Phone/Email/Website → Home greeting band.
+
+### Notes
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - UI-16/17 pipeline funnel preview + redesigned empty states
 
 ### Changed — `dashboard/CardListPage.cs`
