@@ -129,6 +129,23 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - UI-04 card redesign (soft surfaces, status edge, calm rows)
+
+### Changed — `dashboard/EntityCard.cs`
+- **Removed the hard border** → replaced with a layered translucent **soft drop shadow** (3 offset rounded rects) + a whisper `Ui.Hairline` outline. Cards now read as surfaces, not spreadsheet cells.
+- **Hover lift:** surface changes to `Ui.SurfaceAlt` and the shadow deepens on hover.
+- **Status-coloured 3px left edge** added — the card's single source of colour/meaning.
+- **Rainbow avatar removed** (folds in UI-05): the monogram chip is now a calm neutral `#EDEFF3` with `Ui.TextBody` initials instead of 1-of-8 saturated hues.
+- **Status badge restyled:** soft `Ui.Soft()` fill, a 7px status **dot** before the label, no hard border (start of UI-06).
+- **Edit/delete icons hidden until hover** — rows are calm at rest; actions fade in only when hovering the card.
+- **Typography:** title bumped to 12pt and recoloured to `Ui.TextStrong`; subtitle stays muted.
+
+### Notes
+- Card height and the `Gap`/Dock-Top stacking model are unchanged, so list layout/scroll behaviour is identical.
+- Status badge remains click-to-change (`onStatusClick` unchanged); hit-testing is unaffected because hovering is guaranteed before any click.
+- Emoji action glyphs (✎ 🗑) are retained for now — a drawn icon set is the separate UI-07 task.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - UI-01 palette rework (calm/premium foundation)
 
 ### Changed — `dashboard/UiKit.cs`

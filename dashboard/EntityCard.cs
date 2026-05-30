@@ -55,7 +55,7 @@ public class EntityCard : Panel
         _status = string.IsNullOrWhiteSpace(status) ? "—" : status;
         _statusText = _status;
         _statusColor = statusColor;
-        _avatarColor = Ui.AvatarColor(title);
+        _avatarColor = Color.FromArgb(237, 239, 243); // calm neutral chip — no rainbow
         _onEdit = onEdit;
         _onDelete = onDelete;
         _onStatusClick = onStatusClick;
@@ -74,7 +74,7 @@ public class EntityCard : Panel
         _editRect = new Rectangle(_deleteRect.Left - IconSize - 4, (BodyH - IconSize) / 2, IconSize, IconSize);
 
         var sz = TextRenderer.MeasureText(g, _statusText, Ui.F(8.5f, FontStyle.Bold));
-        int badgeW = sz.Width + 24, badgeH = 24;
+        int badgeW = sz.Width + 36, badgeH = 24;   // +36 = left pad + dot + gap + right pad
         _badgeRect = new Rectangle(_editRect.Left - badgeW - 14, (BodyH - badgeH) / 2, badgeW, badgeH);
     }
 
@@ -125,53 +125,82 @@ public class EntityCard : Panel
 
         ComputeLayout(g);
 
-        // Card body (top portion; Gap px left at bottom for spacing)
-        var body = new Rectangle(0, 0, Width - 1, BodyH - 1);
+        int w = Width - 1;
+        int h = BodyH - 2;   // reserve 2px so the soft shadow shows beneath the card
+
+        // Soft drop shadow — layered translucent rounded rects, no hard border.
+        for (int s = 3; s >= 1; s--)
+        {
+            using var sp = Ui.RoundedRect(new Rectangle(0, s, w, h), 12);
+            using var sb = new SolidBrush(Color.FromArgb(_hover ? 9 : 5, 17, 21, 28));
+            g.FillPath(sb, sp);
+        }
+
+        // Card surface — lifts to SurfaceAlt on hover.
+        var body = new Rectangle(0, 0, w, h);
         using (var path = Ui.RoundedRect(body, 12))
         {
-            using var fill = new SolidBrush(Ui.CardBg);
+            using var fill = new SolidBrush(_hover ? Ui.SurfaceAlt : Ui.CardBg);
             g.FillPath(fill, path);
-            using var pen = new Pen(_hover ? Ui.CardBorderHover : Ui.CardBorder, _hover ? 1.6f : 1f);
+            using var pen = new Pen(Ui.Hairline, 1f);
             g.DrawPath(pen, path);
         }
 
-        // Avatar
-        int av = 44, ax = 16, ay = (BodyH - av) / 2;
+        var sc = _statusColor ?? Ui.StatusColor(_status);
+
+        // Status-coloured left edge — the card's single source of colour/meaning.
+        using (var ep = Ui.RoundedRect(new Rectangle(1, 14, 3, h - 28), 2))
+        using (var eb = new SolidBrush(sc))
+            g.FillPath(eb, ep);
+
+        // Neutral monogram chip (replaces the old rainbow avatar).
+        int av = 40, ax = 18, ay = (h - av) / 2;
         using (var ab = new SolidBrush(_avatarColor))
             g.FillEllipse(ab, ax, ay, av, av);
-        TextRenderer.DrawText(g, Ui.Initials(_title), Ui.F(12f, FontStyle.Bold),
-            new Rectangle(ax, ay, av, av), Color.White,
+        TextRenderer.DrawText(g, Ui.Initials(_title), Ui.F(11f, FontStyle.Bold),
+            new Rectangle(ax, ay, av, av), Ui.TextBody,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
 
         // Title + subtitle
         int textX = ax + av + 14;
         int textRight = _badgeRect.Left - 12;
         if (textRight < textX + 60) textRight = textX + 60;
-        TextRenderer.DrawText(g, _title, Ui.F(11.5f, FontStyle.Bold),
-            new Rectangle(textX, 15, textRight - textX, 24), Ui.TextDark,
+        TextRenderer.DrawText(g, _title, Ui.F(12f, FontStyle.Bold),
+            new Rectangle(textX, 14, textRight - textX, 24), Ui.TextStrong,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         TextRenderer.DrawText(g, _subtitle, Ui.F(9.5f),
-            new Rectangle(textX, 40, textRight - textX, 22), Ui.TextMuted,
+            new Rectangle(textX, 39, textRight - textX, 22), Ui.TextMuted,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-        // Status badge
-        var sc = _statusColor ?? Ui.StatusColor(_status);
-        using (var path = Ui.RoundedRect(_badgeRect, _badgeRect.Height / 2))
-        {
-            using var b = new SolidBrush(Color.FromArgb(_hoverStatus ? 42 : 30, sc));
-            g.FillPath(b, path);
-            if (_hoverStatus)
-            {
-                using var pen = new Pen(Color.FromArgb(120, sc));
-                g.DrawPath(pen, path);
-            }
-        }
-        TextRenderer.DrawText(g, _statusText, Ui.F(8.5f, FontStyle.Bold), _badgeRect, sc,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        // Status badge — soft fill + dot, no hard border.
+        DrawStatusBadge(g, sc);
 
-        // Action icons
-        DrawIcon(g, _editRect, "✎", _hoverEdit, Ui.Info);
-        DrawIcon(g, _deleteRect, "🗑", _hoverDelete, Ui.Danger);
+        // Action icons — only visible on hover, so rows stay calm at rest.
+        if (_hover)
+        {
+            DrawIcon(g, _editRect, "✎", _hoverEdit, Ui.Info);
+            DrawIcon(g, _deleteRect, "🗑", _hoverDelete, Ui.Danger);
+        }
+    }
+
+    private void DrawStatusBadge(Graphics g, Color sc)
+    {
+        using (var path = Ui.RoundedRect(_badgeRect, _badgeRect.Height / 2))
+        using (var b = new SolidBrush(Ui.Soft(sc, _hoverStatus ? 46 : 28)))
+            g.FillPath(b, path);
+
+        // Status dot
+        const int dot = 7;
+        int dx = _badgeRect.Left + 12;
+        int dy = _badgeRect.Top + (_badgeRect.Height - dot) / 2;
+        using (var db = new SolidBrush(sc))
+            g.FillEllipse(db, dx, dy, dot, dot);
+
+        // Label, offset right of the dot
+        int labelX = dx + dot + 5;
+        var labelRect = new Rectangle(labelX, _badgeRect.Top, _badgeRect.Right - labelX - 8, _badgeRect.Height);
+        TextRenderer.DrawText(g, _statusText, Ui.F(8.5f, FontStyle.Bold), labelRect, sc,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 
     private static void DrawIcon(Graphics g, Rectangle r, string glyph, bool hover, Color hoverColor)
