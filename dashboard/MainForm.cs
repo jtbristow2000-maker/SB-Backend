@@ -286,7 +286,13 @@ public class MainForm : Form
             Join(l.Phone, l.Email, l.Source),
             StageLabelForStatus("leads", l.Status),
             () => EditLeadDialog(l),
-            () => Delete("lead", () => Database.DeleteLead(l.Id), RefreshLeads))).ToList();
+            () => Delete("lead", () => Database.DeleteLead(l.Id), RefreshLeads),
+            StageColorForStatus("leads", l.Status),
+            (owner, location) => ShowStatusMenu(owner, location, "leads", l.Status, status =>
+            {
+                l.Status = status;
+                Database.SaveLead(l);
+            }, RefreshLeads))).ToList();
         _leadsPage.SetCards(cards);
         if (_navLeads != null) _navLeads.Count = data.Count;
     }
@@ -323,7 +329,13 @@ public class MainForm : Form
             Join(Join2(a.AppDate, a.AppTime), a.Service, a.Phone),
             StageLabelForStatus("appointments", a.Status),
             () => EditAppointmentDialog(a),
-            () => Delete("appointment", () => Database.DeleteAppointment(a.Id), RefreshAppointments))).ToList();
+            () => Delete("appointment", () => Database.DeleteAppointment(a.Id), RefreshAppointments),
+            StageColorForStatus("appointments", a.Status),
+            (owner, location) => ShowStatusMenu(owner, location, "appointments", a.Status, status =>
+            {
+                a.Status = status;
+                Database.SaveAppointment(a);
+            }, RefreshAppointments))).ToList();
         _apptPage.SetCards(cards);
         if (_navAppt != null) _navAppt.Count = data.Count;
     }
@@ -396,7 +408,13 @@ public class MainForm : Form
             Join(q.Service, FormatMoney(q.Amount), q.QuoteDate),
             StageLabelForStatus("quotes", q.Status),
             () => EditQuoteDialog(q),
-            () => Delete("quote", () => Database.DeleteQuote(q.Id), RefreshQuotes))).ToList();
+            () => Delete("quote", () => Database.DeleteQuote(q.Id), RefreshQuotes),
+            StageColorForStatus("quotes", q.Status),
+            (owner, location) => ShowStatusMenu(owner, location, "quotes", q.Status, status =>
+            {
+                q.Status = status;
+                Database.SaveQuote(q);
+            }, RefreshQuotes))).ToList();
         _quotePage.SetCards(cards);
         if (_navQuote != null) _navQuote.Count = data.Count;
     }
@@ -488,6 +506,46 @@ public class MainForm : Form
         return stage == null ? selectedLabel.Trim() : TextOrDefault(stage.Id, StageDisplayText(stage));
     }
 
+    private void ShowStatusMenu(Control owner, Point location, string pipelineId, string currentStatus, Action<string> saveStatus, Action refresh)
+    {
+        var stages = PipelineStages(pipelineId);
+        if (stages.Count == 0) return;
+
+        var currentLabel = StageLabelForStatus(pipelineId, currentStatus);
+        var menu = new ContextMenuStrip { Font = Ui.F(9.5f) };
+        menu.Closed += (s, e) => menu.Dispose();
+
+        foreach (var stage in stages)
+        {
+            var label = StageDisplayText(stage);
+            var stageId = TextOrDefault(stage.Id, label);
+            var color = ColorFromHex(stage.Color, Ui.StatusColor(label));
+            var item = new ToolStripMenuItem(label)
+            {
+                Checked = SameText(stageId, currentStatus) || SameText(label, currentLabel),
+                Image = StatusSwatch(color),
+            };
+
+            item.Click += (s, e) =>
+            {
+                saveStatus(stageId);
+                refresh();
+            };
+
+            menu.Items.Add(item);
+        }
+
+        menu.Show(owner, location);
+    }
+
+    private Color StageColorForStatus(string pipelineId, string status)
+    {
+        var stage = FindStage(pipelineId, status);
+        return stage == null
+            ? Ui.StatusColor(status)
+            : ColorFromHex(stage.Color, Ui.StatusColor(StageDisplayText(stage)));
+    }
+
     private StageConfig? FindStage(string pipelineId, string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
@@ -546,6 +604,16 @@ public class MainForm : Form
         {
             return fallback;
         }
+    }
+
+    private static Bitmap StatusSwatch(Color color)
+    {
+        var bitmap = new Bitmap(14, 14);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var brush = new SolidBrush(color);
+        graphics.FillEllipse(brush, 2, 2, 10, 10);
+        return bitmap;
     }
 
     private static Image? TryLoadImageCopy(string? imagePath)

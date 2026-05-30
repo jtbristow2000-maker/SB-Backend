@@ -11,12 +11,15 @@ public class BuilderForm : Form
     private Panel _appearancePanel = null!;
     private Panel _brandingPanel = null!;
     private string _selectedPipelineId = "";
+    private ModuleConfig? _draggedModule;
+    private StageConfig? _draggedStage;
 
     private const int FormWidth = 780;
     private const int FormHeight = 580;
     private const int HeaderH = 62;
     private const int TabsH = 46;
     private const int FooterH = 72;
+    private const int ModalRadius = 14;
 
     private BrandingConfig Branding => _workingConfig.Branding ??= new BrandingConfig();
 
@@ -27,17 +30,18 @@ public class BuilderForm : Form
         Text = "Customize Dashboard";
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterParent;
-        BackColor = Color.White;
+        BackColor = Ui.ContentBg;
         Font = Ui.F(10f);
         ShowInTaskbar = false;
         ClientSize = new Size(FormWidth, FormHeight);
+        ApplyRoundedRegion();
 
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 4,
-            BackColor = Color.White,
+            BackColor = Ui.ContentBg,
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderH));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, TabsH));
@@ -94,8 +98,8 @@ public class BuilderForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = 4,
             RowCount = 1,
-            BackColor = Color.White,
-            Padding = new Padding(22, 0, 22, 0),
+            BackColor = Ui.ContentBg,
+            Padding = new Padding(28, 0, 28, 0),
         };
 
         for (var i = 0; i < 4; i++)
@@ -126,8 +130,13 @@ public class BuilderForm : Form
         var host = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = Color.White,
-            Padding = new Padding(22, 18, 22, 18),
+            BackColor = Ui.ContentBg,
+            Padding = new Padding(18, 8, 18, 10),
+        };
+        var surface = new BuilderSurfacePanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(18, 16, 18, 16),
         };
 
         _modulesPanel = NewContentPanel();
@@ -135,10 +144,11 @@ public class BuilderForm : Form
         _appearancePanel = NewContentPanel();
         _brandingPanel = NewContentPanel();
 
-        host.Controls.Add(_modulesPanel);
-        host.Controls.Add(_pipelinePanel);
-        host.Controls.Add(_appearancePanel);
-        host.Controls.Add(_brandingPanel);
+        surface.Controls.Add(_modulesPanel);
+        surface.Controls.Add(_pipelinePanel);
+        surface.Controls.Add(_appearancePanel);
+        surface.Controls.Add(_brandingPanel);
+        host.Controls.Add(surface);
 
         RenderModulesTab();
         RenderPipelineTab();
@@ -157,7 +167,7 @@ public class BuilderForm : Form
 
     private Control BuildFooter()
     {
-        var footer = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+        var footer = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
         var save = new PillButton { Text = "Save & Apply", BaseColor = Ui.Accent, Width = 132, Height = 40 };
         var cancel = new PillButton { Text = "Cancel", BaseColor = Color.FromArgb(228, 232, 238), ForeColor = Ui.TextDark, Width = 104, Height = 40 };
         var reset = new PillButton
@@ -267,14 +277,7 @@ public class BuilderForm : Form
         };
         AddModuleColumns(row);
 
-        var order = new Label
-        {
-            Text = (index + 1).ToString(),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleCenter,
-            ForeColor = Ui.TextMuted,
-            Font = Ui.F(9f, FontStyle.Bold),
-        };
+        var order = BuildModuleOrderCell(module, index + 1);
         var enabled = new CheckBox
         {
             Checked = module.Enabled,
@@ -333,7 +336,88 @@ public class BuilderForm : Form
         row.Controls.Add(name, 2, 0);
         row.Controls.Add(addLabel, 3, 0);
         row.Controls.Add(move, 4, 0);
+        EnableModuleDrop(row, module);
         return row;
+    }
+
+    private Control BuildModuleOrderCell(ModuleConfig module, int position)
+    {
+        var cell = BuildOrderCell(position);
+        var handle = cell.Controls[1];
+        handle.MouseDown += (s, e) => BeginModuleDrag(module, handle, e);
+        return cell;
+    }
+
+    private Control BuildOrderCell(int position)
+    {
+        var cell = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.White,
+        };
+        var handle = new Label
+        {
+            Text = "☰",
+            Dock = DockStyle.Left,
+            Width = 24,
+            TextAlign = ContentAlignment.MiddleCenter,
+            ForeColor = Ui.TextMuted,
+            Font = Ui.F(9f, FontStyle.Bold),
+            Cursor = Cursors.SizeAll,
+        };
+        var order = new Label
+        {
+            Text = position.ToString(),
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter,
+            ForeColor = Ui.TextMuted,
+            Font = Ui.F(9f, FontStyle.Bold),
+        };
+
+        cell.Controls.Add(order);
+        cell.Controls.Add(handle);
+        return cell;
+    }
+
+    private void BeginModuleDrag(ModuleConfig module, Control source, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left) return;
+
+        CommitPendingEdits();
+        _draggedModule = module;
+        source.DoDragDrop(module.Id, DragDropEffects.Move);
+        _draggedModule = null;
+    }
+
+    private void EnableModuleDrop(Control control, ModuleConfig target)
+    {
+        control.AllowDrop = true;
+        control.DragEnter += (s, e) =>
+        {
+            if (_draggedModule != null && !ReferenceEquals(_draggedModule, target))
+                e.Effect = DragDropEffects.Move;
+        };
+        control.DragDrop += (s, e) => DropModuleOn(target);
+
+        foreach (Control child in control.Controls)
+            EnableModuleDrop(child, target);
+    }
+
+    private void DropModuleOn(ModuleConfig target)
+    {
+        if (_draggedModule == null || ReferenceEquals(_draggedModule, target)) return;
+
+        var ordered = OrderedModules();
+        var sourceIndex = ordered.IndexOf(_draggedModule);
+        var targetIndex = ordered.IndexOf(target);
+        if (sourceIndex < 0 || targetIndex < 0) return;
+
+        ordered.RemoveAt(sourceIndex);
+        ordered.Insert(targetIndex, _draggedModule);
+        for (var i = 0; i < ordered.Count; i++)
+            ordered[i].Order = i;
+
+        RenderModulesTab();
     }
 
     private void MoveModule(ModuleConfig module, int delta)
@@ -368,7 +452,7 @@ public class BuilderForm : Form
 
     private static void AddModuleColumns(TableLayoutPanel table)
     {
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
@@ -499,14 +583,7 @@ public class BuilderForm : Form
         };
         AddPipelineColumns(row);
 
-        var order = new Label
-        {
-            Text = (index + 1).ToString(),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleCenter,
-            ForeColor = Ui.TextMuted,
-            Font = Ui.F(9f, FontStyle.Bold),
-        };
+        var order = BuildStageOrderCell(stage, index + 1);
         var color = new Button
         {
             Dock = DockStyle.Fill,
@@ -558,7 +635,54 @@ public class BuilderForm : Form
         row.Controls.Add(label, 2, 0);
         row.Controls.Add(move, 3, 0);
         row.Controls.Add(delete, 4, 0);
+        EnableStageDrop(row, stage);
         return row;
+    }
+
+    private Control BuildStageOrderCell(StageConfig stage, int position)
+    {
+        var cell = BuildOrderCell(position);
+        var handle = cell.Controls[1];
+        handle.MouseDown += (s, e) => BeginStageDrag(stage, handle, e);
+        return cell;
+    }
+
+    private void BeginStageDrag(StageConfig stage, Control source, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left) return;
+
+        CommitPendingEdits();
+        _draggedStage = stage;
+        source.DoDragDrop(stage.Id, DragDropEffects.Move);
+        _draggedStage = null;
+    }
+
+    private void EnableStageDrop(Control control, StageConfig target)
+    {
+        control.AllowDrop = true;
+        control.DragEnter += (s, e) =>
+        {
+            if (_draggedStage != null && !ReferenceEquals(_draggedStage, target))
+                e.Effect = DragDropEffects.Move;
+        };
+        control.DragDrop += (s, e) => DropStageOn(target);
+
+        foreach (Control child in control.Controls)
+            EnableStageDrop(child, target);
+    }
+
+    private void DropStageOn(StageConfig target)
+    {
+        if (_draggedStage == null || ReferenceEquals(_draggedStage, target)) return;
+
+        var stages = SelectedPipelineStages();
+        var sourceIndex = stages.IndexOf(_draggedStage);
+        var targetIndex = stages.IndexOf(target);
+        if (sourceIndex < 0 || targetIndex < 0) return;
+
+        stages.RemoveAt(sourceIndex);
+        stages.Insert(targetIndex, _draggedStage);
+        RenderPipelineTab();
     }
 
     private void PickStageColor(StageConfig stage, Button button)
@@ -1215,8 +1339,27 @@ public class BuilderForm : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
+        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
         using var pen = new Pen(Ui.CardBorder);
-        e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        using var path = Ui.RoundedRect(rect, ModalRadius);
+        e.Graphics.DrawPath(pen, path);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        ApplyRoundedRegion();
+    }
+
+    private void ApplyRoundedRegion()
+    {
+        if (Width <= 0 || Height <= 0) return;
+
+        var oldRegion = Region;
+        using var path = Ui.RoundedRect(new Rectangle(0, 0, Width, Height), ModalRadius);
+        Region = new Region(path);
+        oldRegion?.Dispose();
     }
 
     private const int WM_NCLBUTTONDOWN = 0xA1;
@@ -1307,6 +1450,28 @@ internal class BuilderTabButton : Label
 
         using var pen = new Pen(Ui.Accent, 3f);
         e.Graphics.DrawLine(pen, 14, Height - 3, Width - 14, Height - 3);
+    }
+}
+
+internal class BuilderSurfacePanel : Panel
+{
+    public BuilderSurfacePanel()
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = Ui.ContentBg;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+        using var path = Ui.RoundedRect(rect, 10);
+        using var fill = new SolidBrush(Color.White);
+        using var pen = new Pen(Ui.CardBorder);
+        g.FillPath(fill, path);
+        g.DrawPath(pen, path);
     }
 }
 

@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-05-29] - Builder polish and editable status badges
+
+### Changed
+- `BuilderForm.cs`: polished the Customize Dashboard modal with rounded window edges, a rounded content surface, tighter spacing, and drag handles for module and pipeline row reordering while keeping the existing arrow controls as fallback.
+- `EntityCard.cs`: made configured status badges clickable and hoverable so dashboard records can open a status menu directly from the card.
+- `MainForm.cs`: wired Lead, Appointment, and Quote card status menus to configured `DashboardConfig` pipeline stages and saved selected stage IDs back to the existing local data store.
+- `MainForm.cs`: status badge colors now come from configured pipeline stage colors, with `Ui.StatusColor()` kept as a fallback for unknown legacy statuses.
+
+### Notes
+- No backend services, Twilio, Supabase, auth, payments, AI, customer messaging, export/import, backups, theme presets, or unrelated roadmap items were implemented.
+
 ## [2026-05-29] - Demo readiness polish D3-D6
 
 ### Changed
