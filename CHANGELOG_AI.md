@@ -59,6 +59,23 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - GUI premium polish — toggles, styled inputs
+
+### Added — `dashboard/BuilderForm.cs`
+- `ToggleSwitch` inner class: fully custom-painted pill-style on/off toggle. Replaces `CheckBox` in every module row. On state = Accent blue with white knob right; Off state = gray with white knob left. Hover darkens/lightens the track slightly.
+- `StyledInputPanel` inner class: wraps a borderless `TextBox` inside a custom-painted rounded panel. On focus, border turns `Ui.Accent` (1.8 px); at rest, `Ui.CardBorder` (1 px). Inner TextBox is vertically centered in the panel. Click anywhere on the panel to focus the input.
+
+### Changed — `dashboard/BuilderForm.cs`
+- `BuildModuleRow`: replaced `CheckBox` with `ToggleSwitch`; replaced both `TextBox` name/add-button fields with `StyledInputPanel`. Event handlers attach to `StyledInputPanel.Inner` (the raw `TextBox`), so all save/validation logic is unchanged.
+- `BuildStageRow`: replaced stage-label `TextBox` with `StyledInputPanel`.
+- `AddBrandingTextRow`: replaced `TextBox` with `StyledInputPanel` — all Identity and Contact fields in the Branding tab now use the styled input.
+- `AddThemeRow`: replaced hex `TextBox` with `StyledInputPanel` — Appearance and Brand Color hex fields now use the styled input.
+- `BuildModuleHeader`: "Add button" → "Button label" column header.
+
+### Notes
+- No architecture changes. `DashboardConfig` is unchanged. No backend, Twilio, Supabase, auth, payments, or messaging was touched.
+- Build confirmed clean: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - GUI polish pass
 
 ### Changed

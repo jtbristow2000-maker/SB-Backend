@@ -260,7 +260,7 @@ public class BuilderForm : Form
         header.Controls.Add(HeaderLabel("Order"), 0, 0);
         header.Controls.Add(HeaderLabel("Enabled"), 1, 0);
         header.Controls.Add(HeaderLabel("Module name"), 2, 0);
-        header.Controls.Add(HeaderLabel("Add button"), 3, 0);
+        header.Controls.Add(HeaderLabel("Button label"), 3, 0);
         header.Controls.Add(HeaderLabel("Move"), 4, 0);
         return header;
     }
@@ -281,28 +281,20 @@ public class BuilderForm : Form
         AddModuleColumns(row);
 
         var order = BuildModuleOrderCell(module, index + 1);
-        var enabled = new CheckBox
+        var toggle = new ToggleSwitch
         {
             Checked = module.Enabled,
             Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleCenter,
-            CheckAlign = ContentAlignment.MiddleCenter,
         };
-        var name = new TextBox
+        var nameInput = new StyledInputPanel(module.Label)
         {
-            Text = module.Label,
             Dock = DockStyle.Fill,
-            Font = Ui.F(10f),
-            BorderStyle = BorderStyle.FixedSingle,
-            Margin = new Padding(0, 10, 12, 0),
+            Margin = new Padding(0, 8, 12, 8),
         };
-        var addLabel = new TextBox
+        var addInput = new StyledInputPanel(module.AddButtonLabel)
         {
-            Text = module.AddButtonLabel,
             Dock = DockStyle.Fill,
-            Font = Ui.F(10f),
-            BorderStyle = BorderStyle.FixedSingle,
-            Margin = new Padding(0, 10, 12, 0),
+            Margin = new Padding(0, 8, 12, 8),
         };
         var move = new FlowLayoutPanel
         {
@@ -315,29 +307,28 @@ public class BuilderForm : Form
         var up = new BuilderIconButton { Text = "↑", Width = 34, Height = 28, Enabled = index > 0 };
         var down = new BuilderIconButton { Text = "↓", Width = 34, Height = 28, Enabled = index < ordered.Count - 1 };
 
-        enabled.CheckedChanged += (s, e) =>
+        toggle.CheckedChanged += (s, e) =>
         {
-            if (!enabled.Checked && _workingConfig.Modules.Count(m => m.Enabled) <= 1)
+            if (!toggle.Checked && _workingConfig.Modules.Count(m => m.Enabled) <= 1)
             {
                 MessageBox.Show("At least one module must stay enabled.", "Modules",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                enabled.Checked = true;
+                toggle.Checked = true;
                 return;
             }
-
-            module.Enabled = enabled.Checked;
+            module.Enabled = toggle.Checked;
         };
-        name.Leave += (s, e) => UpdateTextBox(name, TextOrDefault(module.Label, module.Id), "Modules", value => module.Label = value);
-        addLabel.Leave += (s, e) => UpdateTextBox(addLabel, TextOrDefault(module.AddButtonLabel, "+ Add"), "Modules", value => module.AddButtonLabel = value);
+        nameInput.Inner.Leave += (s, e) => UpdateTextBox(nameInput.Inner, TextOrDefault(module.Label, module.Id), "Modules", value => module.Label = value);
+        addInput.Inner.Leave += (s, e) => UpdateTextBox(addInput.Inner, TextOrDefault(module.AddButtonLabel, "+ Add"), "Modules", value => module.AddButtonLabel = value);
         up.Click += (s, e) => MoveModule(module, -1);
         down.Click += (s, e) => MoveModule(module, 1);
 
         move.Controls.Add(up);
         move.Controls.Add(down);
         row.Controls.Add(order, 0, 0);
-        row.Controls.Add(enabled, 1, 0);
-        row.Controls.Add(name, 2, 0);
-        row.Controls.Add(addLabel, 3, 0);
+        row.Controls.Add(toggle, 1, 0);
+        row.Controls.Add(nameInput, 2, 0);
+        row.Controls.Add(addInput, 3, 0);
         row.Controls.Add(move, 4, 0);
         EnableModuleDrop(row, module);
         return row;
@@ -629,13 +620,10 @@ public class BuilderForm : Form
         };
         color.FlatAppearance.BorderColor = Ui.CardBorder;
 
-        var label = new TextBox
+        var labelInput = new StyledInputPanel(stage.Label)
         {
-            Text = stage.Label,
             Dock = DockStyle.Fill,
-            Font = Ui.F(10f),
-            BorderStyle = BorderStyle.FixedSingle,
-            Margin = new Padding(0, 10, 12, 0),
+            Margin = new Padding(0, 8, 12, 8),
         };
         var move = new FlowLayoutPanel
         {
@@ -658,7 +646,7 @@ public class BuilderForm : Form
         };
 
         color.Click += (s, e) => PickStageColor(stage, color);
-        label.Leave += (s, e) => UpdateTextBox(label, TextOrDefault(stage.Label, stage.Id), "Pipeline", value => stage.Label = value);
+        labelInput.Inner.Leave += (s, e) => UpdateTextBox(labelInput.Inner, TextOrDefault(stage.Label, stage.Id), "Pipeline", value => stage.Label = value);
         up.Click += (s, e) => MoveStage(stage, -1);
         down.Click += (s, e) => MoveStage(stage, 1);
         delete.Click += (s, e) => DeleteStage(stage);
@@ -667,7 +655,7 @@ public class BuilderForm : Form
         move.Controls.Add(down);
         row.Controls.Add(order, 0, 0);
         row.Controls.Add(color, 1, 0);
-        row.Controls.Add(label, 2, 0);
+        row.Controls.Add(labelInput, 2, 0);
         row.Controls.Add(move, 3, 0);
         row.Controls.Add(delete, 4, 0);
         EnableStageDrop(row, stage);
@@ -938,14 +926,12 @@ public class BuilderForm : Form
             ForeColor = Ui.TextDark,
             Font = Ui.F(9.5f, FontStyle.Bold),
         };
-        var hex = new TextBox
+        var hexInput = new StyledInputPanel(NormalizeHex(initialValue, fallback))
         {
-            Text = NormalizeHex(initialValue, fallback),
             Dock = DockStyle.Fill,
-            Font = Ui.F(10f),
-            BorderStyle = BorderStyle.FixedSingle,
-            Margin = new Padding(0, 10, 14, 0),
+            Margin = new Padding(0, 9, 14, 9),
         };
+        var hex = hexInput.Inner;
         var picker = new Button
         {
             Dock = DockStyle.Fill,
@@ -961,7 +947,7 @@ public class BuilderForm : Form
 
         update(hex.Text);
         table.Controls.Add(name, 0, row);
-        table.Controls.Add(hex, 1, row);
+        table.Controls.Add(hexInput, 1, row);
         table.Controls.Add(picker, 2, row);
     }
 
@@ -1181,14 +1167,12 @@ public class BuilderForm : Form
         Action<string> update, bool required = false, string fallback = "")
     {
         var label = BrandingFieldLabel(labelText);
-        var textBox = new TextBox
+        var input = new StyledInputPanel(initialValue)
         {
-            Text = initialValue,
             Dock = DockStyle.Fill,
-            Font = Ui.F(10f),
-            BorderStyle = BorderStyle.FixedSingle,
-            Margin = new Padding(0, 8, 0, 0),
+            Margin = new Padding(0, 6, 0, 6),
         };
+        var textBox = input.Inner;
 
         var lastValidValue = TextOrDefault(initialValue, fallback);
         textBox.Leave += (s, e) =>
@@ -1208,7 +1192,7 @@ public class BuilderForm : Form
         };
 
         table.Controls.Add(label, 0, row);
-        table.Controls.Add(textBox, 1, row);
+        table.Controls.Add(input, 1, row);
     }
 
     private void BrowseLogo(TextBox path, Panel preview)
@@ -1654,6 +1638,124 @@ internal class BuilderDropRow : TableLayoutPanel
         }
 
         using var pen = new Pen(_currentAlpha > 0 ? Ui.Accent : Color.Transparent, _currentAlpha > 0 ? 1.4f : 1f);
+        g.DrawPath(pen, path);
+    }
+}
+
+internal class ToggleSwitch : Control
+{
+    private const int TrackW  = 44;
+    private const int TrackH  = 24;
+    private const int KnobD   = 18;
+    private const int KnobPad = 3;
+
+    private bool _checked;
+    private bool _hover;
+
+    public bool Checked
+    {
+        get => _checked;
+        set
+        {
+            if (_checked == value) return;
+            _checked = value;
+            CheckedChanged?.Invoke(this, EventArgs.Empty);
+            Invalidate();
+        }
+    }
+
+    public event EventHandler? CheckedChanged;
+
+    public ToggleSwitch()
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Cursor = Cursors.Hand;
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left) Checked = !Checked;
+        base.OnMouseDown(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+        int tx = (Width  - TrackW) / 2;
+        int ty = (Height - TrackH) / 2;
+        var track = new Rectangle(tx, ty, TrackW, TrackH);
+
+        var trackColor = _checked
+            ? (_hover ? ControlPaint.Light(Ui.Accent, 0.08f) : Ui.Accent)
+            : (_hover ? Color.FromArgb(178, 192, 212)        : Color.FromArgb(200, 210, 225));
+
+        using (var path = Ui.RoundedRect(track, TrackH / 2))
+        using (var b = new SolidBrush(trackColor))
+            g.FillPath(b, path);
+
+        int knobX = _checked ? tx + TrackW - KnobD - KnobPad : tx + KnobPad;
+        int knobY = ty + (TrackH - KnobD) / 2;
+
+        using var knobBrush = new SolidBrush(Color.White);
+        g.FillEllipse(knobBrush, knobX, knobY, KnobD, KnobD);
+    }
+}
+
+/// <summary>A styled, focus-aware text input — borderless TextBox inside a rounded painted panel.</summary>
+internal class StyledInputPanel : Panel
+{
+    public readonly TextBox Inner;
+    private bool _focused;
+    private const int Radius = 7;
+
+    public StyledInputPanel(string text = "")
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = Color.White;
+
+        Inner = new TextBox
+        {
+            Text = text,
+            BorderStyle = BorderStyle.None,
+            Font = Ui.F(10f),
+            BackColor = Color.White,
+        };
+
+        Inner.GotFocus  += (s, e) => { _focused = true;  Invalidate(); };
+        Inner.LostFocus += (s, e) => { _focused = false; Invalidate(); };
+
+        Controls.Add(Inner);
+        Click += (s, e) => Inner.Focus();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (Inner == null) return;
+        var ih = Inner.PreferredHeight;
+        Inner.SetBounds(9, Math.Max(0, (Height - ih) / 2), Math.Max(0, Width - 18), ih);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+
+        using var path = Ui.RoundedRect(rect, Radius);
+        using var fill = new SolidBrush(Color.White);
+        g.FillPath(fill, path);
+
+        var borderColor = _focused ? Ui.Accent : Ui.CardBorder;
+        float borderW   = _focused ? 1.8f : 1f;
+        using var pen = new Pen(borderColor, borderW);
         g.DrawPath(pen, path);
     }
 }
