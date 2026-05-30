@@ -129,6 +129,20 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - UI-16/17 pipeline funnel preview + redesigned empty states
+
+### Changed — `dashboard/CardListPage.cs`
+- Replaced the plain centered grey "No X yet" label with a new **`EmptyStatePanel`**: a soft accent icon circle (drawn vector icon), a headline, a subline, and a primary action button wired to the page's Add action. Empty screens now feel intentional instead of abandoned.
+
+### Changed — `dashboard/BuilderForm.cs`
+- Added a **`PipelinePreviewStrip`** above the stage editor: the current pipeline rendered as connected colour pills (`New › Contacted › Quoted › Won`) so the owner sees their funnel at a glance.
+- `PickStageColor` now re-renders the pipeline tab so the preview strip reflects colour changes immediately (add/delete/reorder already re-rendered).
+
+### Notes
+- Both are visual-only; no data, config schema, or behaviour changed.
+- Heavy timer-driven motion (UI-14/15) intentionally deferred — it's the one area that risks visible jank without runtime testing, and card/nav hover already repaints responsively.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - UI-10..13 "Today" home page (overview as default landing)
 
 ### Added — `dashboard/HomePage.cs`

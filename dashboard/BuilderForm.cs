@@ -605,8 +605,17 @@ public class BuilderForm : Form
         addStage.Click += (s, e) => AddStage();
         list.Controls.Add(addStage);
 
+        // Live funnel preview — the stages as connected colour pills.
+        var preview = new PipelinePreviewStrip(
+            stages.Select(s => (TextOrDefault(s.Label, s.Id), ColorFromHex(s.Color, Ui.Accent))).ToList())
+        {
+            Dock = DockStyle.Top,
+            Height = 50,
+        };
+
         _pipelinePanel.Controls.Add(list);
         _pipelinePanel.Controls.Add(header);
+        _pipelinePanel.Controls.Add(preview);
         _pipelinePanel.Controls.Add(selector);
         _pipelinePanel.ResumeLayout();
         ResizeStageRows(list);
@@ -796,6 +805,7 @@ public class BuilderForm : Form
         stage.Color = ColorToHex(dialog.Color);
         swatch.SwatchColor = dialog.Color;
         swatch.Invalidate();
+        RenderPipelineTab();   // refresh the funnel preview strip to match
     }
 
     private void MoveStage(StageConfig stage, int delta)
@@ -1528,6 +1538,62 @@ public class BuilderForm : Form
     private sealed record PipelineChoice(string Id, string Label, int Order, int Index)
     {
         public override string ToString() => Label;
+    }
+}
+
+/// <summary>A horizontal funnel preview: pipeline stages drawn as connected colour pills.</summary>
+internal class PipelinePreviewStrip : Control
+{
+    private readonly List<(string Label, Color Color)> _stages;
+
+    public PipelinePreviewStrip(List<(string Label, Color Color)> stages)
+    {
+        _stages = stages;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = Color.White;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        using (var bg = new SolidBrush(Color.White))
+            g.FillRectangle(bg, ClientRectangle);
+
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        var font = Ui.F(8.5f, FontStyle.Bold);
+        const int h = 28, dot = 7, padL = 12, gap = 5, padR = 12, chevW = 16;
+        int y = (Height - h) / 2;
+        int x = 2;
+
+        for (var i = 0; i < _stages.Count; i++)
+        {
+            var (label, color) = _stages[i];
+            var textSz = TextRenderer.MeasureText(g, label, font);
+            int pillW = padL + dot + gap + textSz.Width + padR;
+            if (x + pillW > Width - 4) break;   // stop cleanly rather than clip mid-pill
+
+            var pill = new Rectangle(x, y, pillW, h);
+            using (var p = Ui.RoundedRect(pill, h / 2))
+            using (var b = new SolidBrush(Ui.Soft(color, 40)))
+                g.FillPath(b, p);
+            using (var db = new SolidBrush(color))
+                g.FillEllipse(db, x + padL, y + (h - dot) / 2, dot, dot);
+            TextRenderer.DrawText(g, label, font,
+                new Rectangle(x + padL + dot + gap, y, textSz.Width + 4, h), color,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+
+            x += pillW;
+            if (i < _stages.Count - 1)
+            {
+                TextRenderer.DrawText(g, "›", Ui.F(11f, FontStyle.Bold),
+                    new Rectangle(x, y, chevW, h), Ui.TextMuted,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                x += chevW;
+            }
+        }
     }
 }
 

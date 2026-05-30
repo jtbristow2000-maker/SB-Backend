@@ -1,3 +1,4 @@
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace BusinessDashboard;
@@ -24,7 +25,7 @@ public class CardListPage : Panel
     private readonly PillButton? _calendarToggle;
     private readonly Panel _host;
     private readonly Panel _listArea;
-    private readonly Label _empty;
+    private readonly EmptyStatePanel _empty;
     private readonly CalendarMonthView? _calendar;
     private readonly string _noun;
     private readonly bool _calendarEnabled;
@@ -128,12 +129,11 @@ public class CardListPage : Panel
         // ---- List area (host + empty-state overlay) ----
         _listArea = new Panel { Dock = DockStyle.Fill, BackColor = Ui.ContentBg };
 
-        _empty = new Label
+        _empty = new EmptyStatePanel(noun, $"No {noun} yet", $"Add your first {noun.TrimEnd('s')} to get started.", addLabel)
         {
-            Text = $"No {noun} yet.\n\nClick \"{addLabel}\" to add your first one.",
-            Font = Ui.F(11.5f), ForeColor = Ui.TextMuted,
-            TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill, Visible = false,
+            Dock = DockStyle.Fill, Visible = false,
         };
+        _empty.ActionClicked += (s, e) => AddClicked?.Invoke(this, EventArgs.Empty);
 
         // Plain AutoScroll panel: cards docked Top reliably stretch to the panel
         // width (minus scrollbar) and reflow on resize — no manual width math.
@@ -234,5 +234,63 @@ public class CardListPage : Panel
         button.BaseColor = selected ? Ui.Accent : Color.FromArgb(228, 232, 238);
         button.ForeColor = selected ? Color.White : Ui.TextDark;
         button.Invalidate();
+    }
+}
+
+/// <summary>A calm, centered empty state: soft icon, headline, subline, and a primary action.</summary>
+internal class EmptyStatePanel : Panel
+{
+    private readonly string _iconKey;
+    private readonly string _title;
+    private readonly string _subtitle;
+    private readonly PillButton _action;
+
+    public event EventHandler? ActionClicked;
+
+    public EmptyStatePanel(string iconKey, string title, string subtitle, string actionLabel)
+    {
+        _iconKey = iconKey;
+        _title = title;
+        _subtitle = subtitle;
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = Ui.ContentBg;
+
+        _action = new PillButton { Text = actionLabel, BaseColor = Ui.Accent, Width = 168, Height = 42 };
+        _action.Click += (s, e) => ActionClicked?.Invoke(this, EventArgs.Empty);
+        Controls.Add(_action);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (_action == null) return;
+        _action.Location = new Point((Width - _action.Width) / 2, Height / 2 + 52);
+        Invalidate();
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        int cx = Width / 2;
+        int cy = Height / 2;
+
+        // Soft accent icon circle.
+        const int d = 72;
+        var circle = new Rectangle(cx - d / 2, cy - 98, d, d);
+        using (var b = new SolidBrush(Ui.Soft(Ui.Accent, 22)))
+            g.FillEllipse(b, circle);
+        if (Icons.Has(_iconKey))
+            Icons.Draw(g, _iconKey, new Rectangle(circle.X + 20, circle.Y + 20, 32, 32), Ui.Accent, 2f);
+
+        TextRenderer.DrawText(g, _title, Ui.F(14f, FontStyle.Bold),
+            new Rectangle(0, cy - 16, Width, 26), Ui.TextStrong,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        TextRenderer.DrawText(g, _subtitle, Ui.F(10.5f),
+            new Rectangle(0, cy + 12, Width, 22), Ui.TextMuted,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }
 }
