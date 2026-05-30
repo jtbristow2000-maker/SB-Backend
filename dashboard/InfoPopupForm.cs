@@ -26,7 +26,10 @@ public class InfoPopupForm : Form
         Text = title;
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterParent;
-        BackColor = Color.White;
+        // A border-colour Padding ring exposes form surface around the content panel,
+        // so the form receives edge hit-tests (WndProc) and can be resized.
+        BackColor = ModalBorderColor;
+        Padding = new Padding(6);
         Font = Ui.F(10f);
         ShowInTaskbar = false;
 

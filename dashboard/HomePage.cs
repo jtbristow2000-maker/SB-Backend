@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using System.Text;
 using System.Windows.Forms;
 
 namespace BusinessDashboard;
@@ -23,13 +25,16 @@ public class HomePage : Panel
     public readonly record struct Metric(string Label, int Value, Color Accent, string IconKey);
 
     private readonly Label _greeting;
-    private readonly Label _sub;       // date (+ tagline)
-    private readonly Label _contact;   // phone · email · website
+    private readonly Label _sub;            // date (+ tagline)
+    private readonly LinkLabel _contact;    // phone · email · website (email/website clickable)
     private readonly FlowLayoutPanel _metrics;
     private readonly Panel _attentionHost;
     private readonly Label _attentionEmpty;
 
     private string _tagline = "";
+
+    /// <summary>Raised when a metric card is clicked; argument is the module id (e.g. "leads").</summary>
+    public event Action<string>? MetricClicked;
 
     public HomePage()
     {
@@ -71,10 +76,17 @@ public class HomePage : Panel
             AutoSize = true, Font = Ui.F(10.5f), ForeColor = Ui.TextMuted,
             Margin = new Padding(2, 0, 0, 2),
         };
-        _contact = new Label
+        _contact = new LinkLabel
         {
             AutoSize = true, Font = Ui.F(9f), ForeColor = Ui.TextMuted,
+            LinkColor = Ui.Accent, ActiveLinkColor = Ui.Accent, VisitedLinkColor = Ui.Accent,
+            LinkBehavior = LinkBehavior.HoverUnderline,
             Margin = new Padding(2, 0, 0, 0), Visible = false,
+        };
+        _contact.LinkClicked += (s, e) =>
+        {
+            if (e.Link?.LinkData is string url && !string.IsNullOrWhiteSpace(url))
+                try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { /* ignore */ }
         };
         head.Controls.Add(_greeting);
         head.Controls.Add(_sub);
@@ -136,13 +148,48 @@ public class HomePage : Panel
         _sub.Text = string.IsNullOrWhiteSpace(_tagline) ? date : $"{date}     •     {_tagline}";
     }
 
-    /// <summary>Surfaces branding entered in the builder: tagline + a combined contact line.</summary>
-    public void SetIdentity(string? tagline, string? contact)
+    /// <summary>Surfaces branding: tagline beside the date, plus a contact line with clickable email/website.</summary>
+    public void SetIdentity(string? tagline, string? phone, string? email, string? website)
     {
         _tagline = (tagline ?? "").Trim();
         UpdateGreeting();
-        _contact.Text = (contact ?? "").Trim();
+        BuildContactLine(phone, email, website);
+    }
+
+    private void BuildContactLine(string? phone, string? email, string? website)
+    {
+        _contact.Links.Clear();
+        var sb = new StringBuilder();
+        var links = new List<(int start, int len, string url)>();
+        const string sep = "     •     ";
+
+        void Add(string? text, string? url)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+            var t = text.Trim();
+            if (sb.Length > 0) sb.Append(sep);
+            if (url != null) links.Add((sb.Length, t.Length, url));
+            sb.Append(t);
+        }
+
+        Add(phone, null);
+        Add(email, string.IsNullOrWhiteSpace(email) ? null : "mailto:" + email!.Trim());
+        Add(website, NormalizeUrl(website));
+
+        _contact.Text = sb.ToString();
+        foreach (var (start, len, url) in links)
+            _contact.Links.Add(start, len, url);
         _contact.Visible = _contact.Text.Length > 0;
+    }
+
+    private static string? NormalizeUrl(string? website)
+    {
+        if (string.IsNullOrWhiteSpace(website)) return null;
+        var w = website.Trim();
+        if (!w.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !w.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            w = "https://" + w;
+        return w;
     }
 
     public void SetMetrics(IEnumerable<Metric> metrics)
@@ -152,7 +199,12 @@ public class HomePage : Panel
         foreach (Control c in _metrics.Controls) c.Dispose();
         _metrics.Controls.Clear();
         foreach (var m in metrics)
-            _metrics.Controls.Add(new MetricCard(m) { Margin = new Padding(0, 0, 14, 0) });
+        {
+            var key = m.IconKey;
+            var card = new MetricCard(m) { Margin = new Padding(0, 0, 14, 0) };
+            card.Clicked += () => MetricClicked?.Invoke(key);
+            _metrics.Controls.Add(card);
+        }
         _metrics.ResumeLayout();
     }
 
@@ -180,6 +232,10 @@ public class HomePage : Panel
 internal class MetricCard : Panel
 {
     private readonly HomePage.Metric _metric;
+    private bool _hover;
+
+    /// <summary>Raised on left-click — used to navigate to the matching tab.</summary>
+    public event Action? Clicked;
 
     public MetricCard(HomePage.Metric metric)
     {
@@ -189,6 +245,15 @@ internal class MetricCard : Panel
         Width = 198;
         Height = 100;
         BackColor = Ui.ContentBg;
+        Cursor = Cursors.Hand;
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+    protected override void OnMouseClick(MouseEventArgs e)
+    {
+        base.OnMouseClick(e);
+        if (e.Button == MouseButtons.Left) Clicked?.Invoke();
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -200,18 +265,18 @@ internal class MetricCard : Panel
         int w = Width - 1;
         int h = Height - 3;
 
-        // Soft shadow + white surface (consistent with EntityCard).
+        // Soft shadow + white surface (consistent with EntityCard); lifts on hover.
         for (int s = 3; s >= 1; s--)
         {
             using var sp = Ui.RoundedRect(new Rectangle(0, s, w, h), 12);
-            using var sb = new SolidBrush(Color.FromArgb(5, 17, 21, 28));
+            using var sb = new SolidBrush(Color.FromArgb(_hover ? 9 : 5, 17, 21, 28));
             g.FillPath(sb, sp);
         }
         using (var path = Ui.RoundedRect(new Rectangle(0, 0, w, h), 12))
         {
-            using var fill = new SolidBrush(Ui.CardBg);
+            using var fill = new SolidBrush(_hover ? Ui.SurfaceAlt : Ui.CardBg);
             g.FillPath(fill, path);
-            using var pen = new Pen(Ui.Hairline, 1f);
+            using var pen = new Pen(_hover ? Ui.CardBorderHover : Ui.Hairline, _hover ? 1.4f : 1f);
             g.DrawPath(pen, path);
         }
 

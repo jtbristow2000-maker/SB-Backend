@@ -350,6 +350,7 @@ public class MainForm : Form
             {
                 case "home":
                     _homePage = new HomePage();
+                    _homePage.MetricClicked += NavigateTo;   // click a metric card → open that tab
                     _content.Controls.Add(_homePage);
                     break;
 
@@ -400,9 +401,9 @@ public class MainForm : Form
     {
         if (_homePage == null) return;
 
-        // Surface branding entered in the builder (tagline + contact line).
+        // Surface branding entered in the builder (tagline + clickable contact line).
         var b = _config.Branding;
-        _homePage.SetIdentity(b?.Tagline, Join(b?.Phone ?? "", b?.Email ?? "", b?.Website ?? ""));
+        _homePage.SetIdentity(b?.Tagline, b?.Phone, b?.Email, b?.Website);
 
         var leads = Database.GetLeads();
         var messages = Database.GetMessages();
@@ -429,7 +430,8 @@ public class MainForm : Form
                 StageLabelForStatus("leads", l.Status),
                 () => { EditLeadDialog(l); RefreshAll(); },
                 () => Delete("lead", () => Database.DeleteLead(l.Id), RefreshAll),
-                StageColorForStatus("leads", l.Status)));
+                StageColorForStatus("leads", l.Status),
+                onActivate: () => { EditLeadDialog(l); RefreshAll(); }));
         }
 
         foreach (var message in messages.Where(m => IsStage("messages", m.Status, "unread")).Take(4))
@@ -450,7 +452,8 @@ public class MainForm : Form
                 StageLabelForStatus("appointments", a.Status),
                 () => { EditAppointmentDialog(a); RefreshAll(); },
                 () => Delete("appointment", () => Database.DeleteAppointment(a.Id), RefreshAll),
-                StageColorForStatus("appointments", a.Status)));
+                StageColorForStatus("appointments", a.Status),
+                onActivate: () => { EditAppointmentDialog(a); RefreshAll(); }));
         }
 
         _homePage.SetAttentionCards(cards.Take(6).ToList());
@@ -698,6 +701,24 @@ public class MainForm : Form
             case "messages": _navMsg = nav; break;
             case "quotes": _navQuote = nav; break;
         }
+    }
+
+    private NavItem? NavFor(string moduleId) => moduleId switch
+    {
+        "home" => _navHome,
+        "leads" => _navLeads,
+        "appointments" => _navAppt,
+        "messages" => _navMsg,
+        "quotes" => _navQuote,
+        _ => null,
+    };
+
+    // Selects a module's nav item + page (used by Home metric cards).
+    private void NavigateTo(string moduleId)
+    {
+        var page = PageFor(moduleId);
+        var nav = NavFor(moduleId);
+        if (page != null && nav != null) Select(nav, page);
     }
 
     private static List<ModuleConfig> GetActiveModules(DashboardConfig config)

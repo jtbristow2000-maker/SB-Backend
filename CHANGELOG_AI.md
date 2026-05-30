@@ -129,6 +129,19 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - Clickable home + contact links + popups actually resize
+
+### Fixed — popups now truly resize
+- The borderless popups never received edge hit-tests because the content panel covered the whole form. Exposed a 6px border-colour **`Padding` ring** (`InfoPopupForm`, `FieldDialog`) so the form surface is hittable at the edges — combined with the existing `WndProc` hit-testing, the dialogs now resize from any edge/corner.
+
+### Added — Home page is now fully interactive
+- **Metric cards are clickable** → navigate to that tab. `MetricCard` raises `Clicked`; `HomePage.MetricClicked` passes the module id; `MainForm.NavigateTo(id)` selects the matching nav item/page. Cards show a hover lift.
+- **Needs-attention cards open on single click.** Lead and appointment attention cards gained `onActivate` (messages already had it) — click any item to view/edit it without leaving Home.
+- **Contact line links are usable.** The Home contact line is now a `LinkLabel`: the email opens a `mailto:` and the website opens in the browser (`https://` prepended if missing). Phone stays plain text. `SetIdentity` now takes phone/email/website separately and builds the link regions.
+
+### Notes
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - Fix Home greeting band overlap (DPI-safe stacking)
 
 ### Fixed — `dashboard/HomePage.cs`

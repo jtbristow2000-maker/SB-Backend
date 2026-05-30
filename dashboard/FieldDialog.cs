@@ -30,7 +30,8 @@ public class FieldDialog : Form
     private const int HeaderH = 62;
     private const int FooterH = 66;
     private const int ModalRadius = 16;
-    private const int BorderPad = 2;
+    // Border-colour Padding ring: also the resize grab zone (form receives edge hit-tests here).
+    private const int BorderPad = 6;
     private static readonly Color ModalBorderColor = Color.FromArgb(132, 146, 170);
 
     public FieldDialog(string title, List<FieldDef> fields)
