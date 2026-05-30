@@ -6,7 +6,8 @@ namespace BusinessDashboard;
 /// <summary>A sidebar navigation item: icon, label, count badge, active/hover states.</summary>
 public class NavItem : Panel
 {
-    private readonly string _icon;
+    private readonly string _iconKey;
+    private readonly string _glyph;
     private readonly string _label;
     private bool _active;
     private bool _hover;
@@ -14,9 +15,10 @@ public class NavItem : Panel
 
     public int Count { get => _count; set { _count = value; Invalidate(); } }
 
-    public NavItem(string icon, string label)
+    public NavItem(string iconKey, string glyph, string label)
     {
-        _icon = icon;
+        _iconKey = iconKey;
+        _glyph = glyph;
         _label = label;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
@@ -38,20 +40,32 @@ public class NavItem : Panel
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-        var bg = _active ? Ui.SidebarActive : _hover ? Ui.SidebarHover : Ui.SidebarBg;
-        using (var b = new SolidBrush(bg))
-            g.FillRectangle(b, ClientRectangle);
+        // Active/hover background — a soft rounded pill inset from the edges,
+        // rather than a full-width slab, for a calmer modern feel.
+        if (_active || _hover)
+        {
+            var pill = new Rectangle(8, 5, Width - 16, Height - 10);
+            using var path = Ui.RoundedRect(pill, 9);
+            using var b = new SolidBrush(_active ? Ui.SidebarActive : Ui.SidebarHover);
+            g.FillPath(b, path);
+        }
 
-        // active accent bar on the left
+        // Active accent bar on the left — rounded, indigo.
         if (_active)
+            using (var path = Ui.RoundedRect(new Rectangle(0, 14, 3, Height - 28), 2))
             using (var b = new SolidBrush(Ui.Accent))
-                g.FillRectangle(b, 0, 8, 4, Height - 16);
+                g.FillPath(b, path);
 
-        var textColor = _active ? Color.White : Color.FromArgb(186, 196, 214);
+        var textColor = _active ? Color.White : Color.FromArgb(168, 176, 190);
 
-        TextRenderer.DrawText(g, _icon, Ui.F(13f),
-            new Rectangle(18, 0, 28, Height), textColor,
-            TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
+        // Icon: prefer the crisp vector icon; fall back to the configured glyph.
+        var iconBox = new Rectangle(20, (Height - 20) / 2, 20, 20);
+        if (Icons.Has(_iconKey))
+            Icons.Draw(g, _iconKey, iconBox, textColor, _active ? 2f : 1.8f);
+        else
+            TextRenderer.DrawText(g, _glyph, Ui.F(13f),
+                new Rectangle(18, 0, 28, Height), textColor,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
 
         var labelLeft = 52;
         var labelRight = Width - 12;
@@ -76,7 +90,7 @@ public class NavItem : Panel
             var rect = badgeRect.Value;
             using (var path = Ui.RoundedRect(rect, rect.Height / 2))
             {
-                using var b = new SolidBrush(_active ? Ui.Accent : Color.FromArgb(48, 60, 88));
+                using var b = new SolidBrush(_active ? Ui.Accent : Color.FromArgb(58, 62, 72));
                 g.FillPath(b, path);
             }
             TextRenderer.DrawText(g, txt, Ui.F(8.5f, FontStyle.Bold), rect, Color.White,

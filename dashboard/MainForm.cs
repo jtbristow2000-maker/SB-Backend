@@ -246,7 +246,7 @@ public class MainForm : Form
             var page = PageFor(module.Id);
             if (page == null) continue;
 
-            var nav = NewNav(module.Icon, module.Label, page);
+            var nav = NewNav(module.Id, module.Icon, module.Label, page);
             SetNavFor(module.Id, nav);
             navItems.Add(nav);
         }
@@ -314,9 +314,10 @@ public class MainForm : Form
         ApplyConfig(ConfigManager.Load());
     }
 
-    private NavItem NewNav(string icon, string label, CardListPage page)
+    private NavItem NewNav(string iconKey, string glyph, string label, CardListPage page)
     {
-        var item = new NavItem(icon, label);
+        // iconKey resolves to a crisp vector icon (Icons); glyph is the emoji fallback.
+        var item = new NavItem(iconKey, glyph, label);
         item.Click += (s, e) => Select(item, page);
         _navItems.Add(item);
         _navRoutes.Add((item, page));
