@@ -59,6 +59,33 @@
 - Verified with `dotnet build .\dashboard\BusinessDashboard.csproj` and `dotnet run --project .\dashboard\BusinessDashboard.csproj`.
 - Reset to Defaults, Branding, backup/migration behavior, backend work, provider integrations, auth, payments, and customer messaging were not implemented.
 
+## [2026-05-29] - GUI visual fixes — corner artifacts, color swatches, pipeline header
+
+### Fixed — `dashboard/BuilderForm.cs`
+
+**Root cause of right-side row artifacts:**
+All custom-painted controls (`BuilderDropRow`, `BuilderSurfacePanel`, `ToggleSwitch`) that use `UserPaint` + `AntiAlias` were drawing only inside a rounded path — leaving the 4 corner pixels outside the rounded rect with undefined/dark buffer content. Anti-aliasing then blended the rounded edge against that dark fringe, producing the visible line on the right side of every row.
+
+- `BuilderDropRow.OnPaintBackground`: now flood-fills `ClientRectangle` with white before drawing the rounded card. Removed the `Color.Transparent` border pen (GDI+ artifact risk) — replaced with `Color.FromArgb(18, 0, 0, 0)` at rest (subtle shadow border) and explicit `Pen(Ui.Accent)` on drag-over. Inset rect by 1px so the border renders fully within bounds.
+- `BuilderSurfacePanel.OnPaint`: flood-fills `ClientRectangle` with `Ui.ContentBg` before drawing the white rounded card — corners now blend into the surrounding gray correctly.
+- `ToggleSwitch.OnPaint`: flood-fills `ClientRectangle` with white before drawing the pill — eliminates corner dark-fringe artifact.
+
+**`move` FlowLayoutPanel transparency:**
+- Both `BuildModuleRow` and `BuildStageRow`: changed `move` FlowLayoutPanel `BackColor` from `Color.Transparent` to `Color.White`. `Color.Transparent` on a child of a `UserPaint` parent doesn't reliably show the parent's rendered background, causing subtle compositing artifacts on the right side of rows.
+
+**Pipeline color swatches:**
+- Added `ColorSwatchButton` inner class: custom-painted rounded color swatch. Fills full bounds with white first, draws a rounded rect filled with `SwatchColor`, subtle semi-transparent border, and a `✎` pencil glyph on hover to signal it's clickable. Replaces the rectangular `FlatStyle.Flat` system `Button`.
+- `BuildStageRow`: replaced `Button` with `ColorSwatchButton`. Updated margin to `(4, 10, 10, 10)` for proper vertical centering.
+- `PickStageColor`: updated parameter from `Button` to `ColorSwatchButton`; sets `swatch.SwatchColor` and `Invalidate()` instead of `BackColor`.
+
+**Pipeline header "Remove" → "Del":**
+- `BuildPipelineHeader`: changed column 4 header from `"Remove"` to `"Del"` — was being truncated to "Remov" at the column width.
+- `AddPipelineColumns`: widened Color column (78→72), narrowed Del column (70→52) — Del is shorter text, Color swatch no longer needs full width button.
+
+### Notes
+- No architecture changes. `DashboardConfig` unchanged. No backend, Twilio, Supabase, auth, or messaging touched.
+- Build: 0 C# warnings, 0 C# errors.
+
 ## [2026-05-29] - GUI premium polish — toggles, styled inputs
 
 ### Added — `dashboard/BuilderForm.cs`

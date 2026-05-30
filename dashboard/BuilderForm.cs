@@ -301,7 +301,7 @@ public class BuilderForm : Form
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            BackColor = Color.Transparent,
+            BackColor = Color.White,
             Margin = new Padding(0, 7, 0, 0),
         };
         var up = new BuilderIconButton { Text = "↑", Width = 34, Height = 28, Enabled = index > 0 };
@@ -592,7 +592,7 @@ public class BuilderForm : Form
         header.Controls.Add(HeaderLabel("Color"), 1, 0);
         header.Controls.Add(HeaderLabel("Stage name"), 2, 0);
         header.Controls.Add(HeaderLabel("Move"), 3, 0);
-        header.Controls.Add(HeaderLabel("Remove"), 4, 0);
+        header.Controls.Add(HeaderLabel("Del"), 4, 0);
         return header;
     }
 
@@ -610,15 +610,12 @@ public class BuilderForm : Form
         AddPipelineColumns(row);
 
         var order = BuildStageOrderCell(stage, index + 1);
-        var color = new Button
+        var color = new ColorSwatchButton
         {
+            SwatchColor = ColorFromHex(stage.Color, Color.FromArgb(136, 136, 136)),
             Dock = DockStyle.Fill,
-            Margin = new Padding(2, 10, 12, 0),
-            BackColor = ColorFromHex(stage.Color, Color.FromArgb(136, 136, 136)),
-            FlatStyle = FlatStyle.Flat,
-            Text = "",
+            Margin = new Padding(4, 10, 10, 10),
         };
-        color.FlatAppearance.BorderColor = Ui.CardBorder;
 
         var labelInput = new StyledInputPanel(stage.Label)
         {
@@ -630,7 +627,7 @@ public class BuilderForm : Form
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            BackColor = Color.Transparent,
+            BackColor = Color.White,
             Margin = new Padding(0, 7, 0, 0),
         };
         var up = new BuilderIconButton { Text = "↑", Width = 34, Height = 28, Enabled = index > 0 };
@@ -751,7 +748,7 @@ public class BuilderForm : Form
         }
     }
 
-    private void PickStageColor(StageConfig stage, Button button)
+    private void PickStageColor(StageConfig stage, ColorSwatchButton swatch)
     {
         using var dialog = new ColorDialog
         {
@@ -761,7 +758,8 @@ public class BuilderForm : Form
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
         stage.Color = ColorToHex(dialog.Color);
-        button.BackColor = dialog.Color;
+        swatch.SwatchColor = dialog.Color;
+        swatch.Invalidate();
     }
 
     private void MoveStage(StageConfig stage, int delta)
@@ -842,10 +840,10 @@ public class BuilderForm : Form
     private static void AddPipelineColumns(TableLayoutPanel table)
     {
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
         table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
     }
 
@@ -1560,6 +1558,11 @@ internal class BuilderSurfacePanel : Panel
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
+        // Fill the full bounds with the surrounding background first
+        // so anti-aliased rounded corners don't leave dark fringes.
+        using (var outer = new SolidBrush(Ui.ContentBg))
+            g.FillRectangle(outer, ClientRectangle);
+
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         var rect = new Rectangle(0, 0, Width - 1, Height - 1);
         using var path = Ui.RoundedRect(rect, 10);
@@ -1624,8 +1627,15 @@ internal class BuilderDropRow : TableLayoutPanel
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         var g = e.Graphics;
+
+        // Fill full bounds first so anti-aliased rounded corners
+        // blend into the surrounding background instead of leaving dark fringes.
+        using (var outer = new SolidBrush(Color.White))
+            g.FillRectangle(outer, ClientRectangle);
+
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+        // Inset 1px so the border pen renders fully within the control bounds.
+        var rect = new Rectangle(1, 1, Width - 3, Height - 3);
 
         using var path = Ui.RoundedRect(rect, 9);
         using var fill = new SolidBrush(Color.White);
@@ -1635,10 +1645,15 @@ internal class BuilderDropRow : TableLayoutPanel
         {
             using var highlight = new SolidBrush(Color.FromArgb(_currentAlpha, Ui.Accent));
             g.FillPath(highlight, path);
+            using var accentPen = new Pen(Ui.Accent, 1.4f);
+            g.DrawPath(accentPen, path);
         }
-
-        using var pen = new Pen(_currentAlpha > 0 ? Ui.Accent : Color.Transparent, _currentAlpha > 0 ? 1.4f : 1f);
-        g.DrawPath(pen, path);
+        else
+        {
+            // Subtle resting shadow border — avoids GDI+ transparent-pen artifacts.
+            using var restPen = new Pen(Color.FromArgb(18, 0, 0, 0), 1f);
+            g.DrawPath(restPen, path);
+        }
     }
 }
 
@@ -1685,6 +1700,10 @@ internal class ToggleSwitch : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
+        // Flood-fill with row background before drawing so corners don't artifact.
+        using (var bg = new SolidBrush(Color.White))
+            g.FillRectangle(bg, ClientRectangle);
+
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
         int tx = (Width  - TrackW) / 2;
@@ -1757,6 +1776,57 @@ internal class StyledInputPanel : Panel
         float borderW   = _focused ? 1.8f : 1f;
         using var pen = new Pen(borderColor, borderW);
         g.DrawPath(pen, path);
+    }
+}
+
+/// <summary>A rounded, custom-painted color swatch that opens a ColorDialog on click.</summary>
+internal class ColorSwatchButton : Control
+{
+    public Color SwatchColor { get; set; } = Color.Gray;
+    private bool _hover;
+    private const int Radius = 8;
+
+    public ColorSwatchButton()
+    {
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = Color.White;
+        Cursor = Cursors.Hand;
+    }
+
+    protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        // Flood-fill with row background first to avoid corner artifacts.
+        using (var bg = new SolidBrush(Color.White))
+            g.FillRectangle(bg, ClientRectangle);
+
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        // Swatch rectangle — inset 2px on all sides so it floats inside the cell.
+        var rect = new Rectangle(2, 2, Width - 5, Height - 5);
+        if (rect.Width < 4 || rect.Height < 4) return;
+
+        using var path = Ui.RoundedRect(rect, Radius);
+        using (var fill = new SolidBrush(SwatchColor))
+            g.FillPath(fill, path);
+
+        // Border: darken the swatch color slightly on hover; subtle dark at rest.
+        var borderColor = _hover
+            ? Color.FromArgb(140, ControlPaint.Dark(SwatchColor, 0.15f))
+            : Color.FromArgb(60, 0, 0, 0);
+        float borderW = _hover ? 1.8f : 1.2f;
+        using (var pen = new Pen(borderColor, borderW))
+            g.DrawPath(pen, path);
+
+        // Pencil glyph on hover so the owner knows it's clickable.
+        if (_hover)
+            TextRenderer.DrawText(g, "✎", Ui.F(9f, FontStyle.Bold), rect,
+                Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }
 }
 
