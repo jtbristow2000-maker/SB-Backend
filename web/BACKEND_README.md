@@ -14,6 +14,7 @@ This folder is the sandbox-first Next.js foundation for the future web/mobile mi
 - Supabase-ready SQL migrations in `supabase/migrations/` for businesses, customer profiles, calls, messages, tasks, and appointments.
 - TypeScript database contracts in `src/server/db/`.
 - Provider interfaces and sandbox implementations in `src/server/providers/`.
+- Phone normalization and customer profile upsert service in `src/server/phone/` and `src/server/customerProfiles/`.
 - Environment examples for Supabase, Twilio, OpenAI, app URL, and safety flags.
 
 ## Sandbox Only
@@ -95,6 +96,7 @@ Invoke-RestMethod -Method Post http://localhost:3000/api/webhooks/twilio/recordi
 
 - Supabase schema and auth wiring.
 - Supabase client/repository implementation.
+- Supabase-backed customer profile repository.
 - Real provider adapters behind the existing sandbox interfaces.
 - Signature validation for real Twilio traffic.
 - Lead/customer profile creation logic.

@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-05 phone normalization and profile upsert service
+
+### Added
+- `web/src/server/phone/normalize.ts`: E.164 phone normalization helper using `libphonenumber-js`.
+- `web/src/server/customerProfiles/repository.ts`: customer profile repository interface plus in-memory test implementation with duplicate prevention.
+- `web/src/server/customerProfiles/service.ts`: customer profile upsert service keyed by `business_id + normalized phone`.
+- Tests covering phone normalization, duplicate prevention, cross-business separation, and owner-note preservation.
+
+### Changed
+- `web/package.json`: added `libphonenumber-js`.
+- `web/BACKEND_README.md`: documented phone normalization and customer profile upsert service.
+
+### Notes
+- No Twilio integration, real SMS sending, calls, auth, payments, AI, transcription, frontend changes, Supabase client, or production secrets were implemented.
+
 ## [2026-05-31] - BACKEND-04 sandbox provider interfaces
 
 ### Added
