@@ -1,5 +1,55 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-01 web app foundation
+
+### Added
+- `web/`: sandbox-first Next.js foundation for the future web/mobile missed-call and lead-intake MVP.
+- `web/src/app/api/health/route.ts`: safe health endpoint exposing environment and safety flags without secrets.
+- `web/src/app/api/webhooks/twilio/*`: placeholder incoming call, incoming SMS, and recording callback endpoints.
+- `web/src/server/webhooks/twilio.ts`: isolated Twilio webhook stub handlers with no business logic, database writes, provider calls, or outbound communication.
+- `web/.env.example`: environment examples for Supabase, Twilio, OpenAI, app URL, and safety flags.
+- `web/BACKEND_README.md`: local setup, sandbox limitations, endpoint testing, and future work notes.
+
+### Changed
+- `.env.example`: added app base URL and future Supabase environment placeholders.
+
+### Notes
+- No dashboard source was modified.
+- No database schema, Supabase connection, Twilio sending, outbound calls, auth, payments, AI, transcription, or customer messaging was implemented.
+
+## [2026-05-31] - Backend database schema foundation
+
+### Added
+- `backend/app/db/`: SQLAlchemy base, session helper, and typed models for Business, CustomerProfile, CallRecord, Message, QuoteDraft, Task, Attachment, and AuditEvent.
+- `backend/alembic/`: Alembic migration setup and initial schema migration for the customer intake data model.
+- `backend/tests/test_schema.py`: coverage that the first schema metadata exists and can create/link core records in SQLite.
+
+### Changed
+- `backend/pyproject.toml`: added SQLAlchemy and Alembic dependencies.
+- `backend/README.md`: documented the local migration command.
+- `.env.example`: corrected the local SQLite database URL format.
+
+### Notes
+- No dashboard source was modified.
+- No Twilio, Supabase, auth, payments, AI, customer messaging, or real provider integrations were implemented.
+
+## [2026-05-30] - Backend FastAPI scaffold
+
+### Added
+- `backend/`: initial FastAPI backend scaffold outside the Claude-owned dashboard source.
+- `backend/app/main.py`: app factory and API router wiring.
+- `backend/app/api/health.py`: `/health` endpoint exposing service, version, environment, sandbox mode, and real-automation safety flags.
+- `backend/app/core/config.py`: environment-based settings with sandbox/test defaults and real SMS/call automation disabled by default.
+- `backend/tests/test_health.py`: pytest coverage for the health endpoint and safety defaults.
+- `backend/README.md`: setup, test, run, and health-check commands.
+
+### Changed
+- `.gitignore`: added Python backend cache, virtualenv, package metadata, and local data ignores.
+
+### Notes
+- No dashboard source was modified.
+- No Twilio, Supabase, auth, payments, AI, customer messaging, or real provider integrations were implemented.
+
 ## [2026-05-30] - Appointment calendar details and time picker
 
 ### Added
