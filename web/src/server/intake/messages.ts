@@ -15,6 +15,7 @@ export type MessageCreateInput = {
   media_json?: MessageRow["media_json"];
   status?: string;
   sent_at?: string | null;
+  created_at?: string | null;
 };
 
 export interface MessageRepository {
@@ -43,7 +44,7 @@ export class InMemoryMessageRepository implements MessageRepository {
       media_json: input.media_json ?? {},
       status: input.status ?? "queued",
       sent_at: input.sent_at ?? null,
-      created_at: new Date().toISOString()
+      created_at: input.created_at ?? new Date().toISOString()
     };
 
     this.messages.set(message.id, message);

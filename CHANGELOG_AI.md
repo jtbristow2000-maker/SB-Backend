@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-14 callback profiles read API
+
+### Added
+- `web/src/app/api/profiles/route.ts`: API-key guarded `GET /api/profiles` returning the OWNER_UX callback-list contract.
+- `web/src/server/profiles/callbacks.ts`: server-side read model for open callback profiles, call outcome, voicemail snippets, auto-reply status, and customer reply derivation.
+- Tests covering API-key rejection, exact list fields, `queued` auto-reply preservation, server-derived `customer_replied`, open-task filtering, and replied-first ordering.
+
+### Changed
+- `web/src/server/intake/messages.ts`: message fixtures can now set `created_at`, keeping read-model tests aligned with the `customer_replied` contract.
+
+### Notes
+- `customer_replied` is computed from inbound message `created_at` versus the latest missed/voicemail call `started_at`; task notes are not used.
+- No BACKEND-15 detail route, Supabase persistence, Twilio REST calls, SMS sending, outbound calls, AI, payments, dashboard changes, or production secrets were implemented.
+
 ## [2026-05-31] - BACKEND-13 webhook idempotency and dedupe
 
 ### Added
