@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BACKEND_02_TABLES, BACKEND_03_TABLES, type AppointmentRow, type CustomerProfileRow, type Database } from "./schema";
+import { BACKEND_02_TABLES, BACKEND_03_TABLES, type AppointmentRow, type AuditEventRow, type CustomerProfileRow, type Database } from "./schema";
 
 describe("BACKEND-02 database contract", () => {
   it("declares the required foundation tables", () => {
@@ -71,5 +71,22 @@ describe("BACKEND-03 appointment contract", () => {
 
     expect(appointment.business_id).toBe("business_1");
     expect(appointment.scheduled_start_at).toContain("2026-06-01");
+  });
+});
+
+describe("BACKEND-08 audit event contract", () => {
+  it("supports system audit events for missed-call workflow changes", () => {
+    const auditEvent = {
+      id: "audit_1",
+      business_id: "business_1",
+      customer_profile_id: "profile_1",
+      actor: "system",
+      event_type: "call.missed",
+      event_json: { providerCallId: "CA_TEST" },
+      created_at: "2026-05-31T00:00:00.000Z"
+    } satisfies AuditEventRow;
+
+    expect(auditEvent.actor).toBe("system");
+    expect(auditEvent.event_type).toBe("call.missed");
   });
 });

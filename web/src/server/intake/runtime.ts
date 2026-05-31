@@ -6,7 +6,9 @@ import { InMemoryCustomerProfileRepository } from "@/server/customerProfiles/rep
 import { CustomerProfileService } from "@/server/customerProfiles/service";
 import { createSandboxProviders } from "@/server/providers";
 
+import { InMemoryAuditEventRepository } from "./auditEvents";
 import { InMemoryCallRecordRepository } from "./callRecords";
+import { InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
 
 type IntakeRuntime = {
@@ -14,6 +16,8 @@ type IntakeRuntime = {
   customerProfileRepository: InMemoryCustomerProfileRepository;
   customerProfileService: CustomerProfileService;
   callRecordRepository: InMemoryCallRecordRepository;
+  taskRepository: InMemoryTaskRepository;
+  auditEventRepository: InMemoryAuditEventRepository;
   providers: ReturnType<typeof createSandboxProviders>;
   voiceIntakeService: VoiceIntakeService;
 };
@@ -30,11 +34,15 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
   const customerProfileRepository = new InMemoryCustomerProfileRepository();
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
   const callRecordRepository = new InMemoryCallRecordRepository();
+  const taskRepository = new InMemoryTaskRepository();
+  const auditEventRepository = new InMemoryAuditEventRepository();
   const providers = createSandboxProviders();
   const voiceIntakeService = new VoiceIntakeService({
     businessRepository,
     customerProfileService,
     callRecordRepository,
+    taskRepository,
+    auditEventRepository,
     callProvider: providers.calls
   });
 
@@ -43,6 +51,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     customerProfileRepository,
     customerProfileService,
     callRecordRepository,
+    taskRepository,
+    auditEventRepository,
     providers,
     voiceIntakeService
   };

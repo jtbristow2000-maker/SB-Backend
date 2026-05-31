@@ -5,6 +5,7 @@ import type {
   InboundSmsInput,
   ProviderActionResult,
   RecordingCallbackInput,
+  RecordVoicemailTwimlInput,
   SmsProvider,
   SmsSendInput,
   StorageProvider,
@@ -134,6 +135,20 @@ export class SandboxCallProvider implements CallProvider {
       `<Say>${escapeXml(message)}</Say>`,
       "</Response>"
     ].join("");
+  }
+
+  buildRecordVoicemailTwiml(input: RecordVoicemailTwimlInput): string {
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      "<Response>",
+      `<Say>${escapeXml(input.greeting)}</Say>`,
+      `<Record transcribe="true" transcribeCallback="${escapeXml(input.transcribeCallbackUrl)}" maxLength="${input.maxLengthSeconds}" />`,
+      "</Response>"
+    ].join("");
+  }
+
+  buildEmptyTwiml(): string {
+    return '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
   }
 }
 

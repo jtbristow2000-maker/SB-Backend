@@ -1,5 +1,23 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-08 dial status and missed-call tasking
+
+### Added
+- `web/src/app/api/webhooks/twilio/voice/status/route.ts`: Dial status webhook that marks answered calls, detects missed calls, and returns voicemail Record TwiML.
+- `web/src/server/intake/tasks.ts`: in-memory task repository for local/sandbox callback task creation.
+- `web/src/server/intake/auditEvents.ts`: in-memory audit event repository for workflow audit entries.
+- `web/supabase/migrations/0003_audit_events.sql`: Supabase-ready audit event table required by the missed-call workflow.
+- Tests covering completed versus missed dial status behavior and route-level voicemail TwiML.
+
+### Changed
+- `web/src/server/intake/voice.ts`: added dial-status handling, callback task creation, and audit event creation.
+- `web/src/server/providers/*`: added empty and voicemail-record TwiML builders.
+- `web/src/server/db/schema.ts`: added `answered` call type and audit event types.
+- `web/BACKEND_README.md`: documented the dial-status webhook.
+
+### Notes
+- No Twilio REST API calls, SMS sending, outbound calls, auth expansion, payments, AI, transcription provider, production secrets, or dashboard changes were implemented.
+
 ## [2026-05-31] - BACKEND-07 incoming-call voice webhook
 
 ### Added

@@ -7,7 +7,7 @@ export type JsonValue =
   | JsonValue[];
 
 export type Direction = "inbound" | "outbound";
-export type CallType = "missed" | "voicemail" | "live" | "manual";
+export type CallType = "missed" | "answered" | "voicemail" | "live" | "manual";
 export type MessageChannel = "sms" | "mms" | "email" | "web";
 export type TaskStatus = "open" | "completed" | "dismissed";
 export type AppointmentStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -122,6 +122,18 @@ export type AppointmentRow = TimestampColumns & {
   notes: string | null;
 };
 
+export type AuditActor = "system" | "owner" | "provider";
+
+export type AuditEventRow = {
+  id: string;
+  business_id: string;
+  customer_profile_id: string | null;
+  actor: AuditActor;
+  event_type: string;
+  event_json: JsonValue;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -159,6 +171,12 @@ export type Database = {
         Insert: Omit<Partial<AppointmentRow>, "id" | "created_at" | "updated_at"> &
           Pick<AppointmentRow, "business_id" | "title" | "scheduled_start_at">;
         Update: Partial<Omit<AppointmentRow, "id" | "business_id" | "created_at">>;
+      };
+      audit_events: {
+        Row: AuditEventRow;
+        Insert: Omit<Partial<AuditEventRow>, "id" | "created_at"> &
+          Pick<AuditEventRow, "business_id" | "actor" | "event_type">;
+        Update: never;
       };
     };
   };

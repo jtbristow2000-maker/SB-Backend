@@ -47,13 +47,21 @@ export interface CallProvider {
   recordIncomingCall(input: IncomingCallInput): Promise<ProviderActionResult>;
   recordRecordingCallback(input: RecordingCallbackInput): Promise<ProviderActionResult>;
   buildDialTwiml(input: DialTwimlInput): string;
+  buildRecordVoicemailTwiml(input: RecordVoicemailTwimlInput): string;
   buildSayTwiml(message: string): string;
+  buildEmptyTwiml(): string;
 }
 
 export type DialTwimlInput = {
   ownerPhoneE164: string;
   actionUrl: string;
   timeoutSeconds: number;
+};
+
+export type RecordVoicemailTwimlInput = {
+  greeting: string;
+  transcribeCallbackUrl: string;
+  maxLengthSeconds: number;
 };
 
 export type TranscriptionInput = {

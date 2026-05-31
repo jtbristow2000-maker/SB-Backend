@@ -23,6 +23,8 @@ export type CallRecordCreateInput = {
 
 export interface CallRecordRepository {
   create(input: CallRecordCreateInput): Promise<CallRecordRow>;
+  update(id: string, input: Partial<Omit<CallRecordRow, "id" | "created_at">>): Promise<CallRecordRow>;
+  findByProviderCallId(providerCallId: string): Promise<CallRecordRow | null>;
   findByProviderCallId(businessId: string, providerCallId: string): Promise<CallRecordRow | null>;
   list(): Promise<CallRecordRow[]>;
 }
@@ -63,14 +65,44 @@ export class InMemoryCallRecordRepository implements CallRecordRepository {
   }
 
   async findByProviderCallId(
-    businessId: string,
     providerCallId: string
+  ): Promise<CallRecordRow | null>;
+  async findByProviderCallId(
+    businessId: string,
+    providerCallId?: string
   ): Promise<CallRecordRow | null> {
+    if (providerCallId === undefined) {
+      return (
+        Array.from(this.calls.values()).find((call) => call.provider_call_id === businessId) ?? null
+      );
+    }
+
     return (
       Array.from(this.calls.values()).find(
         (call) => call.business_id === businessId && call.provider_call_id === providerCallId
       ) ?? null
     );
+  }
+
+  async update(
+    id: string,
+    input: Partial<Omit<CallRecordRow, "id" | "created_at">>
+  ): Promise<CallRecordRow> {
+    const existing = this.calls.get(id);
+    if (!existing) {
+      throw new Error(`Call record not found: ${id}`);
+    }
+
+    const updated: CallRecordRow = {
+      ...existing,
+      ...input,
+      id: existing.id,
+      created_at: existing.created_at,
+      updated_at: nowIso()
+    };
+
+    this.calls.set(id, updated);
+    return updated;
   }
 
   async list(): Promise<CallRecordRow[]> {

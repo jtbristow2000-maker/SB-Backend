@@ -63,4 +63,19 @@ describe("BACKEND-04 sandbox providers", () => {
     expect(twiml).toContain("<Response>");
     expect(twiml).toContain('<Dial timeout="18" action="/api/webhooks/twilio/voice/status">+12133734253</Dial>');
   });
+
+  it("builds voicemail Record TwiML without provider network calls", () => {
+    const providers = createSandboxProviders();
+
+    const twiml = providers.calls.buildRecordVoicemailTwiml({
+      greeting: "Please leave a message.",
+      transcribeCallbackUrl: "/api/webhooks/twilio/recording",
+      maxLengthSeconds: 120
+    });
+
+    expect(twiml).toContain("<Say>Please leave a message.</Say>");
+    expect(twiml).toContain('transcribe="true"');
+    expect(twiml).toContain('transcribeCallback="/api/webhooks/twilio/recording"');
+    expect(twiml).toContain('maxLength="120"');
+  });
 });
