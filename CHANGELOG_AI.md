@@ -1,5 +1,27 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Clickable Sandbox Console (web/) for the missed-call pipeline
+
+### Added
+- `web/src/app/page.tsx`: replaced the placeholder home page with a **Sandbox Console** — a
+  clickable tester that drives the real Twilio webhook routes (form-encoded POSTs) and renders
+  the resulting leads as the `OWNER_UX.md` contract describes (outcome, auto-reply state,
+  Replied badge, merged call+voicemail+SMS timeline, callback task). Buttons: missed call +
+  voicemail, missed call (no voicemail), customer texts back, answered call, reset.
+- `web/src/app/api/dev/state/route.ts`: dev/sandbox-only `GET` returning current in-memory intake
+  state (business, profiles, calls, messages, tasks); 404 when `SANDBOX_MODE` is off. Also gives
+  the seeded business sandbox default phones so the console works zero-config.
+- `web/src/app/api/dev/reset/route.ts`: dev/sandbox-only `POST` to clear in-memory state.
+
+### Changed
+- `web/BACKEND_README.md`: documented the Sandbox Console and the two dev routes.
+
+### Notes
+- Sandbox-only and additive; no intake/service logic, schema, or `dashboard/` source changed.
+- Derived view fields (outcome, auto_reply_status, customer_replied) are computed client-side here
+  as a stopgap; they become the real read-API contract in BACKEND-14/15.
+- Auto-texts render as "not sent (sandbox)" while `SMS_SENDING_ENABLED=false` — never shown as sent.
+
 ## [2026-05-31] - BACKEND-12 Twilio signature verification
 
 ### Added

@@ -68,6 +68,25 @@ http://localhost:3000
 http://localhost:3000/api/health
 ```
 
+## Clickable Sandbox Console (test the pipeline with buttons)
+
+Open **http://localhost:3000** while `npm run dev` is running. The home page is a **Sandbox
+Console** that drives the real Twilio webhook routes with buttons and shows the resulting
+leads — no curl required.
+
+- **📞 Missed call + voicemail** — posts voice → dial-status(no-answer) → recording, producing a
+  lead, a callback task, a voicemail transcript, and a **queued** auto-text.
+- **📞 Missed call (no voicemail)** — voice → dial-status(no-answer) only.
+- **💬 Customer texts back** — inbound SMS threaded onto the lead (flips it to "Replied").
+- **✅ Answered call** — voice → dial-status(completed).
+- **↺ Reset sandbox** — clears in-memory state.
+
+Left pane lists leads (outcome, auto-reply state, Replied badge); click one for the merged
+call + voicemail + SMS timeline. Because `SMS_SENDING_ENABLED=false`, auto-texts show as
+**"not sent (sandbox)"** — recorded but not delivered. Powered by **dev/sandbox-only** routes
+(404 when `SANDBOX_MODE` is off): `GET /api/dev/state`, `POST /api/dev/reset`. This is a test
+harness, not the production owner UI (that is built from `OWNER_UX.md` against the read API).
+
 Build check:
 
 ```powershell
