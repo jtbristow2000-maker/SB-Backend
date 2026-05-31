@@ -14,6 +14,8 @@ export type TaskCreateInput = {
 
 export interface TaskRepository {
   create(input: TaskCreateInput): Promise<TaskRow>;
+  update(id: string, input: Partial<Omit<TaskRow, "id" | "business_id" | "created_at">>): Promise<TaskRow>;
+  findOpenCallbackTask(customerProfileId: string): Promise<TaskRow | null>;
   list(): Promise<TaskRow[]>;
 }
 
@@ -41,6 +43,39 @@ export class InMemoryTaskRepository implements TaskRepository {
 
     this.tasks.set(task.id, task);
     return task;
+  }
+
+  async update(
+    id: string,
+    input: Partial<Omit<TaskRow, "id" | "business_id" | "created_at">>
+  ): Promise<TaskRow> {
+    const existing = this.tasks.get(id);
+    if (!existing) {
+      throw new Error(`Task not found: ${id}`);
+    }
+
+    const updated: TaskRow = {
+      ...existing,
+      ...input,
+      id: existing.id,
+      business_id: existing.business_id,
+      created_at: existing.created_at,
+      updated_at: nowIso()
+    };
+
+    this.tasks.set(id, updated);
+    return updated;
+  }
+
+  async findOpenCallbackTask(customerProfileId: string): Promise<TaskRow | null> {
+    return (
+      Array.from(this.tasks.values()).find(
+        (task) =>
+          task.customer_profile_id === customerProfileId &&
+          task.task_type === "callback" &&
+          task.status === "open"
+      ) ?? null
+    );
   }
 
   async list(): Promise<TaskRow[]> {

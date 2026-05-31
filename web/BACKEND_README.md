@@ -13,6 +13,7 @@ This folder is the sandbox-first Next.js foundation for the future web/mobile mi
 - `POST /api/webhooks/twilio/voice`
 - `POST /api/webhooks/twilio/voice/status`
 - `POST /api/webhooks/twilio/recording`
+- `POST /api/webhooks/twilio/sms`
 - Webhook handlers are isolated in `src/server/webhooks/` so future business logic can be added behind a clean boundary.
 - Supabase-ready SQL migrations in `supabase/migrations/` for businesses, customer profiles, calls, messages, tasks, and appointments.
 - TypeScript database contracts in `src/server/db/`.
@@ -115,6 +116,12 @@ Recording/transcription webhook:
 
 ```powershell
 Invoke-RestMethod -Method Post http://localhost:3000/api/webhooks/twilio/recording -Body @{ CallSid = "CA_TEST"; RecordingUrl = "https://example.test/recording.wav"; TranscriptionText = "Customer voicemail text" }
+```
+
+Inbound SMS webhook:
+
+```powershell
+Invoke-RestMethod -Method Post http://localhost:3000/api/webhooks/twilio/sms -Body @{ From = "+15551234567"; To = "<BUSINESS_PHONE>"; Body = "Need a quote"; MessageSid = "SM_TEST" }
 ```
 
 ## Still Needed

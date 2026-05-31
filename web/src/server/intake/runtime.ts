@@ -10,6 +10,7 @@ import { getAppConfig } from "@/server/config";
 import { InMemoryAuditEventRepository } from "./auditEvents";
 import { InMemoryCallRecordRepository } from "./callRecords";
 import { InMemoryMessageRepository } from "./messages";
+import { SmsIntakeService } from "./sms";
 import { InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
 
@@ -23,6 +24,7 @@ type IntakeRuntime = {
   auditEventRepository: InMemoryAuditEventRepository;
   providers: ReturnType<typeof createSandboxProviders>;
   voiceIntakeService: VoiceIntakeService;
+  smsIntakeService: SmsIntakeService;
 };
 
 let runtime: IntakeRuntime | null = null;
@@ -52,6 +54,12 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     smsProvider: providers.sms,
     isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled
   });
+  const smsIntakeService = new SmsIntakeService({
+    businessRepository,
+    customerProfileService,
+    messageRepository,
+    taskRepository
+  });
 
   runtime = {
     businessRepository,
@@ -62,7 +70,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     taskRepository,
     auditEventRepository,
     providers,
-    voiceIntakeService
+    voiceIntakeService,
+    smsIntakeService
   };
 
   return runtime;

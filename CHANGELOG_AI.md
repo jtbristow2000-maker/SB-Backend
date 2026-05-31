@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-11 inbound SMS threading
+
+### Added
+- `web/src/app/api/webhooks/twilio/sms/route.ts`: inbound SMS webhook that threads messages onto customer profiles by normalized phone number.
+- `web/src/server/intake/sms.ts`: SMS intake service for business resolution, profile upsert, message storage, last-contact updates, and callback task reply flagging.
+- Tests covering new profile creation, repeated-number threading, message storage, last-contact updates, and callback task note flagging.
+
+### Changed
+- `web/src/server/intake/tasks.ts`: added task update and open-callback lookup helpers.
+- `web/src/server/intake/runtime.ts`: wired SMS intake into the local sandbox runtime.
+- `web/BACKEND_README.md`: documented the inbound SMS webhook test command.
+
+### Notes
+- The inbound SMS route returns empty TwiML and sends no outbound response. No Twilio SDK, SMS sending, outbound calls, auth expansion, payments, AI, production secrets, or dashboard changes were implemented.
+
 ## [2026-05-31] - BACKEND-10 missed-call auto-text
 
 ### Added
