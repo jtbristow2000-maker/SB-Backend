@@ -10,6 +10,7 @@ export type Direction = "inbound" | "outbound";
 export type CallType = "missed" | "voicemail" | "live" | "manual";
 export type MessageChannel = "sms" | "mms" | "email" | "web";
 export type TaskStatus = "open" | "completed" | "dismissed";
+export type AppointmentStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
 
 export const BACKEND_02_TABLES = [
   "businesses",
@@ -20,6 +21,10 @@ export const BACKEND_02_TABLES = [
 ] as const;
 
 export type Backend02Table = (typeof BACKEND_02_TABLES)[number];
+
+export const BACKEND_03_TABLES = [...BACKEND_02_TABLES, "appointments"] as const;
+
+export type Backend03Table = (typeof BACKEND_03_TABLES)[number];
 
 export type TimestampColumns = {
   created_at: string;
@@ -102,6 +107,21 @@ export type TaskRow = TimestampColumns & {
   status: TaskStatus;
 };
 
+export type AppointmentRow = TimestampColumns & {
+  id: string;
+  business_id: string;
+  customer_profile_id: string | null;
+  source_call_record_id: string | null;
+  title: string;
+  service_requested: string | null;
+  scheduled_start_at: string;
+  scheduled_end_at: string | null;
+  timezone: string;
+  status: AppointmentStatus;
+  location: string | null;
+  notes: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -133,6 +153,12 @@ export type Database = {
         Insert: Omit<Partial<TaskRow>, "id" | "created_at" | "updated_at"> &
           Pick<TaskRow, "business_id" | "task_type" | "title">;
         Update: Partial<Omit<TaskRow, "id" | "business_id" | "created_at">>;
+      };
+      appointments: {
+        Row: AppointmentRow;
+        Insert: Omit<Partial<AppointmentRow>, "id" | "created_at" | "updated_at"> &
+          Pick<AppointmentRow, "business_id" | "title" | "scheduled_start_at">;
+        Update: Partial<Omit<AppointmentRow, "id" | "business_id" | "created_at">>;
       };
     };
   };

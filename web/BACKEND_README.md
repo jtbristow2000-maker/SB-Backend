@@ -11,7 +11,7 @@ This folder is the sandbox-first Next.js foundation for the future web/mobile mi
   - `POST /api/webhooks/twilio/incoming-sms`
   - `POST /api/webhooks/twilio/recording-callback`
 - Webhook handlers are isolated in `src/server/webhooks/` so future business logic can be added behind a clean boundary.
-- Supabase-ready SQL migrations in `supabase/migrations/`.
+- Supabase-ready SQL migrations in `supabase/migrations/` for businesses, customer profiles, calls, messages, tasks, and appointments.
 - TypeScript database contracts in `src/server/db/`.
 - Environment examples for Supabase, Twilio, OpenAI, app URL, and safety flags.
 

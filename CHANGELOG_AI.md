@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-03 appointment model
+
+### Added
+- `web/supabase/migrations/0002_appointments.sql`: Supabase-ready appointment table with business/customer links, schedule fields, status, location, and notes.
+- `web/src/server/db/schema.ts`: typed appointment row/insert/update contract.
+- `web/src/server/db/schema.test.ts`: coverage that Appointment extends the foundation table set and remains business-scoped.
+
+### Changed
+- `web/BACKEND_README.md`: documented Appointment as part of the backend data foundation.
+
+### Notes
+- No frontend changes, live Supabase connection, auth, Twilio integration, SMS sending, calls, payments, AI, transcription, or customer messaging were implemented.
+
 ## [2026-05-31] - BACKEND-02 database foundation
 
 ### Added
