@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Plain-English owner's manual
+
+### Added
+- `USER_MANUAL.md`: a non-technical guide for the founder — what the product is, how the pieces
+  fit (Twilio / backend / Supabase / owner app / frozen Windows demo), what's done vs not, how to
+  open and stop the clickable demo (incl. the PowerShell execution-policy fix), who does what
+  (you / Claude / Codex / ChatGPT), a glossary of every term, a map of the repo folders, and a
+  what's-next cheat sheet.
+
+### Notes
+- Documentation only; no code changed.
+
 ## [2026-05-31] - Clickable Sandbox Console (web/) for the missed-call pipeline
 
 ### Added
