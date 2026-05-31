@@ -493,7 +493,281 @@ Run each item in the checklist sequentially. Record pass/fail. File a task for a
 
 ---
 
-## Codex Tasks
+## ⚠️ Backend track decision (read first)
+
+Two backends currently exist. **Consolidate on ONE before continuing.**
+- `web/` — **Next.js (App Router) API routes + Supabase + Vitest.** Codex's active track; BACKEND-01→05 done here. Unifies frontend + backend in one Vercel deploy. **Recommended — keep this one.**
+- `backend/` — Python/FastAPI + SQLAlchemy + Alembic. Earlier scaffold; now redundant. **Recommend archiving/removing** to avoid two sources of truth.
+
+The tasks below are written for the **`web/` (Next.js + Supabase)** track.
+
+## Backend Build Tasks (BACKEND-03 → BACKEND-22)
+
+Fastest path to one paying detailer: a single-tenant pipeline where a real missed call
+produces a lead + voicemail transcript + auto-text, and the owner is notified and can respond.
+**No AI in this block** (AI summaries/extraction come after the first customer is live).
+
+**Stack:** Next.js App Router API routes · Supabase Postgres · Vitest · Twilio for comms.
+**Conventions (established in `web/`):** server logic in `web/src/server/<domain>/`; routes in `web/src/app/api/.../route.ts`; SQL in `web/supabase/migrations/NNNN_*.sql`; tests colocated `*.test.ts`.
+**Guardrails:** sandbox-first; real SMS/calls behind `SMS_SENDING_ENABLED` / `CALL_FORWARDING_ENABLED` (default false); no hardcoded secrets; update `CHANGELOG_AI.md`; do not touch `dashboard/`.
+**Status:** BACKEND-01→05 are **DONE in `web/`** (foundation, schema, appointments, sandbox providers, phone-normalize + profile upsert). **Start at BACKEND-06.**
+
+Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
+
+> **BACKEND-03/04/05 are already implemented in `web/`** — recorded below only for completeness.
+>
+> **Path/term mapping:** some task bodies below were drafted against a Python/FastAPI layout.
+> Translate them to the `web/` track as you implement:
+> - `backend/app/api/.../*.py` → `web/src/app/api/.../route.ts` (route handler) + `web/src/server/<domain>/*.ts` (logic)
+> - Alembic migration → `web/supabase/migrations/NNNN_*.sql` (+ update `web/src/server/db/schema.ts`)
+> - "FastAPI dependency" → a Next.js route guard helper in `web/src/server/auth/`
+> - pytest → Vitest (`*.test.ts`); `phonenumbers` → `libphonenumber-js` (already added)
+> The **Goal / Requirements / Acceptance** of each task are stack-agnostic and stand as written.
+
+---
+
+### BACKEND-03 — Appointment model + migration   (S)
+
+**Goal:** Add the missing Appointment entity to the backend data model.
+**Files:** `backend/app/db/models.py`, new Alembic migration, `backend/tests/test_schema.py`.
+**Requirements:**
+- Add `Appointment` (TimestampMixin): `id` (uuid str), `business_id` FK, `customer_profile_id` FK (nullable, SET NULL), `service` (str), `scheduled_at` (timezone-aware datetime), `duration_minutes` (int, nullable), `address` (str, nullable), `status` (str, default `scheduled`), `notes` (text, nullable).
+- Index `(business_id, scheduled_at)`. Add relationships to `Business` and `CustomerProfile`.
+- Use one `scheduled_at` timestamp — NOT separate date/time strings.
+**Acceptance:** migration upgrades/downgrades cleanly on SQLite + Postgres; an appointment can be created and linked to a profile.
+**Test:** extend `test_schema.py` to create a Business→CustomerProfile→Appointment chain and assert the relationship + index exist.
+
+---
+
+### BACKEND-04 — Provider interfaces + sandbox fakes + feature flags   (M)
+
+**Goal:** Abstract all external comms behind interfaces so everything is testable without Twilio.
+**Files:** `backend/app/providers/` (`base.py`, `sandbox.py`), `backend/app/core/config.py`, `backend/tests/test_providers.py`.
+**Requirements:**
+- Define interfaces: `SmsProvider.send(to, from_, body) -> ProviderResult`, `CallProvider` (TwiML builder helpers), `TranscriptionProvider`, `StorageProvider`.
+- Sandbox implementations log/record calls in-memory and make **no** network calls.
+- A `get_providers()` selector reads env: provider = `sandbox` (default) or `twilio`.
+- Config flags: `SMS_SENDING_ENABLED=false`, `CALL_FORWARDING_ENABLED=false` by default.
+**Acceptance:** with default env, the selector returns sandbox providers and nothing hits the network.
+**Test:** assert sandbox SMS send records the message and returns a fake id; assert flags default false.
+
+---
+
+### BACKEND-05 — Phone normalization + CustomerProfile upsert service   (S)
+
+**Goal:** Canonical phone matching + the core "find or create the caller" logic.
+**Files:** `backend/app/services/profiles.py`, `backend/tests/test_profiles.py`.
+**Requirements:**
+- `normalize_phone(raw, default_region="US") -> str` returning E.164 (`+1...`). Use `phonenumbers` (add dep) or a documented minimal normalizer.
+- `upsert_profile(session, business_id, phone, **fields) -> CustomerProfile`: match by `(business_id, normalized_phone)`; create if new; update only provided fields; **never overwrite owner-entered `notes`**.
+**Acceptance:** same number in two formats resolves to one profile; owner notes survive an upsert.
+**Test:** upsert `(555) 210-4400` then `+15552104400` → one row; set notes, upsert again → notes intact.
+
+---
+
+### BACKEND-06 — Single-tenant bootstrap + API-key auth dependency   (S)
+
+**Goal:** One seeded Business and a simple guard for `/api/*` (no multi-tenant auth yet).
+**Files:** `backend/app/core/security.py`, `backend/app/db/seed.py`, `backend/app/core/config.py`, `backend/tests/test_auth.py`.
+**Requirements:**
+- Seed (idempotent) one Business from env (`BUSINESS_NAME`, `BUSINESS_PHONE`, `OWNER_PHONE`, `TIMEZONE`).
+- FastAPI dependency `require_api_key` validating an `X-API-Key` header against `API_KEY` env. Applies to `/api/*` only (webhooks are auth'd by Twilio signature later, not this key).
+**Acceptance:** `/api/*` returns 401 without the key, 200 with it; webhooks unaffected.
+**Test:** call a protected route with/without the header.
+
+---
+
+### BACKEND-07 — Incoming-call webhook → Dial TwiML   (M)
+
+**Goal:** Ring the owner's cell when a customer calls the business number.
+**Files:** `backend/app/api/webhooks/twilio.py`, `backend/tests/test_webhook_voice.py`.
+**Requirements:**
+- `POST /webhooks/twilio/voice`: resolve Business by the called number (`To`); upsert profile by `From`; create `CallRecord(direction=inbound, call_type=missed)` as the provisional record.
+- Return TwiML `<Dial timeout=18 action="/webhooks/twilio/voice/status">{owner_phone}</Dial>` built via `CallProvider`.
+**Acceptance:** a posted Twilio form payload returns valid Dial TwiML to the owner phone; a CallRecord row is created.
+**Test:** post a sample `voice` payload; assert TwiML contains `<Dial>` + owner number and a CallRecord exists.
+
+---
+
+### BACKEND-08 — Dial-status webhook → missed detection + voicemail TwiML   (M)
+
+**Goal:** Decide answered vs missed; on missed, open voicemail and queue the callback task.
+**Files:** `backend/app/api/webhooks/twilio.py`, `backend/app/services/intake.py`, `backend/tests/test_webhook_status.py`.
+**Requirements:**
+- `POST /webhooks/twilio/voice/status` (the Dial `action`): if `DialCallStatus=completed` → set `call_type=answered`, return empty TwiML.
+- Else (`no-answer|busy|failed`) → keep `call_type=missed`; create `Task(task_type=callback, status=open)`; write an `AuditEvent`; return TwiML `<Say>` greeting + `<Record transcribe=true transcribeCallback="/webhooks/twilio/recording" maxLength=120>`.
+**Acceptance:** each `DialCallStatus` maps to the correct record state + TwiML; a callback task exists only on missed.
+**Test:** post `completed` and `no-answer` payloads; assert state + TwiML + task for each.
+
+---
+
+### BACKEND-09 — Recording/transcription webhook   (S)
+
+**Goal:** Attach the voicemail recording + transcript to the call.
+**Files:** `backend/app/api/webhooks/twilio.py`, `backend/tests/test_webhook_recording.py`.
+**Requirements:**
+- `POST /webhooks/twilio/recording`: locate the `CallRecord` by `CallSid`/`provider_call_id`; set `recording_url`, `transcript`; set `needs_review=true`. Idempotent (re-post = no dup, just update).
+**Acceptance:** recording payload updates the right CallRecord; re-posting is safe.
+**Test:** post a transcription payload; assert fields set; post again; assert no duplicate/error.
+
+---
+
+### BACKEND-10 — Missed-call auto-text   (M)
+
+**Goal:** Text the caller back automatically when a call is missed (the core "magic moment").
+**Files:** `backend/app/services/intake.py`, `backend/tests/test_autotext.py`.
+**Requirements:**
+- On a missed call, send an auto-text via `SmsProvider` (sandbox logs; only hits Twilio when `SMS_SENDING_ENABLED=true`). Copy from Business `settings_json` with a sane default ("Sorry we missed your call — reply here and we'll get right back to you. — {business_name}").
+- Record an outbound `Message(direction=outbound, channel=sms, status=sent|queued)`. Wrap send so a failure cannot break the call flow; log an `AuditEvent`.
+**Acceptance:** missed call with flag ON → one outbound Message + provider send; flag OFF → Message recorded as `queued`/sandbox, no network.
+**Test:** simulate a missed call with flag on/off; assert outbound Message count and provider behavior.
+
+---
+
+### BACKEND-11 — Inbound SMS webhook → thread onto profile   (M)
+
+**Goal:** When a customer texts the business number, attach it to their profile.
+**Files:** `backend/app/api/webhooks/twilio.py`, `backend/tests/test_webhook_sms.py`.
+**Requirements:**
+- `POST /webhooks/twilio/sms`: resolve Business by `To`; upsert profile by `From`; store inbound `Message`; update `profile.last_contact_at`; if an open callback task exists, flag it "customer replied"; return empty TwiML fast.
+**Acceptance:** unknown number creates a profile; known number threads onto the existing one; last_contact_at updates.
+**Test:** post SMS from a new number, then the same number; assert one profile, two messages.
+
+---
+
+### BACKEND-12 — Twilio signature verification   (S)
+
+**Goal:** Reject forged/unsigned webhook calls.
+**Files:** `backend/app/core/twilio_auth.py`, applied to all `/webhooks/twilio/*`, `backend/tests/test_signature.py`.
+**Requirements:**
+- Validate the `X-Twilio-Signature` header against `TWILIO_AUTH_TOKEN` + the full request URL + form params. In sandbox/test mode, allow a documented bypass flag (`WEBHOOK_SIGNATURE_REQUIRED=false`) so local tests run.
+**Acceptance:** valid signature passes; tampered/missing fails 403 when required; bypass works in tests.
+**Test:** craft a valid signature and an invalid one; assert 200 vs 403.
+
+---
+
+### BACKEND-13 — Webhook idempotency / dedupe   (S)
+
+**Goal:** Twilio retries must not create duplicate rows.
+**Files:** `backend/app/services/intake.py` (or a small `dedupe` helper), tests.
+**Requirements:**
+- Dedupe on `provider_call_id` (calls) and `provider_message_id` (messages) using the existing indexed columns: look up before insert; update-in-place on repeat.
+**Acceptance:** posting the same webhook twice yields one row and no error.
+**Test:** double-post voice, recording, and sms payloads; assert single rows.
+
+---
+
+### BACKEND-14 — GET /api/profiles (list)   (S)
+
+**Goal:** The leads list the owner UI renders.
+**Files:** `backend/app/api/profiles.py`, `backend/app/schemas/`, `backend/tests/test_api_profiles.py`.
+**Requirements:**
+- `GET /api/profiles` (api-key guarded): returns profiles for the seeded business with `id, display_name, phone, status, last_contact_at, open_task_count`. Sort by `last_contact_at desc`. Optional `?status=` filter.
+**Acceptance:** shape matches the contract; requires api key; open_task_count correct.
+**Test:** seed 2 profiles (one with an open task); assert payload + counts + auth.
+
+---
+
+### BACKEND-15 — GET /api/profiles/{id} (detail)   (M)
+
+**Goal:** The lead detail view (everything about one customer).
+**Files:** `backend/app/api/profiles.py`, schemas, tests.
+**Requirements:**
+- Return the profile + nested `calls` (with transcript/recording_url), `messages` (chronological), `tasks`, `quote_drafts`, `appointments`. 404 if not found / wrong business.
+**Acceptance:** nested payload complete and ordered; 404 on bad id.
+**Test:** build a profile with one call + two messages; assert nested shape + ordering.
+
+---
+
+### BACKEND-16 — PATCH /api/profiles/{id} (owner edits) + audit   (S)
+
+**Goal:** Owner edits to name/status/notes/address.
+**Files:** `backend/app/api/profiles.py`, tests.
+**Requirements:**
+- Allow editing `display_name, status, notes, email, address_*`. Write an `AuditEvent(actor=owner, event_type=profile.update)` with a diff. Reject unknown fields.
+**Acceptance:** edits persist; an audit row is written per change.
+**Test:** patch status + notes; assert persistence + audit event.
+
+---
+
+### BACKEND-17 — Tasks API: GET list + PATCH update   (S)
+
+**Goal:** The "Needs Attention" queue.
+**Files:** `backend/app/api/tasks.py`, schemas, tests.
+**Requirements:**
+- `GET /api/tasks?status=open` (default open), sorted by `due_at`/`created_at`.
+- `PATCH /api/tasks/{id}` → set `status` to `done|dismissed` or reschedule `due_at`. Audit each change.
+**Acceptance:** list returns open tasks; patch transitions state + audits.
+**Test:** create a callback task; list it; complete it; assert it leaves the open list.
+
+---
+
+### BACKEND-18 — POST /api/messages (owner-approved outbound SMS)   (M)
+
+**Goal:** Owner sends a text from the dashboard. **Never auto-sends.**
+**Files:** `backend/app/api/messages.py`, tests.
+**Requirements:**
+- `POST /api/messages { profile_id, body }`: send via `SmsProvider` (respects `SMS_SENDING_ENABLED`), store an outbound `Message`, update `last_contact_at`, audit. Requires explicit api-key'd request — there is no automatic path to this endpoint.
+**Acceptance:** creates exactly one outbound message; honors the send flag; audited.
+**Test:** post a message with flag on/off; assert send behavior + single row.
+
+---
+
+### BACKEND-19 — Appointments API (list / create / update)   (M)
+
+**Goal:** Back the agenda/calendar in the owner UI.
+**Files:** `backend/app/api/appointments.py`, schemas, tests.
+**Requirements:**
+- `GET /api/appointments?from=&to=` (range, ordered by `scheduled_at`); `POST` (create, optionally from a profile); `PATCH /{id}` (reschedule/status/notes). Audit create/update.
+**Acceptance:** range query returns ordered items; create links to a profile; patch updates.
+**Test:** create two appointments in/out of range; assert filtering + ordering.
+
+---
+
+### BACKEND-20 — Follow-up sweep job   (M)
+
+**Goal:** Surface stale leads so none are forgotten.
+**Files:** `backend/app/api/internal.py` (or `app/jobs/`), `backend/tests/test_followups.py`.
+**Requirements:**
+- `POST /internal/jobs/sweep-followups` (protected by an internal token; meant to be hit by cron): find profiles in `new`/`contacted` with no owner action in N hours (config) → create one `Task(follow_up)` per stale profile (idempotent per day) and optionally a reminder SMS **to the owner** (never the customer).
+**Acceptance:** stale profile gets exactly one follow-up task; fresh profile gets none; running twice in a day doesn't duplicate.
+**Test:** seed a stale + a fresh profile; run sweep twice; assert one task on the stale one.
+
+---
+
+### BACKEND-21 — Deploy + live Twilio wiring   (M)
+
+**Goal:** A public, always-on service the real Twilio number can call.
+**Files:** `backend/Dockerfile` or host config, `backend/README.md`, `.env.example`.
+**Requirements:**
+- Deploy FastAPI to Render/Railway/Fly with a public HTTPS URL; connect to Supabase Postgres; run Alembic on deploy; document setting Twilio Voice + Messaging webhooks to the deployed URLs; document the local tunnel (cloudflared/ngrok) for dev.
+- No secrets committed; everything via env.
+**Acceptance:** `/health` reachable over HTTPS; a real call to the Twilio number hits the deployed voice webhook.
+**Test:** manual — place a call to the number; confirm logs show the webhook and a CallRecord is created.
+
+---
+
+### BACKEND-22 — Observability: logging + error capture + deep health   (S)
+
+**Goal:** See what happened on every call/text; get alerted when something breaks.
+**Files:** `backend/app/core/logging.py`, `backend/app/api/health.py`, host env.
+**Requirements:**
+- Structured request + webhook logging (include provider ids, business id; never log full secrets). Wire Sentry (or equivalent) via `SENTRY_DSN` (optional/off if unset). Extend `/health` to a deep check (DB connectivity + which providers/flags are active).
+**Acceptance:** webhook handling emits a structured log line; deep `/health` reports DB + provider/flag state; errors surface in Sentry when DSN set.
+**Test:** hit a webhook, assert a structured log entry; hit deep `/health`, assert DB + flags reported.
+
+---
+
+> **After BACKEND-22 — and only after one detailer is live —** begin the AI layer:
+> `BACKEND-23` Claude voicemail summary (async, sets `ai_summary` + confidence/`needs_review`);
+> `BACKEND-24` AI quote-draft extraction (draft only). These are deliberately excluded from the
+> first-customer path.
+
+## Codex Tasks (legacy — superseded by Backend Build Tasks above)
+
+> BACKEND-01 (scaffold + `/health` + config) and BACKEND-02 (schema + Alembic + tests) are
+> complete. The granular BACKEND-03 → BACKEND-22 list above replaces this high-level outline;
+> it is kept for historical context only.
 
 1. Pick and scaffold the backend stack outside `dashboard/`.
    - Recommended: Node.js Express or Python FastAPI.

@@ -1,6 +1,25 @@
 # CHANGELOG_AI.md
 
-## [2026-05-31] - BACKEND-05 phone normalization and profile upsert service
+## [2026-05-31] - TASKS.md: granular backend build plan (BACKEND-03→22) + track decision
+
+### Added
+- `TASKS.md`: new **Backend Build Tasks** section detailing BACKEND-03 → BACKEND-22 in the repo's
+  goal/files/requirements/acceptance/test style, with difficulty estimates. Covers the full
+  missed-call → auto-text → voicemail → owner-notify → respond pipeline for one single-tenant
+  paying customer. AI tasks (BACKEND-23/24) deliberately deferred until after first customer.
+
+### Changed
+- `TASKS.md`: added a **"Backend track decision"** banner. Two backends now exist — `web/`
+  (Next.js + Supabase + Vitest, Codex's active track, BACKEND-01→05 done) and `backend/`
+  (Python/FastAPI, earlier scaffold, now redundant). Recommendation: **consolidate on `web/`,
+  archive `backend/`.** Tasks are written for the `web/` track with a Python→web path/term mapping note.
+- `TASKS.md`: marked the old high-level "Codex Tasks" outline as legacy/superseded.
+
+### Notes
+- Planning only — no application code changed; `dashboard/` untouched.
+- Flagged for the founder: the dual-backend divergence needs an explicit keep/kill decision.
+
+
 
 ### Added
 - `web/src/server/phone/normalize.ts`: E.164 phone normalization helper using `libphonenumber-js`.
