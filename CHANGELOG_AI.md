@@ -1,5 +1,22 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-06 single-tenant bootstrap and API key guard
+
+### Added
+- `web/src/server/auth/apiKey.ts`: `X-API-Key` guard for protected owner API routes.
+- `web/src/server/business/bootstrap.ts`: single-tenant Business bootstrap from environment variables with an idempotent repository boundary.
+- Tests covering protected API access, webhook bypass behavior, and idempotent Business bootstrap.
+
+### Changed
+- `web/src/app/api/health/route.ts`: now requires the configured API key and reports new safety flags.
+- `.env.example` and `web/.env.example`: added `API_KEY`, single-tenant business bootstrap values, `SMS_SENDING_ENABLED`, and `CALL_FORWARDING_ENABLED`.
+- `web/BACKEND_README.md`: documented API-key health testing and new safety flags.
+
+### Notes
+- Webhook routes remain unguarded by `X-API-Key` for future Twilio signature validation.
+- No dashboard source was modified.
+- No Supabase client writes, Twilio integration, SMS sending, outbound calls, auth system, payments, AI, transcription, or production secrets were implemented.
+
 ## [2026-05-31] - BACKEND-00 backend track consolidation
 
 ### Changed

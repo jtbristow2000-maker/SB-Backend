@@ -15,6 +15,7 @@ This folder is the sandbox-first Next.js foundation for the future web/mobile mi
 - TypeScript database contracts in `src/server/db/`.
 - Provider interfaces and sandbox implementations in `src/server/providers/`.
 - Phone normalization and customer profile upsert service in `src/server/phone/` and `src/server/customerProfiles/`.
+- Single-tenant business bootstrap and `X-API-Key` route guard for owner API routes.
 - Environment examples for Supabase, Twilio, OpenAI, app URL, and safety flags.
 
 ## Sandbox Only
@@ -34,6 +35,8 @@ Safety defaults:
 
 ```text
 SANDBOX_MODE=true
+SMS_SENDING_ENABLED=false
+CALL_FORWARDING_ENABLED=false
 REAL_MESSAGE_SENDING_ENABLED=false
 REAL_CALL_AUTOMATION_ENABLED=false
 ```
@@ -71,7 +74,7 @@ npm test
 Health:
 
 ```powershell
-Invoke-RestMethod http://localhost:3000/api/health
+Invoke-RestMethod http://localhost:3000/api/health -Headers @{ "X-API-Key" = "<your API_KEY>" }
 ```
 
 Incoming call webhook:

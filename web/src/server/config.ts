@@ -9,8 +9,11 @@ function readBoolean(name: string, fallback: boolean): boolean {
 
 export type AppConfig = {
   appBaseUrl: string;
+  apiKeyConfigured: boolean;
   environment: string;
   sandboxMode: boolean;
+  smsSendingEnabled: boolean;
+  callForwardingEnabled: boolean;
   realMessageSendingEnabled: boolean;
   realCallAutomationEnabled: boolean;
   supabaseConfigured: boolean;
@@ -24,8 +27,11 @@ export function getAppConfig(): AppConfig {
       process.env.APP_BASE_URL ??
       process.env.NEXT_PUBLIC_APP_BASE_URL ??
       "http://localhost:3000",
+    apiKeyConfigured: Boolean(process.env.API_KEY),
     environment: process.env.NODE_ENV ?? "development",
     sandboxMode: readBoolean("SANDBOX_MODE", true),
+    smsSendingEnabled: readBoolean("SMS_SENDING_ENABLED", false),
+    callForwardingEnabled: readBoolean("CALL_FORWARDING_ENABLED", false),
     realMessageSendingEnabled: readBoolean("REAL_MESSAGE_SENDING_ENABLED", false),
     realCallAutomationEnabled: readBoolean("REAL_CALL_AUTOMATION_ENABLED", false),
     supabaseConfigured: Boolean(
