@@ -493,11 +493,11 @@ Run each item in the checklist sequentially. Record pass/fail. File a task for a
 
 ---
 
-## ⚠️ Backend track decision (read first)
+## ✅ Backend track decision (DONE)
 
-Two backends currently exist. **Consolidate on ONE before continuing.**
-- `web/` — **Next.js (App Router) API routes + Supabase + Vitest.** Codex's active track; BACKEND-01→05 done here. Unifies frontend + backend in one Vercel deploy. **Recommended — keep this one.**
-- `backend/` — Python/FastAPI + SQLAlchemy + Alembic. Earlier scaffold; now redundant. **Recommend archiving/removing** to avoid two sources of truth.
+BACKEND-00 completed: the repo is standardized on **`web/` (Next.js + Supabase + Vitest)** as the active backend track.
+- `web/` — **ACTIVE.** Next.js (App Router) API routes + Supabase + Vitest. BACKEND-01→05 done here. Unifies frontend + backend in one Vercel deploy.
+- `legacy/backend-python/` — **ARCHIVED.** Former Python/FastAPI + SQLAlchemy + Alembic scaffold. Kept for reference only; no longer a live build target.
 
 The tasks below are written for the **`web/` (Next.js + Supabase)** track.
 
@@ -510,7 +510,7 @@ produces a lead + voicemail transcript + auto-text, and the owner is notified an
 **Stack:** Next.js App Router API routes · Supabase Postgres · Vitest · Twilio for comms.
 **Conventions (established in `web/`):** server logic in `web/src/server/<domain>/`; routes in `web/src/app/api/.../route.ts`; SQL in `web/supabase/migrations/NNNN_*.sql`; tests colocated `*.test.ts`.
 **Guardrails:** sandbox-first; real SMS/calls behind `SMS_SENDING_ENABLED` / `CALL_FORWARDING_ENABLED` (default false); no hardcoded secrets; update `CHANGELOG_AI.md`; do not touch `dashboard/`.
-**Status:** BACKEND-01→05 are **DONE in `web/`** (foundation, schema, appointments, sandbox providers, phone-normalize + profile upsert). **Start at BACKEND-06.**
+**Status:** BACKEND-00→05 are **DONE in `web/`** (track consolidation, foundation, schema, appointments, sandbox providers, phone-normalize + profile upsert). **Start at BACKEND-06.**
 
 Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 

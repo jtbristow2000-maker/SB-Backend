@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-00 backend track consolidation
+
+### Changed
+- `backend/`: archived the redundant Python/FastAPI backend under `legacy/backend-python/` so `web/` is the single active backend source of truth.
+- `TASKS.md`: marked the backend track decision as DONE and updated status to BACKEND-00→05 complete.
+- `.gitignore`: added ignores for generated Python artifacts under the archived legacy backend path.
+
+### Verified
+- `web`: Vitest suite passes.
+- `web`: Next.js production build passes.
+
+### Notes
+- No dashboard source was modified.
+- No Twilio integration, SMS sending, outbound calls, auth, payments, AI, production secrets, or feature work was implemented.
+
 ## [2026-05-31] - TASKS.md: granular backend build plan (BACKEND-03→22) + track decision
 
 ### Added
