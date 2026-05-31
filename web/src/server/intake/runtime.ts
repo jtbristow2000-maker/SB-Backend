@@ -5,9 +5,11 @@ import {
 import { InMemoryCustomerProfileRepository } from "@/server/customerProfiles/repository";
 import { CustomerProfileService } from "@/server/customerProfiles/service";
 import { createSandboxProviders } from "@/server/providers";
+import { getAppConfig } from "@/server/config";
 
 import { InMemoryAuditEventRepository } from "./auditEvents";
 import { InMemoryCallRecordRepository } from "./callRecords";
+import { InMemoryMessageRepository } from "./messages";
 import { InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
 
@@ -16,6 +18,7 @@ type IntakeRuntime = {
   customerProfileRepository: InMemoryCustomerProfileRepository;
   customerProfileService: CustomerProfileService;
   callRecordRepository: InMemoryCallRecordRepository;
+  messageRepository: InMemoryMessageRepository;
   taskRepository: InMemoryTaskRepository;
   auditEventRepository: InMemoryAuditEventRepository;
   providers: ReturnType<typeof createSandboxProviders>;
@@ -34,6 +37,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
   const customerProfileRepository = new InMemoryCustomerProfileRepository();
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
   const callRecordRepository = new InMemoryCallRecordRepository();
+  const messageRepository = new InMemoryMessageRepository();
   const taskRepository = new InMemoryTaskRepository();
   const auditEventRepository = new InMemoryAuditEventRepository();
   const providers = createSandboxProviders();
@@ -41,9 +45,12 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     businessRepository,
     customerProfileService,
     callRecordRepository,
+    messageRepository,
     taskRepository,
     auditEventRepository,
-    callProvider: providers.calls
+    callProvider: providers.calls,
+    smsProvider: providers.sms,
+    isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled
   });
 
   runtime = {
@@ -51,6 +58,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     customerProfileRepository,
     customerProfileService,
     callRecordRepository,
+    messageRepository,
     taskRepository,
     auditEventRepository,
     providers,

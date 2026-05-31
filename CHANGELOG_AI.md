@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-10 missed-call auto-text
+
+### Added
+- `web/src/server/intake/messages.ts`: in-memory outbound message repository for local/sandbox missed-call auto-text records.
+- Missed-call auto-text handling in the dial-status flow, with queued messages when `SMS_SENDING_ENABLED=false` and sandbox provider sends when enabled.
+- Tests covering SMS flag off, SMS flag on, and provider failure that does not break voicemail/callback flow.
+
+### Changed
+- `web/src/server/intake/voice.ts`: missed calls now create an outbound SMS message record and audit auto-text queue/send/failure events.
+- `web/src/server/intake/runtime.ts`: wired the sandbox SMS provider and message repository into intake runtime.
+- `web/BACKEND_README.md`: documented sandbox auto-text behavior.
+
+### Notes
+- SMS remains sandbox-only. No Twilio SDK, real SMS sending, outbound calls, auth expansion, payments, AI, transcription provider, production secrets, or dashboard changes were implemented.
+
 ## [2026-05-31] - BACKEND-09 recording and transcription webhook
 
 ### Added

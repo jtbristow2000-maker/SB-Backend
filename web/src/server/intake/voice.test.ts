@@ -3,15 +3,17 @@ import { describe, expect, it } from "vitest";
 import { bootstrapSingleTenantBusiness, InMemoryBusinessRepository } from "@/server/business/bootstrap";
 import { InMemoryCustomerProfileRepository } from "@/server/customerProfiles/repository";
 import { CustomerProfileService } from "@/server/customerProfiles/service";
-import { createSandboxProviders } from "@/server/providers";
+import { createSandboxProviders, type SandboxProviderLog } from "@/server/providers";
 
 import { InMemoryAuditEventRepository } from "./auditEvents";
 import { InMemoryCallRecordRepository } from "./callRecords";
+import { InMemoryMessageRepository } from "./messages";
 import { InMemoryTaskRepository } from "./tasks";
 import { OWNER_DIAL_TIMEOUT_SECONDS, VOICE_STATUS_ACTION_URL, VoiceIntakeService } from "./voice";
 
 describe("BACKEND-07 voice intake service", () => {
-  async function setupService() {
+  async function setupService(options: { smsSendingEnabled?: boolean; smsThrows?: boolean } = {}) {
+    const providerLogs: SandboxProviderLog[] = [];
     const businessRepository = new InMemoryBusinessRepository();
     await bootstrapSingleTenantBusiness(businessRepository, {
       id: "00000000-0000-4000-8000-000000000201",
@@ -24,23 +26,35 @@ describe("BACKEND-07 voice intake service", () => {
     const customerProfileRepository = new InMemoryCustomerProfileRepository();
     const customerProfileService = new CustomerProfileService(customerProfileRepository);
     const callRecordRepository = new InMemoryCallRecordRepository();
+    const messageRepository = new InMemoryMessageRepository();
     const taskRepository = new InMemoryTaskRepository();
     const auditEventRepository = new InMemoryAuditEventRepository();
-    const providers = createSandboxProviders();
+    const providers = createSandboxProviders((entry) => providerLogs.push(entry));
     const service = new VoiceIntakeService({
       businessRepository,
       customerProfileService,
       callRecordRepository,
+      messageRepository,
       taskRepository,
       auditEventRepository,
-      callProvider: providers.calls
+      callProvider: providers.calls,
+      smsProvider: options.smsThrows
+        ? {
+            async sendMessage() {
+              throw new Error("sandbox send failure");
+            }
+          }
+        : providers.sms,
+      isSmsSendingEnabled: () => options.smsSendingEnabled ?? false
     });
 
     return {
       customerProfileRepository,
       callRecordRepository,
+      messageRepository,
       taskRepository,
       auditEventRepository,
+      providerLogs,
       service
     };
   }
@@ -97,7 +111,7 @@ describe("BACKEND-07 voice intake service", () => {
   });
 
   it("creates callback task and voicemail Record TwiML for missed dial calls", async () => {
-    const { callRecordRepository, taskRepository, auditEventRepository, service } = await setupService();
+    const { callRecordRepository, messageRepository, taskRepository, auditEventRepository, providerLogs, service } = await setupService();
     await service.handleIncomingVoice({
       from: "(949) 555-0100",
       to: "+13105550199",
@@ -110,6 +124,7 @@ describe("BACKEND-07 voice intake service", () => {
     });
 
     const calls = await callRecordRepository.list();
+    const messages = await messageRepository.list();
     const tasks = await taskRepository.list();
     const auditEvents = await auditEventRepository.list();
     expect(result.status).toBe("voicemail");
@@ -123,11 +138,71 @@ describe("BACKEND-07 voice intake service", () => {
       task_type: "callback",
       status: "open"
     });
-    expect(auditEvents).toHaveLength(1);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      direction: "outbound",
+      channel: "sms",
+      status: "queued",
+      to_phone_e164: "+19495550100"
+    });
+    expect(messages[0].body).toContain("Sorry we missed your call");
+    expect(providerLogs).toHaveLength(0);
+    expect(auditEvents).toHaveLength(2);
     expect(auditEvents[0]).toMatchObject({
       actor: "system",
       event_type: "call.missed"
     });
+    expect(auditEvents[1]).toMatchObject({
+      actor: "system",
+      event_type: "message.auto_text.queued"
+    });
+  });
+
+  it("sends missed-call auto-text through sandbox provider when SMS sending is enabled", async () => {
+    const { messageRepository, auditEventRepository, providerLogs, service } = await setupService({
+      smsSendingEnabled: true
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUTOTEXT_ON"
+    });
+
+    await service.handleDialStatus({
+      callSid: "CA_AUTOTEXT_ON",
+      dialCallStatus: "busy"
+    });
+
+    const messages = await messageRepository.list();
+    const auditEvents = await auditEventRepository.list();
+    expect(messages).toHaveLength(1);
+    expect(messages[0].status).toBe("sent");
+    expect(providerLogs.map((entry) => entry.action)).toContain("sms.send.logged_only");
+    expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.sent");
+  });
+
+  it("does not break missed-call flow when auto-text provider send fails", async () => {
+    const { messageRepository, auditEventRepository, service } = await setupService({
+      smsSendingEnabled: true,
+      smsThrows: true
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUTOTEXT_FAIL"
+    });
+
+    const result = await service.handleDialStatus({
+      callSid: "CA_AUTOTEXT_FAIL",
+      dialCallStatus: "failed"
+    });
+
+    const messages = await messageRepository.list();
+    const auditEvents = await auditEventRepository.list();
+    expect(result.status).toBe("voicemail");
+    expect(messages).toHaveLength(1);
+    expect(messages[0].status).toBe("sent");
+    expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.failed");
   });
 
   it("attaches recording and transcript idempotently to the existing call", async () => {

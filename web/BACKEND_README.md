@@ -19,6 +19,7 @@ This folder is the sandbox-first Next.js foundation for the future web/mobile mi
 - Provider interfaces and sandbox implementations in `src/server/providers/`.
 - Phone normalization and customer profile upsert service in `src/server/phone/` and `src/server/customerProfiles/`.
 - Single-tenant business bootstrap and `X-API-Key` route guard for owner API routes.
+- Missed-call callback tasking, voicemail TwiML, recording attachment, and sandbox auto-text recording.
 - Environment examples for Supabase, Twilio, OpenAI, app URL, and safety flags.
 
 ## Sandbox Only
