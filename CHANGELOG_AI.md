@@ -1,5 +1,22 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-07 incoming-call voice webhook
+
+### Added
+- `web/src/app/api/webhooks/twilio/voice/route.ts`: Twilio voice webhook that resolves the configured business number, upserts the caller profile, creates a provisional inbound missed call record, and returns Dial TwiML to the owner phone.
+- `web/src/server/intake/`: voice intake service, local runtime wiring, and in-memory call-record repository for sandbox/local tests.
+- `web/src/server/webhooks/twilioForm.ts`: shared Twilio form parser.
+- Tests covering the voice intake service and route-level Dial TwiML response.
+
+### Changed
+- `web/src/server/providers/types.ts` and `web/src/server/providers/sandbox.ts`: added safe TwiML builder helpers to the call provider interface.
+- `web/src/server/business/bootstrap.ts`: added business lookup by normalized business phone.
+- `web/BACKEND_README.md`: documented the incoming voice webhook test command.
+
+### Notes
+- The route returns TwiML only; it does not call Twilio's REST API, send SMS, place outbound provider calls, use production secrets, or touch the dashboard.
+- `CALL_FORWARDING_ENABLED` remains default false; real provider-side call automation is still not connected.
+
 ## [2026-05-31] - BACKEND-06 single-tenant bootstrap and API key guard
 
 ### Added

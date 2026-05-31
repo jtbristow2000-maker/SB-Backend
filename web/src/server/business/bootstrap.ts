@@ -14,6 +14,7 @@ export type BusinessSeedInput = {
 
 export interface BusinessRepository {
   findById(id: string): Promise<BusinessRow | null>;
+  findByBusinessPhone(phoneE164: string): Promise<BusinessRow | null>;
   create(input: BusinessSeedInput & { id: string }): Promise<BusinessRow>;
   update(id: string, input: BusinessSeedInput): Promise<BusinessRow>;
   list(): Promise<BusinessRow[]>;
@@ -55,6 +56,14 @@ export class InMemoryBusinessRepository implements BusinessRepository {
 
   async findById(id: string): Promise<BusinessRow | null> {
     return this.businesses.get(id) ?? null;
+  }
+
+  async findByBusinessPhone(phoneE164: string): Promise<BusinessRow | null> {
+    return (
+      Array.from(this.businesses.values()).find(
+        (business) => business.business_phone_e164 === phoneE164
+      ) ?? null
+    );
   }
 
   async create(input: BusinessSeedInput & { id: string }): Promise<BusinessRow> {

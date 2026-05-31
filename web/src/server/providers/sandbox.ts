@@ -1,5 +1,6 @@
 import type {
   CallProvider,
+  DialTwimlInput,
   IncomingCallInput,
   InboundSmsInput,
   ProviderActionResult,
@@ -34,6 +35,15 @@ function logged(action: string): ProviderActionResult {
     action,
     networkCallsMade: false
   };
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 }
 
 export class SandboxSmsProvider implements SmsProvider {
@@ -106,6 +116,24 @@ export class SandboxCallProvider implements CallProvider {
     });
 
     return logged("call.recording.logged_only");
+  }
+
+  buildDialTwiml(input: DialTwimlInput): string {
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      "<Response>",
+      `<Dial timeout="${input.timeoutSeconds}" action="${escapeXml(input.actionUrl)}">${escapeXml(input.ownerPhoneE164)}</Dial>`,
+      "</Response>"
+    ].join("");
+  }
+
+  buildSayTwiml(message: string): string {
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      "<Response>",
+      `<Say>${escapeXml(message)}</Say>`,
+      "</Response>"
+    ].join("");
   }
 }
 

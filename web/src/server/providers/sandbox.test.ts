@@ -50,4 +50,17 @@ describe("BACKEND-04 sandbox providers", () => {
       "storage.save.logged_only"
     ]);
   });
+
+  it("builds safe Dial TwiML without provider network calls", () => {
+    const providers = createSandboxProviders();
+
+    const twiml = providers.calls.buildDialTwiml({
+      ownerPhoneE164: "+12133734253",
+      actionUrl: "/api/webhooks/twilio/voice/status",
+      timeoutSeconds: 18
+    });
+
+    expect(twiml).toContain("<Response>");
+    expect(twiml).toContain('<Dial timeout="18" action="/api/webhooks/twilio/voice/status">+12133734253</Dial>');
+  });
 });

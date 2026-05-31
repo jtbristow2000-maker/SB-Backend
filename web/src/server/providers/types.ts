@@ -46,7 +46,15 @@ export interface CallProvider {
   readonly providerName: string;
   recordIncomingCall(input: IncomingCallInput): Promise<ProviderActionResult>;
   recordRecordingCallback(input: RecordingCallbackInput): Promise<ProviderActionResult>;
+  buildDialTwiml(input: DialTwimlInput): string;
+  buildSayTwiml(message: string): string;
 }
+
+export type DialTwimlInput = {
+  ownerPhoneE164: string;
+  actionUrl: string;
+  timeoutSeconds: number;
+};
 
 export type TranscriptionInput = {
   businessId: string;
