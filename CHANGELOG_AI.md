@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-02 database foundation
+
+### Added
+- `web/supabase/migrations/0001_backend_foundation.sql`: Supabase-ready foundation schema for businesses, customer profiles, call records, messages, and tasks.
+- `web/src/server/db/schema.ts`: typed database contract for the foundation tables.
+- `web/src/server/db/schema.test.ts`: Vitest coverage for required table names and customer profile phone-normalization readiness.
+
+### Changed
+- `web/package.json`: added a `test` script and Vitest for backend foundation tests.
+- `web/BACKEND_README.md`: documented migrations, typed database contracts, and the test command.
+
+### Notes
+- No live Supabase connection, auth, Twilio integration, SMS sending, calls, payments, AI, transcription, or frontend dashboard changes were implemented.
+
 ## [2026-05-31] - BACKEND-01 web app foundation
 
 ### Added
