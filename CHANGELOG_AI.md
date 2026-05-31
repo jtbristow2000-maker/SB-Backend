@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Owner UX contract for missed-call pipeline
+
+### Added
+- `web/OWNER_UX.md`: spec/contract for the future web/mobile owner experience (one detailer,
+  missed-call pipeline only). Defines two screens (Callbacks triage + Lead detail), the minimum
+  component kit, state-surfacing rules (auto-reply sent/queued/failed, replied, needs_review),
+  microcopy, and the **read-API field contract** the screens require — including structured
+  `auto_reply_status`, `customer_replied`, `last_inbound_at`, and a merged call+message timeline.
+
+### Notes
+- Spec only — no code changed; `dashboard/` and backend untouched.
+- Locks the contract so BACKEND-14/15 (read API) and the future Next.js owner screens build
+  against one shape. Key rule recorded: never render a `queued` (undelivered) auto-text as "sent."
+
 ## [2026-05-31] - BACKEND-11 inbound SMS threading
 
 ### Added
