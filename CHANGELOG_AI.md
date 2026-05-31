@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-12 Twilio signature verification
+
+### Added
+- `web/src/server/webhooks/twilioSignature.ts`: shared Twilio signature validation using the request URL, sorted webhook params, `X-Twilio-Signature`, and `TWILIO_AUTH_TOKEN`.
+- Route-level tests proving the local bypass works, valid signatures pass, tampered signatures fail, and missing signatures are rejected across every `/api/webhooks/twilio/*` route when required.
+- `WEBHOOK_SIGNATURE_REQUIRED=false` in root and web environment examples for documented local sandbox bypass.
+
+### Changed
+- All Twilio webhook routes now parse the payload once through a verified helper before running placeholder or intake logic.
+- `web/BACKEND_README.md`: documented the signature guard, local bypass, and required `TWILIO_AUTH_TOKEN` behavior.
+
+### Notes
+- Signature checks are disabled by default for local sandbox testing and can be enabled with `WEBHOOK_SIGNATURE_REQUIRED=true`.
+- No Twilio REST API calls, SMS sending, outbound calls, auth expansion, payments, AI, production secrets, dashboard changes, or future backend tasks were implemented.
+
 ## [2026-05-31] - Owner UX contract for missed-call pipeline
 
 ### Added

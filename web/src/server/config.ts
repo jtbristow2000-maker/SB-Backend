@@ -12,6 +12,7 @@ export type AppConfig = {
   apiKeyConfigured: boolean;
   environment: string;
   sandboxMode: boolean;
+  webhookSignatureRequired: boolean;
   smsSendingEnabled: boolean;
   callForwardingEnabled: boolean;
   realMessageSendingEnabled: boolean;
@@ -30,6 +31,7 @@ export function getAppConfig(): AppConfig {
     apiKeyConfigured: Boolean(process.env.API_KEY),
     environment: process.env.NODE_ENV ?? "development",
     sandboxMode: readBoolean("SANDBOX_MODE", true),
+    webhookSignatureRequired: readBoolean("WEBHOOK_SIGNATURE_REQUIRED", false),
     smsSendingEnabled: readBoolean("SMS_SENDING_ENABLED", false),
     callForwardingEnabled: readBoolean("CALL_FORWARDING_ENABLED", false),
     realMessageSendingEnabled: readBoolean("REAL_MESSAGE_SENDING_ENABLED", false),

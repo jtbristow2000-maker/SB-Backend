@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getAppConfig } from "@/server/config";
+import { readVerifiedTwilioPayload } from "@/server/webhooks/twilioForm";
 
 export type TwilioWebhookKind = "incoming_call" | "incoming_sms" | "recording_callback";
-
-async function readSafePayload(request: NextRequest): Promise<Record<string, string>> {
-  const contentType = request.headers.get("content-type") ?? "";
-
-  if (contentType.includes("application/json")) {
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.entries(body).map(([key, value]) => [key, String(value ?? "")])
-    );
-  }
-
-  const form = await request.formData().catch(() => new FormData());
-  return Object.fromEntries(
-    Array.from(form.entries()).map(([key, value]) => [key, String(value)])
-  );
-}
 
 function placeholderResponse(kind: TwilioWebhookKind, payload: Record<string, string>) {
   const config = getAppConfig();
@@ -37,16 +22,28 @@ function placeholderResponse(kind: TwilioWebhookKind, payload: Record<string, st
 }
 
 export async function handleIncomingCallWebhook(request: NextRequest) {
-  const payload = await readSafePayload(request);
-  return placeholderResponse("incoming_call", payload);
+  const verified = await readVerifiedTwilioPayload(request);
+  if (!verified.ok) {
+    return verified.response;
+  }
+
+  return placeholderResponse("incoming_call", verified.payload);
 }
 
 export async function handleIncomingSmsWebhook(request: NextRequest) {
-  const payload = await readSafePayload(request);
-  return placeholderResponse("incoming_sms", payload);
+  const verified = await readVerifiedTwilioPayload(request);
+  if (!verified.ok) {
+    return verified.response;
+  }
+
+  return placeholderResponse("incoming_sms", verified.payload);
 }
 
 export async function handleRecordingCallbackWebhook(request: NextRequest) {
-  const payload = await readSafePayload(request);
-  return placeholderResponse("recording_callback", payload);
+  const verified = await readVerifiedTwilioPayload(request);
+  if (!verified.ok) {
+    return verified.response;
+  }
+
+  return placeholderResponse("recording_callback", verified.payload);
 }

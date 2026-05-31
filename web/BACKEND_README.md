@@ -21,6 +21,7 @@ This folder is the sandbox-first Next.js foundation for the future web/mobile mi
 - Phone normalization and customer profile upsert service in `src/server/phone/` and `src/server/customerProfiles/`.
 - Single-tenant business bootstrap and `X-API-Key` route guard for owner API routes.
 - Missed-call callback tasking, voicemail TwiML, recording attachment, and sandbox auto-text recording.
+- Twilio webhook signature verification with a local sandbox bypass flag.
 - Environment examples for Supabase, Twilio, OpenAI, app URL, and safety flags.
 
 ## Sandbox Only
@@ -44,7 +45,12 @@ SMS_SENDING_ENABLED=false
 CALL_FORWARDING_ENABLED=false
 REAL_MESSAGE_SENDING_ENABLED=false
 REAL_CALL_AUTOMATION_ENABLED=false
+WEBHOOK_SIGNATURE_REQUIRED=false
 ```
+
+For real Twilio webhook testing, set `WEBHOOK_SIGNATURE_REQUIRED=true` and provide
+`TWILIO_AUTH_TOKEN`. The signed URL must match the exact public webhook URL configured in
+Twilio. Leave the flag `false` for unsigned local form posts and sandbox-only route tests.
 
 ## Local Setup
 
@@ -130,7 +136,6 @@ Invoke-RestMethod -Method Post http://localhost:3000/api/webhooks/twilio/sms -Bo
 - Supabase client/repository implementation.
 - Supabase-backed customer profile repository.
 - Real provider adapters behind the existing sandbox interfaces.
-- Signature validation for real Twilio traffic.
 - Lead/customer profile creation logic.
 - Message/call persistence.
 - AI extraction and transcription adapters.

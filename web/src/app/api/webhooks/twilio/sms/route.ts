@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
-import { readTwilioForm } from "@/server/webhooks/twilioForm";
+import { readVerifiedTwilioForm } from "@/server/webhooks/twilioForm";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const form = await readTwilioForm(request);
+  const verified = await readVerifiedTwilioForm(request);
+  if (!verified.ok) {
+    return verified.response;
+  }
+
+  const form = verified.payload;
   const intake = await getIntakeRuntime();
   const result = await intake.smsIntakeService.handleInboundSms({
     from: form.From ?? "",
