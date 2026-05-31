@@ -13,6 +13,7 @@ export const VOICE_STATUS_ACTION_URL = "/api/webhooks/twilio/voice/status";
 export const RECORDING_CALLBACK_URL = "/api/webhooks/twilio/recording";
 export const OWNER_DIAL_TIMEOUT_SECONDS = 18;
 export const VOICEMAIL_MAX_LENGTH_SECONDS = 120;
+const MISSED_CALL_AUTO_TEXT_MESSAGE_PREFIX = "missed-call-auto-text";
 
 export type IncomingVoicePayload = {
   from: string;
@@ -101,16 +102,31 @@ export class VoiceIntakeService {
       lastContactAt: new Date().toISOString()
     });
 
-    const callRecord = await this.dependencies.callRecordRepository.create({
-      business_id: business.id,
-      customer_profile_id: profile.id,
-      provider: "twilio",
-      provider_call_id: payload.callSid ?? null,
-      direction: "inbound",
-      call_type: "missed",
-      from_phone_e164: fromPhone,
-      to_phone_e164: toPhone
-    });
+    const existingCallRecord = payload.callSid
+      ? await this.dependencies.callRecordRepository.findByProviderCallId(
+          business.id,
+          payload.callSid
+        )
+      : null;
+    const callRecord = existingCallRecord
+      ? await this.dependencies.callRecordRepository.update(existingCallRecord.id, {
+          customer_profile_id: profile.id,
+          provider: "twilio",
+          provider_call_id: payload.callSid,
+          direction: "inbound",
+          from_phone_e164: fromPhone,
+          to_phone_e164: toPhone
+        })
+      : await this.dependencies.callRecordRepository.create({
+          business_id: business.id,
+          customer_profile_id: profile.id,
+          provider: "twilio",
+          provider_call_id: payload.callSid ?? null,
+          direction: "inbound",
+          call_type: "missed",
+          from_phone_e164: fromPhone,
+          to_phone_e164: toPhone
+        });
 
     return {
       status: "dial",
@@ -149,50 +165,80 @@ export class VoiceIntakeService {
       };
     }
 
+    const missedCallAlreadyProcessed =
+      callRecord.needs_review &&
+      (callRecord.call_type === "missed" || callRecord.call_type === "voicemail");
     const missedCall = await this.dependencies.callRecordRepository.update(callRecord.id, {
-      call_type: "missed",
+      call_type: callRecord.call_type === "voicemail" ? "voicemail" : "missed",
       needs_review: true
     });
     const business = await this.dependencies.businessRepository.findById(callRecord.business_id);
-    const task = await this.dependencies.taskRepository.create({
-      business_id: callRecord.business_id,
-      customer_profile_id: callRecord.customer_profile_id,
-      task_type: "callback",
-      title: "Call back missed caller",
-      notes: `Missed call status: ${payload.dialCallStatus}`,
-      status: "open"
-    });
-    const auditEvent = await this.dependencies.auditEventRepository.create({
-      business_id: callRecord.business_id,
-      customer_profile_id: callRecord.customer_profile_id,
-      actor: "system",
-      event_type: "call.missed",
-      event_json: {
-        providerCallId: callRecord.provider_call_id,
-        dialCallStatus: payload.dialCallStatus,
-        taskId: task.id
-      }
-    });
+    const existingTask = callRecord.customer_profile_id
+      ? await this.dependencies.taskRepository.findOpenCallbackTask(callRecord.customer_profile_id)
+      : null;
+    const task =
+      existingTask ??
+      (await this.dependencies.taskRepository.create({
+        business_id: callRecord.business_id,
+        customer_profile_id: callRecord.customer_profile_id,
+        task_type: "callback",
+        title: "Call back missed caller",
+        notes: `Missed call status: ${payload.dialCallStatus}`,
+        status: "open"
+      }));
+    const auditEvent = missedCallAlreadyProcessed
+      ? undefined
+      : await this.dependencies.auditEventRepository.create({
+          business_id: callRecord.business_id,
+          customer_profile_id: callRecord.customer_profile_id,
+          actor: "system",
+          event_type: "call.missed",
+          event_json: {
+            providerCallId: callRecord.provider_call_id,
+            dialCallStatus: payload.dialCallStatus,
+            taskId: task.id
+          }
+        });
     const autoText = this.buildMissedCallAutoText({
       businessName: business?.name ?? "our team",
       settingsJson: business?.settings_json ?? {}
     });
     const smsSendingEnabled = this.dependencies.isSmsSendingEnabled();
     const messageStatus = smsSendingEnabled ? "sent" : "queued";
-    const outboundMessage = await this.dependencies.messageRepository.create({
-      business_id: callRecord.business_id,
-      customer_profile_id: callRecord.customer_profile_id,
-      provider: "sandbox",
-      direction: "outbound",
-      channel: "sms",
-      from_phone_e164: callRecord.to_phone_e164,
-      to_phone_e164: callRecord.from_phone_e164,
-      body: autoText,
-      status: messageStatus,
-      sent_at: messageStatus === "sent" ? new Date().toISOString() : null
-    });
+    const autoTextProviderMessageId = this.buildMissedCallAutoTextMessageId(callRecord);
+    const existingOutboundMessage =
+      await this.dependencies.messageRepository.findByProviderMessageId(
+        callRecord.business_id,
+        autoTextProviderMessageId
+      );
+    const outboundMessage = existingOutboundMessage
+      ? await this.dependencies.messageRepository.update(existingOutboundMessage.id, {
+          customer_profile_id: callRecord.customer_profile_id,
+          provider: "sandbox",
+          provider_message_id: autoTextProviderMessageId,
+          direction: "outbound",
+          channel: "sms",
+          from_phone_e164: callRecord.to_phone_e164,
+          to_phone_e164: callRecord.from_phone_e164,
+          body: autoText,
+          status: existingOutboundMessage.status,
+          sent_at: existingOutboundMessage.sent_at
+        })
+      : await this.dependencies.messageRepository.create({
+          business_id: callRecord.business_id,
+          customer_profile_id: callRecord.customer_profile_id,
+          provider: "sandbox",
+          provider_message_id: autoTextProviderMessageId,
+          direction: "outbound",
+          channel: "sms",
+          from_phone_e164: callRecord.to_phone_e164,
+          to_phone_e164: callRecord.from_phone_e164,
+          body: autoText,
+          status: messageStatus,
+          sent_at: messageStatus === "sent" ? new Date().toISOString() : null
+        });
 
-    if (smsSendingEnabled && callRecord.from_phone_e164) {
+    if (!existingOutboundMessage && smsSendingEnabled && callRecord.from_phone_e164) {
       try {
         await this.dependencies.smsProvider.sendMessage({
           businessId: callRecord.business_id,
@@ -223,7 +269,7 @@ export class VoiceIntakeService {
           }
         });
       }
-    } else {
+    } else if (!existingOutboundMessage) {
       await this.dependencies.auditEventRepository.create({
         business_id: callRecord.business_id,
         customer_profile_id: callRecord.customer_profile_id,
@@ -263,6 +309,12 @@ export class VoiceIntakeService {
         : "Sorry we missed your call — reply here and we'll get right back to you. — {business_name}";
 
     return template.replaceAll("{business_name}", input.businessName);
+  }
+
+  private buildMissedCallAutoTextMessageId(callRecord: CallRecordRow): string {
+    return `${MISSED_CALL_AUTO_TEXT_MESSAGE_PREFIX}:${
+      callRecord.provider_call_id ?? callRecord.id
+    }`;
   }
 
   async handleRecording(payload: RecordingPayload): Promise<RecordingResult> {

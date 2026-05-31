@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-13 webhook idempotency and dedupe
+
+### Added
+- `web/src/app/api/webhooks/twilio/idempotency.test.ts`: route-level retry coverage for repeated voice, dial-status, recording, and SMS webhooks.
+- Message repository lookup/update helpers for provider-message dedupe.
+
+### Changed
+- Incoming voice webhooks now update an existing call record by `business_id + provider_call_id` instead of creating duplicates.
+- Missed dial-status retries now reuse the existing callback task and missed-call auto-text record instead of duplicating rows or re-running side effects.
+- Inbound SMS webhooks now update the existing message row by `business_id + provider_message_id`.
+
+### Notes
+- Recording webhooks continue to update the existing call record in place.
+- No read API, Supabase persistence, Twilio REST calls, SMS sending, outbound calls, AI, payments, dashboard changes, or BACKEND-14+ work was implemented.
+
 ## [2026-05-31] - Plain-English owner's manual
 
 ### Added

@@ -46,24 +46,45 @@ export class SmsIntakeService {
       source: "inbound_sms",
       lastContactAt
     });
-    const message = await this.dependencies.messageRepository.create({
-      business_id: business.id,
-      customer_profile_id: profile.id,
-      provider: "twilio",
-      provider_message_id: payload.messageSid ?? null,
-      direction: "inbound",
-      channel: "sms",
-      from_phone_e164: fromPhone,
-      to_phone_e164: toPhone,
-      body: payload.body ?? "",
-      status: "received",
-      sent_at: lastContactAt
-    });
+    const existingMessage = payload.messageSid
+      ? await this.dependencies.messageRepository.findByProviderMessageId(
+          business.id,
+          payload.messageSid
+        )
+      : null;
+    const message = existingMessage
+      ? await this.dependencies.messageRepository.update(existingMessage.id, {
+          customer_profile_id: profile.id,
+          provider: "twilio",
+          provider_message_id: payload.messageSid,
+          direction: "inbound",
+          channel: "sms",
+          from_phone_e164: fromPhone,
+          to_phone_e164: toPhone,
+          body: payload.body ?? existingMessage.body ?? "",
+          status: "received",
+          sent_at: lastContactAt
+        })
+      : await this.dependencies.messageRepository.create({
+          business_id: business.id,
+          customer_profile_id: profile.id,
+          provider: "twilio",
+          provider_message_id: payload.messageSid ?? null,
+          direction: "inbound",
+          channel: "sms",
+          from_phone_e164: fromPhone,
+          to_phone_e164: toPhone,
+          body: payload.body ?? "",
+          status: "received",
+          sent_at: lastContactAt
+        });
     const openCallbackTask = await this.dependencies.taskRepository.findOpenCallbackTask(profile.id);
     const flaggedTask = openCallbackTask
-      ? await this.dependencies.taskRepository.update(openCallbackTask.id, {
-          notes: [openCallbackTask.notes, "Customer replied by SMS."].filter(Boolean).join("\n")
-        })
+      ? openCallbackTask.notes?.includes("Customer replied by SMS.")
+        ? openCallbackTask
+        : await this.dependencies.taskRepository.update(openCallbackTask.id, {
+            notes: [openCallbackTask.notes, "Customer replied by SMS."].filter(Boolean).join("\n")
+          })
       : undefined;
 
     return {

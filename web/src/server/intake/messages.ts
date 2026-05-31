@@ -19,6 +19,9 @@ export type MessageCreateInput = {
 
 export interface MessageRepository {
   create(input: MessageCreateInput): Promise<MessageRow>;
+  update(id: string, input: Partial<Omit<MessageRow, "id" | "business_id" | "created_at">>): Promise<MessageRow>;
+  findByProviderMessageId(providerMessageId: string): Promise<MessageRow | null>;
+  findByProviderMessageId(businessId: string, providerMessageId: string): Promise<MessageRow | null>;
   list(): Promise<MessageRow[]>;
 }
 
@@ -45,6 +48,51 @@ export class InMemoryMessageRepository implements MessageRepository {
 
     this.messages.set(message.id, message);
     return message;
+  }
+
+  async update(
+    id: string,
+    input: Partial<Omit<MessageRow, "id" | "business_id" | "created_at">>
+  ): Promise<MessageRow> {
+    const existing = this.messages.get(id);
+    if (!existing) {
+      throw new Error(`Message not found: ${id}`);
+    }
+
+    const updated: MessageRow = {
+      ...existing,
+      ...input,
+      id: existing.id,
+      business_id: existing.business_id,
+      created_at: existing.created_at
+    };
+
+    this.messages.set(id, updated);
+    return updated;
+  }
+
+  async findByProviderMessageId(
+    providerMessageId: string
+  ): Promise<MessageRow | null>;
+  async findByProviderMessageId(
+    businessId: string,
+    providerMessageId?: string
+  ): Promise<MessageRow | null> {
+    if (providerMessageId === undefined) {
+      return (
+        Array.from(this.messages.values()).find(
+          (message) => message.provider_message_id === businessId
+        ) ?? null
+      );
+    }
+
+    return (
+      Array.from(this.messages.values()).find(
+        (message) =>
+          message.business_id === businessId &&
+          message.provider_message_id === providerMessageId
+      ) ?? null
+    );
   }
 
   async list(): Promise<MessageRow[]> {
