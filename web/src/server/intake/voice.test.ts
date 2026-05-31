@@ -129,4 +129,35 @@ describe("BACKEND-07 voice intake service", () => {
       event_type: "call.missed"
     });
   });
+
+  it("attaches recording and transcript idempotently to the existing call", async () => {
+    const { callRecordRepository, service } = await setupService();
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_RECORDING"
+    });
+
+    const first = await service.handleRecording({
+      callSid: "CA_RECORDING",
+      recordingUrl: "https://api.twilio.test/recording.wav",
+      transcript: "Hi, I need a detail this week."
+    });
+    const second = await service.handleRecording({
+      callSid: "CA_RECORDING",
+      recordingUrl: "https://api.twilio.test/recording.wav",
+      transcript: "Hi, I need a detail this week. Updated transcript."
+    });
+
+    const calls = await callRecordRepository.list();
+    expect(first.status).toBe("updated");
+    expect(second.status).toBe("updated");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      call_type: "voicemail",
+      recording_url: "https://api.twilio.test/recording.wav",
+      transcript: "Hi, I need a detail this week. Updated transcript.",
+      needs_review: true
+    });
+  });
 });

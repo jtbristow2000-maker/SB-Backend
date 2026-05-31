@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-09 recording and transcription webhook
+
+### Added
+- `web/src/app/api/webhooks/twilio/recording/route.ts`: recording/transcription webhook that attaches a recording URL and transcript to the existing call record.
+- Tests covering idempotent recording updates at service and route level.
+
+### Changed
+- `web/src/server/intake/voice.ts`: added recording handler that marks calls as voicemail and `needs_review`.
+- `web/BACKEND_README.md`: documented the recording/transcription webhook test command.
+
+### Notes
+- No transcription provider, AI, Twilio REST API calls, SMS sending, outbound calls, production secrets, or dashboard changes were implemented.
+
 ## [2026-05-31] - BACKEND-08 dial status and missed-call tasking
 
 ### Added

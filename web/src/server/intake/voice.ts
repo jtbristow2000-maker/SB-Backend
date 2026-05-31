@@ -41,6 +41,17 @@ export type DialStatusResult = {
   auditEvent?: AuditEventRow;
 };
 
+export type RecordingPayload = {
+  callSid: string;
+  recordingUrl?: string | null;
+  transcript?: string | null;
+};
+
+export type RecordingResult = {
+  status: "updated" | "call_not_found";
+  callRecord?: CallRecordRow;
+};
+
 export type VoiceIntakeDependencies = {
   businessRepository: BusinessRepository;
   customerProfileService: CustomerProfileService;
@@ -161,6 +172,28 @@ export class VoiceIntakeService {
         transcribeCallbackUrl: RECORDING_CALLBACK_URL,
         maxLengthSeconds: VOICEMAIL_MAX_LENGTH_SECONDS
       })
+    };
+  }
+
+  async handleRecording(payload: RecordingPayload): Promise<RecordingResult> {
+    const callRecord = await this.dependencies.callRecordRepository.findByProviderCallId(
+      payload.callSid
+    );
+
+    if (!callRecord) {
+      return { status: "call_not_found" };
+    }
+
+    const updated = await this.dependencies.callRecordRepository.update(callRecord.id, {
+      call_type: "voicemail",
+      recording_url: payload.recordingUrl ?? callRecord.recording_url,
+      transcript: payload.transcript ?? callRecord.transcript,
+      needs_review: true
+    });
+
+    return {
+      status: "updated",
+      callRecord: updated
     };
   }
 }
