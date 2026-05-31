@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-04 sandbox provider interfaces
+
+### Added
+- `web/src/server/providers/types.ts`: interfaces for SMS, call, transcription, and storage providers.
+- `web/src/server/providers/sandbox.ts`: sandbox implementations that log actions only and report `networkCallsMade: false`.
+- `web/src/server/providers/sandbox.test.ts`: tests proving sandbox SMS/call/transcription/storage actions stay local and do not send or call anything.
+
+### Changed
+- `web/BACKEND_README.md`: documented provider interfaces and sandbox implementations.
+
+### Notes
+- No Twilio SDK, network provider calls, real SMS sending, outbound calls, auth, payments, AI, transcription service, frontend changes, or production secrets were implemented.
+
 ## [2026-05-31] - BACKEND-03 appointment model
 
 ### Added

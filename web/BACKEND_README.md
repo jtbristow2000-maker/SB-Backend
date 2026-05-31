@@ -13,6 +13,7 @@ This folder is the sandbox-first Next.js foundation for the future web/mobile mi
 - Webhook handlers are isolated in `src/server/webhooks/` so future business logic can be added behind a clean boundary.
 - Supabase-ready SQL migrations in `supabase/migrations/` for businesses, customer profiles, calls, messages, tasks, and appointments.
 - TypeScript database contracts in `src/server/db/`.
+- Provider interfaces and sandbox implementations in `src/server/providers/`.
 - Environment examples for Supabase, Twilio, OpenAI, app URL, and safety flags.
 
 ## Sandbox Only
@@ -94,7 +95,7 @@ Invoke-RestMethod -Method Post http://localhost:3000/api/webhooks/twilio/recordi
 
 - Supabase schema and auth wiring.
 - Supabase client/repository implementation.
-- Provider abstraction around Twilio webhooks.
+- Real provider adapters behind the existing sandbox interfaces.
 - Signature validation for real Twilio traffic.
 - Lead/customer profile creation logic.
 - Message/call persistence.
