@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-15 profile detail read API
+
+### Added
+- `web/src/app/api/profiles/[id]/route.ts`: API-key guarded profile detail endpoint returning `profile`, merged timeline, open callback task, empty appointment/quote arrays, and structured `customer_replied`.
+- `web/src/server/profiles/detail.ts`: read model that builds the reverse-chronological call/message timeline and scopes profile lookup to the seeded business.
+- Tests covering auth rejection, unknown/cross-business 404s, queued auto-text preservation, merged timeline ordering, and server-derived `customer_replied`.
+
+### Changed
+- `web/src/server/profiles/callbacks.ts`: exported the shared customer-reply derivation helper so list and detail APIs use the same rule.
+
+### Notes
+- `appointments` and `quote_drafts` return empty arrays until their in-memory repositories/write APIs exist in later tasks.
+- No Supabase persistence, Twilio REST calls, SMS sending, outbound calls, AI, payments, dashboard changes, or production secrets were implemented.
+
 ## [2026-05-31] - BACKEND-14 callback profiles read API
 
 ### Added

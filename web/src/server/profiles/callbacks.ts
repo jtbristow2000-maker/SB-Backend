@@ -139,7 +139,7 @@ function deriveAutoReplyStatus(messages: MessageRow[]): AutoReplyStatus {
   return isAutoReplyStatus(latestOutbound.status) ? latestOutbound.status : "none";
 }
 
-function hasCustomerRepliedSinceCall(
+export function hasCustomerRepliedSinceCall(
   messages: MessageRow[],
   latestMissedOrVoicemailCall: CallRecordRow | null
 ): boolean {
