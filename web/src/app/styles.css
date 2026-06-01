@@ -3,6 +3,12 @@
   font-family: Arial, Helvetica, sans-serif;
   background: #f3f5f9;
   color: #152033;
+
+  /* Brand theme tokens — override these (e.g. per client) to re-skin the app. */
+  --brand: #5b5bd6;
+  --brand-strong: #7c3aed;
+  --brand-rgb: 91, 91, 214;
+  --positive: #1f9d6b;
 }
 
 * {
@@ -70,7 +76,7 @@ p {
 .owner-brand { display: flex; align-items: center; gap: 12px; padding: 0 18px 18px; }
 .owner-logo {
   width: 40px; height: 40px; border-radius: 10px;
-  background: linear-gradient(135deg, #5b5bd6, #7c3aed);
+  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
   color: #fff; font-weight: 700; font-size: 18px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
@@ -83,7 +89,7 @@ p {
   padding: 11px 18px; margin: 2px 10px; border-radius: 9px;
 }
 .owner-nav-link:hover { background: rgba(255, 255, 255, 0.05); }
-.owner-nav-link.active { background: rgba(91, 91, 214, 0.22); color: #fff; }
+.owner-nav-link.active { background: rgba(var(--brand-rgb), 0.22); color: #fff; }
 .owner-sidebar-footer { margin-top: auto; padding: 12px 18px 0; }
 .owner-console-link { color: #cdd2da; text-decoration: none; font-size: 12px; font-weight: 600; }
 .owner-version { color: #5b6270; font-size: 11px; margin-top: 8px; }

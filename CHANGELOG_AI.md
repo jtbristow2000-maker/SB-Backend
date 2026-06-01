@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Theming foundation: brand design tokens
+
+### Added
+- Brand design tokens in `styles.css` `:root` (`--brand`, `--brand-strong`, `--brand-rgb`,
+  `--positive`) and applied them to the owner chrome (sidebar logo gradient + active-nav tint).
+  Same values as before, so no visual change — this is the hook that lets the app be re-skinned
+  per client by overriding a few variables.
+
+### Notes
+- First step toward client customization. Next: migrate the per-screen button/accent colors to the
+  same tokens, then drive `--brand` from a saved per-business brand color once the settings store
+  exists (Codex). Full customization (color, quote ranges, hours, auto-text wording) needs that store.
+
 ## [2026-06-01] - Lead detail: calendar-aware Suggested Reply
 
 ### Added
