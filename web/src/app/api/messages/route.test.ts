@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { getIntakeRuntime, resetIntakeRuntimeForTests } from "@/server/intake/runtime";
-import type { SmsSendInput } from "@/server/providers";
+import type { SmsProvider, SmsSendInput } from "@/server/providers";
 
 import { POST } from "./route";
 
@@ -35,6 +35,38 @@ function messagesRequest(body: Record<string, unknown>, apiKey?: string): NextRe
     },
     body: JSON.stringify(body)
   });
+}
+
+function fakeSmsProvider(input: {
+  providerName?: string;
+  networkCallsMade?: boolean;
+  throws?: boolean;
+  sendCalls?: SmsSendInput[];
+}): SmsProvider {
+  return {
+    providerName: input.providerName ?? "fake",
+    async sendMessage(sendInput) {
+      input.sendCalls?.push(sendInput);
+      if (input.throws) {
+        throw new Error("fake SMS provider failure");
+      }
+
+      return {
+        provider: input.providerName ?? "fake",
+        status: input.networkCallsMade ? "completed" : "logged",
+        action: "sms.send.fake",
+        networkCallsMade: input.networkCallsMade ?? false
+      };
+    },
+    async recordInboundMessage() {
+      return {
+        provider: input.providerName ?? "fake",
+        status: "logged",
+        action: "sms.inbound.fake",
+        networkCallsMade: false
+      };
+    }
+  };
 }
 
 afterEach(() => {
@@ -99,15 +131,7 @@ describe("BACKEND-18 POST /api/messages", () => {
       })
     ).profile;
     const sendCalls: SmsSendInput[] = [];
-    runtime.providers.sms.sendMessage = async (input) => {
-      sendCalls.push(input);
-      return {
-        provider: "sandbox",
-        status: "logged",
-        action: "sms.send.logged_only",
-        networkCallsMade: false
-      };
-    };
+    runtime.smsProvider = fakeSmsProvider({ providerName: "sandbox", sendCalls });
 
     const response = await POST(
       messagesRequest(
@@ -148,7 +172,7 @@ describe("BACKEND-18 POST /api/messages", () => {
     });
   });
 
-  it("sends through the sandbox provider and records sent status when SMS sending is enabled", async () => {
+  it("records sent status only when the selected provider transmits", async () => {
     configureEnv({ smsSendingEnabled: true });
     resetIntakeRuntimeForTests();
     const runtime = await getIntakeRuntime();
@@ -162,15 +186,11 @@ describe("BACKEND-18 POST /api/messages", () => {
       })
     ).profile;
     const sendCalls: SmsSendInput[] = [];
-    runtime.providers.sms.sendMessage = async (input) => {
-      sendCalls.push(input);
-      return {
-        provider: "sandbox",
-        status: "logged",
-        action: "sms.send.logged_only",
-        networkCallsMade: false
-      };
-    };
+    runtime.smsProvider = fakeSmsProvider({
+      providerName: "twilio",
+      networkCallsMade: true,
+      sendCalls
+    });
 
     const response = await POST(
       messagesRequest({ profile_id: profile.id, body: "I can come by at 3." }, "messages-test-key")
@@ -191,6 +211,7 @@ describe("BACKEND-18 POST /api/messages", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]).toMatchObject({
       id: body.message.id,
+      provider: "twilio",
       direction: "outbound",
       channel: "sms",
       status: "sent",
@@ -201,6 +222,84 @@ describe("BACKEND-18 POST /api/messages", () => {
     expect(auditEvents[0]).toMatchObject({
       actor: "owner",
       event_type: "message.owner_sms.sent",
+      customer_profile_id: profile.id
+    });
+  });
+
+  it("keeps owner SMS queued when the selected provider does not transmit", async () => {
+    configureEnv({ smsSendingEnabled: true });
+    resetIntakeRuntimeForTests();
+    const runtime = await getIntakeRuntime();
+    const business = (await runtime.businessRepository.list())[0];
+    const profile = (
+      await runtime.customerProfileService.upsertByBusinessAndPhone({
+        businessId: business.id,
+        phone: "+19495550102",
+        displayName: "Queued Sending Customer",
+        source: "manual"
+      })
+    ).profile;
+    const sendCalls: SmsSendInput[] = [];
+    runtime.smsProvider = fakeSmsProvider({
+      providerName: "sandbox",
+      networkCallsMade: false,
+      sendCalls
+    });
+
+    const response = await POST(
+      messagesRequest({ profile_id: profile.id, body: "Still checking the schedule." }, "messages-test-key")
+    );
+    const messages = await runtime.messageRepository.list();
+    const auditEvents = await runtime.auditEventRepository.list();
+
+    expect(response.status).toBe(200);
+    expect(sendCalls).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      provider: "sandbox",
+      status: "queued",
+      sent_at: null
+    });
+    expect(auditEvents[0]).toMatchObject({
+      event_type: "message.owner_sms.queued",
+      customer_profile_id: profile.id
+    });
+  });
+
+  it("records failed status when the selected provider throws", async () => {
+    configureEnv({ smsSendingEnabled: true });
+    resetIntakeRuntimeForTests();
+    const runtime = await getIntakeRuntime();
+    const business = (await runtime.businessRepository.list())[0];
+    const profile = (
+      await runtime.customerProfileService.upsertByBusinessAndPhone({
+        businessId: business.id,
+        phone: "+19495550103",
+        displayName: "Failed Sending Customer",
+        source: "manual"
+      })
+    ).profile;
+    const sendCalls: SmsSendInput[] = [];
+    runtime.smsProvider = fakeSmsProvider({
+      providerName: "twilio",
+      throws: true,
+      sendCalls
+    });
+
+    const response = await POST(
+      messagesRequest({ profile_id: profile.id, body: "This send should fail." }, "messages-test-key")
+    );
+    const messages = await runtime.messageRepository.list();
+    const auditEvents = await runtime.auditEventRepository.list();
+
+    expect(response.status).toBe(200);
+    expect(sendCalls).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      provider: "twilio",
+      status: "failed",
+      sent_at: null
+    });
+    expect(auditEvents[0]).toMatchObject({
+      event_type: "message.owner_sms.failed",
       customer_profile_id: profile.id
     });
   });

@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - SMS provider wiring tests
+
+### Changed
+- `/api/messages` now uses the selected `smsProvider` instead of the always-sandbox provider, so real-provider mode can reach the Twilio-backed provider when flags and credentials are configured.
+- Owner-approved SMS records now use truthful status handling: `sent` only after `networkCallsMade=true`, `queued` for log-only/sandbox sends, and `failed` when the provider throws.
+
+### Added
+- Added tests for SMS provider selection, including `BUSINESS_PHONE` as the Twilio from-number fallback.
+- Expanded owner-send route tests to cover queued, sent, and failed outcomes with fake providers.
+
+### Verified
+- `npm run verify` (25 files, 97 tests, 1 skipped) passes.
+
 ## [2026-06-01] - Shared quote price helper
 
 ### Added

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         customerProfileRepository: intake.customerProfileRepository,
         messageRepository: intake.messageRepository,
         auditEventRepository: intake.auditEventRepository,
-        smsProvider: intake.providers.sms,
+        smsProvider: intake.smsProvider,
         isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled
       },
       {

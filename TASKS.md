@@ -785,6 +785,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-06-01: SMS provider selection is covered by tests, including Twilio selection when real sending is enabled and `BUSINESS_PHONE` supplies the from-number fallback; owner-approved SMS status now follows provider `networkCallsMade` just like the owner UI action.
 - 2026-06-01: Added shared `quotePriceLabel()` backend helper for quote range matching/formatting; owner UI duplicate quote helpers can switch to it later.
 
 ## Codex Tasks (legacy — superseded by Backend Build Tasks above)

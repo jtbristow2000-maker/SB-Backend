@@ -1,13 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import type { ExtractionProvider } from "@/server/providers";
+import type { ExtractionProvider, SmsProvider } from "@/server/providers";
 
-import { hasConfiguredExtractionProvider, selectExtractionProvider } from "./runtime";
+import { hasConfiguredExtractionProvider, selectExtractionProvider, selectSmsProvider } from "./runtime";
 
 const sandboxProvider: ExtractionProvider = {
   providerName: "sandbox",
   async extractVoicemailDetails() {
     return null;
+  }
+};
+
+const sandboxSmsProvider: SmsProvider = {
+  providerName: "sandbox",
+  async sendMessage() {
+    return {
+      provider: "sandbox",
+      status: "logged",
+      action: "sms.send.logged_only",
+      networkCallsMade: false
+    };
+  },
+  async recordInboundMessage() {
+    return {
+      provider: "sandbox",
+      status: "logged",
+      action: "sms.inbound.logged_only",
+      networkCallsMade: false
+    };
   }
 };
 
@@ -63,5 +83,53 @@ describe("intake runtime extraction provider selection", () => {
 
     expect(provider.providerName).toBe("sandbox");
     expect(hasConfiguredExtractionProvider(config, env)).toBe(false);
+  });
+});
+
+describe("intake runtime SMS provider selection", () => {
+  it("uses the sandbox provider when real message sending is disabled", () => {
+    const provider = selectSmsProvider(
+      { twilioConfigured: true, realMessageSendingEnabled: false },
+      sandboxSmsProvider,
+      {
+        NODE_ENV: "test",
+        TWILIO_ACCOUNT_SID: "AC_TEST",
+        TWILIO_AUTH_TOKEN: "twilio-token",
+        BUSINESS_PHONE: "+13105550199"
+      }
+    );
+
+    expect(provider).toBe(sandboxSmsProvider);
+  });
+
+  it("uses the sandbox provider when Twilio credentials are missing", () => {
+    const provider = selectSmsProvider(
+      { twilioConfigured: false, realMessageSendingEnabled: true },
+      sandboxSmsProvider,
+      {
+        NODE_ENV: "test",
+        BUSINESS_PHONE: "+13105550199"
+      }
+    );
+
+    expect(provider).toBe(sandboxSmsProvider);
+  });
+
+  it("selects Twilio when real sending and credentials are configured with BUSINESS_PHONE fallback", () => {
+    const provider = selectSmsProvider(
+      { twilioConfigured: true, realMessageSendingEnabled: true },
+      sandboxSmsProvider,
+      {
+        NODE_ENV: "test",
+        TWILIO_ACCOUNT_SID: "AC_TEST",
+        TWILIO_AUTH_TOKEN: "twilio-token",
+        BUSINESS_PHONE: "+13105550199"
+      }
+    );
+
+    expect(provider.providerName).toBe("twilio");
+    expect((provider as unknown as { input: { fromNumber?: string } }).input.fromNumber).toBe(
+      "+13105550199"
+    );
   });
 });

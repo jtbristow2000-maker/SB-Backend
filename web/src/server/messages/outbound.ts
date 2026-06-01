@@ -88,18 +88,7 @@ export async function sendOwnerApprovedSms(
 
   const smsSendingEnabled = dependencies.isSmsSendingEnabled();
   const sentAt = new Date().toISOString();
-  const messageStatus = smsSendingEnabled ? "sent" : "queued";
-
-  if (smsSendingEnabled) {
-    await dependencies.smsProvider.sendMessage({
-      businessId: input.business.id,
-      to: profile.phone_e164,
-      from: input.business.business_phone_e164 ?? undefined,
-      body: input.payload.body
-    });
-  }
-
-  const message = await dependencies.messageRepository.create({
+  let message = await dependencies.messageRepository.create({
     business_id: input.business.id,
     customer_profile_id: profile.id,
     provider: dependencies.smsProvider.providerName,
@@ -109,10 +98,33 @@ export async function sendOwnerApprovedSms(
     from_phone_e164: input.business.business_phone_e164,
     to_phone_e164: profile.phone_e164,
     body: input.payload.body,
-    status: messageStatus,
-    sent_at: smsSendingEnabled ? sentAt : null,
+    status: "queued",
+    sent_at: null,
     created_at: sentAt
   });
+
+  if (smsSendingEnabled) {
+    try {
+      const result = await dependencies.smsProvider.sendMessage({
+        businessId: input.business.id,
+        to: profile.phone_e164,
+        from: input.business.business_phone_e164 ?? undefined,
+        body: input.payload.body
+      });
+
+      if (result.networkCallsMade) {
+        message = await dependencies.messageRepository.update(message.id, {
+          status: "sent",
+          sent_at: sentAt
+        });
+      }
+    } catch {
+      message = await dependencies.messageRepository.update(message.id, {
+        status: "failed",
+        sent_at: null
+      });
+    }
+  }
   const updatedProfile = await dependencies.customerProfileRepository.update(profile.id, {
     last_contact_at: sentAt
   });
@@ -121,7 +133,7 @@ export async function sendOwnerApprovedSms(
     business_id: input.business.id,
     customer_profile_id: profile.id,
     actor: "owner",
-    event_type: `message.owner_sms.${messageStatus}`,
+    event_type: `message.owner_sms.${message.status}`,
     event_json: {
       messageId: message.id,
       profileId: profile.id,
