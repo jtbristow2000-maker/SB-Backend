@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Simulator: run real AI extraction on voicemail-only tests
+
+### Changed
+- `simulateLead` now has two modes. **Realistic** (no service field typed): creates the voicemail
+  record without a transcript and calls `voiceIntakeService.handleRecording({ transcript })`, so the
+  SAME AI extraction the live pipeline uses parses the transcript (caller name / service / timing).
+  **Manual** (service typed): sets `extracted_json` directly for a deterministic scenario, as before.
+- Simulator page reworked around the voicemail as the primary input; name/service/when demoted to
+  optional overrides, with copy explaining each mode. Added an AI-status banner
+  (`hasConfiguredExtractionProvider`) so it's clear whether voicemail-only tests will parse.
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Lead simulator (owner-side test tool)
 
 ### Added

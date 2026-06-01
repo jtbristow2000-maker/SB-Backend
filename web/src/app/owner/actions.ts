@@ -236,20 +236,16 @@ export async function simulateLead(formData: FormData): Promise<void> {
   let phone = randomSimPhone();
   for (let i = 0; i < 25 && existing.has(phone); i++) phone = randomSimPhone();
 
+  // Realistic mode: no manual service hint, so let the SAME AI pipeline that runs on
+  // a real voicemail read the transcript (name / service / timing). Filling the
+  // service field switches to manual mode (deterministic, skips the AI).
+  const realistic = !service && Boolean(voicemail);
+
   if (!voicemail) {
     voicemail = SIM_VOICEMAIL_FALLBACK
       .replaceAll("{name}", name || "there")
       .replaceAll("{service}", service || "some work");
   }
-
-  const summary = [
-    name ? `${name} called` : "Caller left a voicemail",
-    service ? `about ${service}` : null,
-    requested ? `— wants ${requested}` : null
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .concat(".");
 
   const now = new Date().toISOString();
   const { profile } = await rt.customerProfileService.upsertByBusinessAndPhone({
@@ -258,31 +254,51 @@ export async function simulateLead(formData: FormData): Promise<void> {
     displayName: name || null,
     source: "simulator",
     status: "new",
-    summary,
     lastContactAt: now
   });
 
-  await rt.callRecordRepository.create({
+  const providerCallId = `SIM-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  const baseCall = {
     business_id: business.id,
     customer_profile_id: profile.id,
     provider: "sandbox",
-    provider_call_id: `SIM-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
-    direction: "inbound",
-    call_type: "voicemail",
+    provider_call_id: providerCallId,
+    direction: "inbound" as const,
+    call_type: "voicemail" as const,
     from_phone_e164: phone,
     to_phone_e164: business.business_phone_e164,
     started_at: now,
     duration_seconds: 20 + Math.floor(Math.random() * 40),
-    transcript: voicemail,
-    ai_summary: summary,
-    extracted_json: {
-      caller_name: name || null,
-      requested_datetime: requested || null,
-      service_requested: service || null,
-      summary
-    },
     needs_review: true
-  });
+  };
+
+  if (realistic) {
+    // Create the voicemail WITHOUT a transcript, then run the real recording handler
+    // so AI extraction parses the transcript exactly like a live missed call does.
+    await rt.callRecordRepository.create(baseCall);
+    await rt.voiceIntakeService.handleRecording({ callSid: providerCallId, transcript: voicemail });
+  } else {
+    // Manual mode: set the extracted fields directly so the scenario is deterministic.
+    const summary = [
+      name ? `${name} called` : "Caller left a voicemail",
+      service ? `about ${service}` : null,
+      requested ? `— wants ${requested}` : null
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .concat(".");
+    await rt.callRecordRepository.create({
+      ...baseCall,
+      transcript: voicemail,
+      ai_summary: summary,
+      extracted_json: {
+        caller_name: name || null,
+        requested_datetime: requested || null,
+        service_requested: service || null,
+        summary
+      }
+    });
+  }
 
   const existingTask = await rt.taskRepository.findOpenCallbackTask(profile.id);
   if (!existingTask) {
