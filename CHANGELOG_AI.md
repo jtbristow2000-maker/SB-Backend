@@ -1,5 +1,31 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Interactive reply composer (services + quote + times)
+
+### Added
+- `ReplyComposer` replaces the static `SuggestedReply` on the lead page. Shows the whole flow in
+  one place: **service chips** (pre-ticked from the voicemail) → a **live quote** from the saved
+  price settings → **open time slots** to offer → the assembled, editable message. Toggling any chip
+  rebuilds the draft; hand-edits are preserved until the next toggle.
+- **Smart service pre-selection**: vehicle (sedan/SUV/midsize, incl. make/RAV4/truck synonyms) + tier
+  (full/light) detection, plus specialty keyword matching (dog hair, stains), so "full detail SUV"
+  quotes the SUV price and "dog hair + stains" pre-checks both add-ons. Owner adjusts with one tap.
+- **Multi-service quotes**: selecting several services sums the ranges ("…about $X–$Y altogether").
+  Flat-rate services render as a single price, not "$25–$25".
+- **Pricing-inquiry handling**: when the voicemail is a general price question (no specific service),
+  an "+ Add full price list" toggle drops the rundown straight from the quote settings.
+- **Requested-timeframe biasing**: "next week" starts the offered slots next week instead of tomorrow.
+
+### Removed
+- `SuggestedReply.tsx` (superseded by `ReplyComposer`).
+
+### Notes
+- Ghost/hold blocks for offered times (overbooking prevention) are the planned fast-follow; slot
+  computation already skips real booked appointments.
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Read/unread + "Responded" status on the triage lists
 
 ### Added

@@ -5,7 +5,7 @@ import { getIntakeRuntime } from "@/server/intake/runtime";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildProfileDetail } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
-import { SuggestedReply } from "@/app/owner/SuggestedReply";
+import { ReplyComposer } from "@/app/owner/ReplyComposer";
 import { ContactButtons } from "@/app/owner/ContactButtons";
 import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 
@@ -109,11 +109,13 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     });
   let aiX: Extracted = {};
   let aiSummaryText: string | null = null;
+  let aiTranscript: string | null = null;
   for (const c of profileCalls) {
     const e = readExtracted(c.extracted_json);
     if (c.ai_summary || e.caller_name || e.requested_datetime || e.service_requested || e.summary) {
       aiX = e;
       aiSummaryText = c.ai_summary || e.summary || null;
+      aiTranscript = c.transcript ?? null;
       break;
     }
   }
@@ -121,6 +123,10 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   const busy = appointments
     .filter((a) => !business || a.business_id === business.id)
     .map((a) => ({ start: a.scheduled_start_at, end: a.scheduled_end_at }));
+
+  // Context the reply composer uses to pre-pick services + detect a price question.
+  const contextText = [aiX.service_requested, aiSummaryText, aiTranscript].filter(Boolean).join(" ");
+  const pricingInquiry = /\b(price|pricing|cost|how much|quote|charge|rate|rates)\b/i.test(contextText);
 
   return (
     <main style={S.shell}>
@@ -156,14 +162,16 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       )}
 
       {profile.phone_e164 && (
-        <SuggestedReply
+        <ReplyComposer
           customerName={profile.display_name || ""}
-          service={aiX.service_requested ?? ""}
-          phone={profile.phone_e164}
           businessName={business?.name || "us"}
-          busy={busy}
-          businessHours={settings.business_hours}
+          phone={profile.phone_e164}
           quoteRanges={settings.quote_ranges}
+          businessHours={settings.business_hours}
+          busy={busy}
+          requestedWhen={aiX.requested_datetime ?? ""}
+          contextText={contextText}
+          pricingInquiry={pricingInquiry}
         />
       )}
 
