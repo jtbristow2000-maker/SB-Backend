@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
-import { buildCallbackProfileList, type AutoReplyStatus } from "@/server/profiles/callbacks";
+import { buildCallbackProfileList } from "@/server/profiles/callbacks";
+import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
 
 // Always read current in-memory state (the sandbox runtime), never statically cache.
 export const dynamic = "force-dynamic";
@@ -20,20 +21,16 @@ function fmtPhone(p: string | null): string {
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
 }
 
-function autoReplyLabel(s: AutoReplyStatus): string {
-  if (s === "sent") return "✓ Auto-reply sent";
-  if (s === "failed") return "⚠ Auto-reply failed";
-  if (s === "queued") return "• Auto-reply not sent (sandbox)";
-  return "no auto-reply";
-}
+// Owner has reached out (vs a brand-new, untouched lead) → show the "Responded" pill.
+const RESPONDED_STATUSES = new Set(["contacted", "booked", "won"]);
 
-function autoReplyStyle(s: AutoReplyStatus): CSSProperties {
-  return {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: 600,
-    color: s === "sent" ? "var(--positive)" : s === "failed" ? "#b23b3b" : s === "queued" ? "#9a6210" : "#8a909c"
-  };
+function outcomeSnippet(it: { last_call_outcome: string; voicemail_snippet: string | null }): string {
+  if (it.last_call_outcome === "voicemail" && it.voicemail_snippet) {
+    return `“${it.voicemail_snippet}${it.voicemail_snippet.length >= 80 ? "…" : ""}”`;
+  }
+  if (it.last_call_outcome === "missed") return "Missed · no voicemail";
+  if (it.last_call_outcome === "answered") return "You answered";
+  return "Voicemail";
 }
 
 export default async function OwnerCallbacks() {
@@ -49,6 +46,14 @@ export default async function OwnerCallbacks() {
   const items = business
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })
     : [];
+  const leadItems: LeadListItem[] = items.map((it) => ({
+    id: it.id,
+    name: it.display_name || fmtPhone(it.phone_e164),
+    snippet: outcomeSnippet(it),
+    customerReplied: it.customer_replied,
+    responded: RESPONDED_STATUSES.has(it.status),
+    lastActivity: it.last_contact_at
+  }));
 
   return (
     <main style={S.shell}>
@@ -75,26 +80,7 @@ export default async function OwnerCallbacks() {
       )}
 
       <div style={{ marginTop: 14 }}>
-        {items.map((it) => (
-          <Link key={it.id} href={`/owner/${it.id}`} style={rowStyle(it.customer_replied)}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-              <strong style={{ color: "#15171b", fontSize: 15 }}>
-                {it.display_name || fmtPhone(it.phone_e164)}
-              </strong>
-              {it.customer_replied && <span style={S.replied}>Replied — waiting on you</span>}
-            </div>
-            <div style={S.meta}>
-              {it.last_call_outcome === "voicemail" && it.voicemail_snippet
-                ? `“${it.voicemail_snippet}${it.voicemail_snippet.length >= 80 ? "…" : ""}”`
-                : it.last_call_outcome === "missed"
-                  ? "Missed · no voicemail"
-                  : it.last_call_outcome === "answered"
-                    ? "You answered"
-                    : "Voicemail"}
-            </div>
-            <div style={autoReplyStyle(it.auto_reply_status)}>{autoReplyLabel(it.auto_reply_status)}</div>
-          </Link>
-        ))}
+        <LeadList items={leadItems} />
       </div>
 
       <footer style={S.footer}>
@@ -118,17 +104,3 @@ const S: Record<string, CSSProperties> = {
   inlineLink: { color: "var(--brand)", fontWeight: 600 },
   footer: { marginTop: 26, color: "#8a909c", fontSize: 12 }
 };
-
-function rowStyle(replied: boolean): CSSProperties {
-  return {
-    display: "block",
-    textDecoration: "none",
-    padding: "13px 15px",
-    marginBottom: 9,
-    borderRadius: 13,
-    background: "#fff",
-    border: "1px solid #eceef2",
-    borderLeft: `3px solid ${replied ? "var(--positive)" : "#d8dce3"}`,
-    boxShadow: "0 1px 3px rgba(17,21,28,0.05)"
-  };
-}

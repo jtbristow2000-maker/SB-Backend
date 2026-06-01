@@ -73,11 +73,34 @@ export async function sendOwnerText(formData: FormData): Promise<void> {
     sent_at: sending ? now : null
   });
   try {
-    await rt.customerProfileRepository.update(profileId, { last_contact_at: now });
+    await rt.customerProfileRepository.update(profileId, {
+      last_contact_at: now,
+      // Logging a reply counts as reaching out → show "Responded" (don't downgrade booked/won).
+      ...((profile.status || "new") === "new" ? { status: "contacted" } : {})
+    });
   } catch {
     /* ignore */
   }
 
+  revalidateOwner(profileId);
+}
+
+// Tapping Call back / Text on a lead records that the owner reached out, so the
+// lead shows "Responded" on the dashboards. Only promotes a brand-new lead to
+// "contacted" — never overrides a later stage (booked/won/lost).
+export async function markContacted(formData: FormData): Promise<void> {
+  const profileId = String(formData.get("profileId") ?? "").trim();
+  if (!profileId) return;
+  const rt = await getIntakeRuntime();
+  const profile = (await rt.customerProfileRepository.list()).find((p) => p.id === profileId) ?? null;
+  if (!profile) return;
+  if ((profile.status || "new") === "new") {
+    try {
+      await rt.customerProfileRepository.update(profileId, { status: "contacted" });
+    } catch {
+      /* profile may have been reset */
+    }
+  }
   revalidateOwner(profileId);
 }
 

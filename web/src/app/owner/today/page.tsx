@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
+import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,6 +26,16 @@ function fmtPhone(p: string | null): string {
 function greeting(tz: string): string {
   const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(new Date())) % 24;
   return h < 12 ? "Good morning." : h < 18 ? "Good afternoon." : "Good evening.";
+}
+
+// Owner has reached out (vs a brand-new, untouched lead) → show the "Responded" pill.
+const RESPONDED_STATUSES = new Set(["contacted", "booked", "won"]);
+
+function outcomeSnippet(c: { last_call_outcome: string; voicemail_snippet: string | null }): string {
+  if (c.last_call_outcome === "voicemail" && c.voicemail_snippet) return `“${c.voicemail_snippet}…”`;
+  if (c.last_call_outcome === "missed") return "Missed · no voicemail";
+  if (c.last_call_outcome === "answered") return "You answered";
+  return "Voicemail";
 }
 
 export default async function Today() {
@@ -57,6 +68,15 @@ export default async function Today() {
     { label: "Calls today", value: callsToday, accent: "#3a7bd0", icon: "📆", href: "/owner/leads" }
   ];
 
+  const attentionItems: LeadListItem[] = callbacks.slice(0, 5).map((c) => ({
+    id: c.id,
+    name: c.display_name || fmtPhone(c.phone_e164),
+    snippet: outcomeSnippet(c),
+    customerReplied: c.customer_replied,
+    responded: RESPONDED_STATUSES.has(c.status),
+    lastActivity: c.last_contact_at
+  }));
+
   return (
     <main style={S.page}>
       <div style={S.greeting}>{greeting(tz)}</div>
@@ -81,23 +101,7 @@ export default async function Today() {
         </div>
       ) : (
         <div>
-          {callbacks.slice(0, 5).map((c) => (
-            <Link key={c.id} href={`/owner/${c.id}`} style={rowStyle(c.customer_replied)}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <strong style={{ color: "#15171b" }}>{c.display_name || fmtPhone(c.phone_e164)}</strong>
-                {c.customer_replied && <span style={S.replied}>Replied</span>}
-              </div>
-              <div style={S.rowMeta}>
-                {c.last_call_outcome === "voicemail" && c.voicemail_snippet
-                  ? `“${c.voicemail_snippet}…”`
-                  : c.last_call_outcome === "missed"
-                    ? "Missed · no voicemail"
-                    : c.last_call_outcome === "answered"
-                      ? "You answered"
-                      : "Voicemail"}
-              </div>
-            </Link>
-          ))}
+          <LeadList items={attentionItems} />
           {callbacks.length > 5 && (
             <Link href="/owner" style={S.viewAll}>View all {callbacks.length} callbacks →</Link>
           )}
@@ -125,8 +129,4 @@ const S = {
 
 function metricChip(accent: string): CSSProperties {
   return { position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: 9, background: `${accent}1a`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 };
-}
-
-function rowStyle(replied: boolean): CSSProperties {
-  return { display: "block", textDecoration: "none", padding: "13px 15px", marginBottom: 9, borderRadius: 13, background: "#fff", border: "1px solid #eceef2", borderLeft: `3px solid ${replied ? "var(--positive)" : "#d8dce3"}`, boxShadow: "0 1px 3px rgba(17,21,28,0.05)" };
 }

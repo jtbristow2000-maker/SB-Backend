@@ -6,6 +6,8 @@ import { getBusinessSettings } from "@/server/business/settings";
 import { buildProfileDetail } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
 import { SuggestedReply } from "@/app/owner/SuggestedReply";
+import { ContactButtons } from "@/app/owner/ContactButtons";
+import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -122,6 +124,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 
   return (
     <main style={S.shell}>
+      <MarkLeadRead id={profile.id} activity={profile.last_contact_at} />
       <Link href="/owner" style={S.back}>← Callbacks</Link>
 
       <header style={{ marginTop: 8 }}>
@@ -164,12 +167,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         />
       )}
 
-      {profile.phone_e164 && (
-        <div style={S.quickActions}>
-          <a href={`tel:${profile.phone_e164}`} style={S.callBtn}>📞 Call back</a>
-          <a href={`sms:${profile.phone_e164}`} style={S.textBtn}>💬 Text</a>
-        </div>
-      )}
+      {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
 
       {open_task && (
         <div style={S.taskBar}>

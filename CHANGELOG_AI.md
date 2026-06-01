@@ -1,5 +1,26 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Read/unread + "Responded" status on the triage lists
+
+### Added
+- **Read/unread** on Today's "Needs attention" and the Callbacks tab: a lead shows an unread dot +
+  bold name until opened, and re-flags when newer activity arrives. Tracked per-device in
+  localStorage (`leadRead.ts`) — no DB column, instant. Marked read on open (`MarkLeadRead` on the
+  lead page + on row click).
+- **"Responded" pill**: tapping Call back / Text now records the reach-out (`ContactButtons` →
+  `markContacted` action promotes a new lead to `contacted`), and logging a reply does the same, so
+  the dashboards show a green "Responded" badge. The lead stays in the list (it's keyed off the open
+  callback task) until the callback is marked done.
+- Shared `LeadList` client component powering both triage lists (one place for the read/unread +
+  pill logic); "Replied — waiting on you" recoloured to amber so it's distinct from "Responded".
+
+### Changed
+- Today + Callbacks render through `LeadList`; the Callbacks tab drops the sandbox "auto-reply not
+  sent" line (noise until texting is live) in favour of the clearer Responded/Replied cues.
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Simulator: run real AI extraction on voicemail-only tests
 
 ### Changed
