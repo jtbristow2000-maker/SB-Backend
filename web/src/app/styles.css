@@ -8,7 +8,9 @@
   --brand: #5b5bd6;
   --brand-strong: #7c3aed;
   --brand-rgb: 91, 91, 214;
+  --brand-strong-rgb: 124, 58, 237;
   --positive: #1f9d6b;
+  --positive-rgb: 31, 157, 107;
 }
 
 * {

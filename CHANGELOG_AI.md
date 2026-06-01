@@ -1,5 +1,38 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner Settings screen + full brand theming + settings-driven replies
+
+### Added
+- **Settings screen** (`web/src/app/owner/settings/page.tsx`): the first self-serve customization
+  surface, so the product can be tailored per client/niche. Sections: brand color (live color
+  picker), missed-call auto-text wording (with `{business_name}` placeholder), business hours
+  (open/close + working-day checkboxes), and quote ranges (service → low/high price).
+- `QuoteRangesEditor.tsx`: a small client island for adding/removing service price ranges; rows
+  submit as parallel `quote_service` / `quote_low` / `quote_high` form fields.
+- `saveSettings` server action (`web/src/app/owner/actions.ts`): validates the brand hex, parses the
+  parallel quote-range arrays + day checkboxes into a `BusinessSettingsUpdate`, persists via
+  `businessRepository.updateSettings`, and revalidates the owner routes.
+- `--brand-strong-rgb` and `--positive-rgb` design tokens so every accent (AI card gradient, chat
+  bubbles, task bar, "replied" pills) is driven by tokens, not literals.
+
+### Changed
+- **Owner layout is now an async server component** that reads the saved brand color and injects
+  `--brand` / `--brand-rgb` onto the owner shell — so a client's chosen color re-skins the whole
+  app. Adds a Settings gear in the sidebar footer + mobile top bar; branding (logo letter + name)
+  now comes from the business record. `dynamic = "force-dynamic"`, `runtime = "nodejs"`.
+- **Migrated every per-screen button/accent color to tokens** across the 6 owner screens
+  (`#5b5bd6`→`var(--brand)`, `#1f9d6b`→`var(--positive)`, `#7c3aed`→`var(--brand-strong)`, and the
+  matching `rgba(...)` tints → `rgba(var(--*-rgb), …)`). Same default values, so no visual change
+  until a brand color is set — but now the whole UI re-skins from one setting.
+- **Suggested Reply is now settings-driven**: open-slot computation respects the configured working
+  days + open/close hours, and when the caller's requested service matches a configured quote range
+  the draft folds in the real price range (e.g. "Most full detail jobs run $150–$300."). No more
+  hardcoded slot hours; no fabricated prices.
+
+### Verified
+- `npm run verify` passes: 84 tests passing, 1 Supabase contract test skipped.
+- `next build` passes: all 18 routes compile, including the new `/owner/settings`.
+
 ## [2026-06-01] - BACKEND-21 follow-up sweep job
 
 ### Added

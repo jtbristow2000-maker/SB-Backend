@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getAppConfig } from "@/server/config";
+import type { BusinessSettingsUpdate } from "@/server/business/settings";
 import type { AppointmentStatus } from "@/server/db/schema";
 import { getIntakeRuntime } from "@/server/intake/runtime";
 
@@ -147,5 +148,49 @@ export async function setAppointmentStatus(formData: FormData): Promise<void> {
   } catch {
     /* appointment may have been reset */
   }
+  revalidatePath("/owner/calendar");
+}
+
+export async function saveSettings(formData: FormData): Promise<void> {
+  const rt = await getIntakeRuntime();
+  const business = (await rt.businessRepository.list())[0] ?? null;
+  if (!business) return;
+
+  const partial: BusinessSettingsUpdate = {};
+
+  const brandColor = String(formData.get("brand_color") ?? "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
+    partial.brand_color = brandColor.toLowerCase();
+  }
+
+  const autoText = String(formData.get("auto_text_message") ?? "").trim();
+  if (autoText) {
+    partial.auto_text_message = autoText;
+  }
+
+  const open = String(formData.get("hours_open") ?? "").trim();
+  const close = String(formData.get("hours_close") ?? "").trim();
+  const days = formData
+    .getAll("days")
+    .map((d) => Number(d))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+  partial.business_hours = { open: open || "09:00", close: close || "17:00", days };
+
+  const services = formData.getAll("quote_service").map((v) => String(v).trim());
+  const lows = formData.getAll("quote_low").map((v) => Number(v));
+  const highs = formData.getAll("quote_high").map((v) => Number(v));
+  partial.quote_ranges = services
+    .map((service, i) => ({ service, low: lows[i], high: highs[i] }))
+    .filter((range) => range.service && Number.isFinite(range.low) && Number.isFinite(range.high));
+
+  try {
+    await rt.businessRepository.updateSettings(business.id, partial);
+  } catch {
+    /* business may have been reset */
+  }
+
+  revalidatePath("/owner/settings");
+  revalidatePath("/owner");
+  revalidatePath("/owner/today");
   revalidatePath("/owner/calendar");
 }

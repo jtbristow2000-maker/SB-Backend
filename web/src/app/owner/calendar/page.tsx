@@ -71,5 +71,5 @@ const S: Record<string, CSSProperties> = {
   bookForm: { display: "flex", flexDirection: "column", gap: 8, marginTop: 16, padding: "14px", borderRadius: 12, background: "#fff", border: "1px solid #eceef2" },
   bookTitle: { fontSize: 13, fontWeight: 700, color: "#3a3a9a" },
   input: { padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 },
-  btnPrimary: { padding: "10px 13px", borderRadius: 10, border: "none", background: "#5b5bd6", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }
+  btnPrimary: { padding: "10px 13px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }
 };

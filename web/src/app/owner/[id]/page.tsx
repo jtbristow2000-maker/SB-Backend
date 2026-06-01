@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getBusinessSettings } from "@/server/business/settings";
 import { buildProfileDetail } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
 import { SuggestedReply } from "@/app/owner/SuggestedReply";
@@ -73,6 +74,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     rt.appointmentRepository.list()
   ]);
   const business = businesses[0] ?? null;
+  const settings = getBusinessSettings(business);
   const tz = business?.timezone || FALLBACK_TZ;
   const detail = business
     ? buildProfileDetail({ businessId: business.id, profileId: id, profiles, calls, messages, tasks })
@@ -157,6 +159,8 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           phone={profile.phone_e164}
           businessName={business?.name || "us"}
           busy={busy}
+          businessHours={settings.business_hours}
+          quoteRanges={settings.quote_ranges}
         />
       )}
 
@@ -266,19 +270,19 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 
 const S: Record<string, CSSProperties> = {
   shell: { maxWidth: 720, margin: "0 auto", padding: "22px 20px 48px", fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1e2026" },
-  back: { color: "#5b5bd6", fontWeight: 600, fontSize: 13, textDecoration: "none" },
+  back: { color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" },
   h1: { margin: "6px 0 2px", fontSize: 22 },
   sub: { color: "#8a909c", fontSize: 13 },
-  replied: { fontSize: 11, fontWeight: 700, color: "#1f9d6b", background: "rgba(31,157,107,0.12)", padding: "3px 9px", borderRadius: 999 },
-  aiCard: { marginTop: 14, padding: "12px 14px", borderRadius: 12, background: "linear-gradient(135deg, rgba(91,91,214,0.09), rgba(124,58,237,0.05))", border: "1px solid rgba(91,91,214,0.18)" },
+  replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 9px", borderRadius: 999 },
+  aiCard: { marginTop: 14, padding: "12px 14px", borderRadius: 12, background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-strong-rgb),0.05))", border: "1px solid rgba(var(--brand-rgb),0.18)" },
   aiHead: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontWeight: 700, color: "#4a3fb3", marginBottom: 6 },
-  aiBadge: { fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "rgba(124,58,237,0.12)", padding: "2px 8px", borderRadius: 999 },
+  aiBadge: { fontSize: 10, fontWeight: 700, color: "var(--brand-strong)", background: "rgba(var(--brand-strong-rgb),0.12)", padding: "2px 8px", borderRadius: 999 },
   aiSummary: { fontSize: 14, color: "#1e2026", lineHeight: 1.45 },
   aiFields: { display: "flex", flexWrap: "wrap", gap: "4px 16px", marginTop: 8, fontSize: 13, color: "#3c414b" },
   quickActions: { display: "flex", gap: 10, margin: "12px 0 4px" },
-  callBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "#1f9d6b", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" },
+  callBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" },
   textBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 15, textDecoration: "none" },
-  taskBar: { padding: "9px 13px", borderRadius: 10, background: "rgba(91,91,214,0.08)", color: "#3a3a9a", fontSize: 13, margin: "10px 0 6px" },
+  taskBar: { padding: "9px 13px", borderRadius: 10, background: "rgba(var(--brand-rgb),0.08)", color: "#3a3a9a", fontSize: 13, margin: "10px 0 6px" },
   paneTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "14px 0 8px" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#8a909c" },
   callItem: { padding: "9px 0", borderBottom: "1px solid #f1f2f5" },
@@ -291,7 +295,7 @@ const S: Record<string, CSSProperties> = {
   actionsRow: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "8px 0 4px" },
   inlineForm: { display: "flex", gap: 6, alignItems: "center" },
   select: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
-  btnPrimary: { padding: "9px 13px", borderRadius: 9, border: "none", background: "#5b5bd6", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnPrimary: { padding: "9px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   btnGhost: { padding: "9px 12px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#1e2026", fontWeight: 600, fontSize: 13, cursor: "pointer" },
   bookRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "2px 0 4px" },
   bookLabel: { fontSize: 13, fontWeight: 600, color: "#3c414b" },
@@ -306,5 +310,5 @@ function bubbleWrap(out: boolean): CSSProperties {
 }
 
 function bubble(out: boolean): CSSProperties {
-  return { maxWidth: "82%", padding: "9px 12px", borderRadius: 12, background: out ? "rgba(91,91,214,0.1)" : "#f1f2f5", fontSize: 13 };
+  return { maxWidth: "82%", padding: "9px 12px", borderRadius: 12, background: out ? "rgba(var(--brand-rgb),0.1)" : "#f1f2f5", fontSize: 13 };
 }

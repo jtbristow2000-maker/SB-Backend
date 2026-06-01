@@ -32,7 +32,7 @@ function autoReplyStyle(s: AutoReplyStatus): CSSProperties {
     marginTop: 4,
     fontSize: 12,
     fontWeight: 600,
-    color: s === "sent" ? "#1f9d6b" : s === "failed" ? "#b23b3b" : s === "queued" ? "#9a6210" : "#8a909c"
+    color: s === "sent" ? "var(--positive)" : s === "failed" ? "#b23b3b" : s === "queued" ? "#9a6210" : "#8a909c"
   };
 }
 
@@ -112,10 +112,10 @@ const S: Record<string, CSSProperties> = {
   sub: { color: "#8a909c", fontSize: 13 },
   empty: { marginTop: 28, padding: "28px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#3c414b" },
   meta: { color: "#3c414b", fontSize: 13, marginTop: 3 },
-  replied: { fontSize: 11, fontWeight: 700, color: "#1f9d6b", background: "rgba(31,157,107,0.12)", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" },
-  linkBtn: { padding: "8px 12px", borderRadius: 10, background: "#5b5bd6", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" },
+  replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" },
+  linkBtn: { padding: "8px 12px", borderRadius: 10, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" },
   linkBtnGhost: { padding: "8px 12px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 600, fontSize: 13, textDecoration: "none" },
-  inlineLink: { color: "#5b5bd6", fontWeight: 600 },
+  inlineLink: { color: "var(--brand)", fontWeight: 600 },
   footer: { marginTop: 26, color: "#8a909c", fontSize: 12 }
 };
 
@@ -128,7 +128,7 @@ function rowStyle(replied: boolean): CSSProperties {
     borderRadius: 13,
     background: "#fff",
     border: "1px solid #eceef2",
-    borderLeft: `3px solid ${replied ? "#1f9d6b" : "#d8dce3"}`,
+    borderLeft: `3px solid ${replied ? "var(--positive)" : "#d8dce3"}`,
     boxShadow: "0 1px 3px rgba(17,21,28,0.05)"
   };
 }

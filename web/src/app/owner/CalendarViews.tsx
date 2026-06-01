@@ -62,11 +62,11 @@ function timeLabel(d: Date): string {
 }
 function statusColor(s: string): string {
   return s === "completed"
-    ? "#1f9d6b"
+    ? "var(--positive)"
     : s === "cancelled" || s === "no_show"
       ? "#b23b3b"
       : s === "confirmed"
-        ? "#5b5bd6"
+        ? "var(--brand)"
         : "#c77d14";
 }
 function blockGeom(start: Date, end: Date | null): { top: number; height: number } {
@@ -312,8 +312,8 @@ function toggleBtn(active: boolean): CSSProperties {
   return {
     padding: "6px 12px",
     borderRadius: 8,
-    border: `1px solid ${active ? "#5b5bd6" : "#d8dce3"}`,
-    background: active ? "#5b5bd6" : "#fff",
+    border: `1px solid ${active ? "var(--brand)" : "#d8dce3"}`,
+    background: active ? "var(--brand)" : "#fff",
     color: active ? "#fff" : "#3c414b",
     fontWeight: 600,
     fontSize: 13,
@@ -327,7 +327,7 @@ function dayHeader(isToday: boolean): CSSProperties {
     padding: "6px 2px",
     fontSize: 12,
     fontWeight: 600,
-    color: isToday ? "#5b5bd6" : "#3c414b",
+    color: isToday ? "var(--brand)" : "#3c414b",
     borderLeft: "1px solid #eceef2"
   };
 }
@@ -337,7 +337,7 @@ function monthCell(inMonth: boolean, isToday: boolean): CSSProperties {
     textAlign: "left",
     padding: 4,
     borderRadius: 8,
-    border: isToday ? "1px solid #5b5bd6" : "1px solid #eceef2",
+    border: isToday ? "1px solid var(--brand)" : "1px solid #eceef2",
     background: inMonth ? "#fff" : "#f6f7f9",
     color: inMonth ? "#1e2026" : "#b0b6c0",
     cursor: "pointer",

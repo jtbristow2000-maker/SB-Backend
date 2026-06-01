@@ -119,8 +119,8 @@ function chipStyle(active: boolean): CSSProperties {
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
-    border: `1px solid ${active ? "#5b5bd6" : "#d8dce3"}`,
-    background: active ? "#5b5bd6" : "#fff",
+    border: `1px solid ${active ? "var(--brand)" : "#d8dce3"}`,
+    background: active ? "var(--brand)" : "#fff",
     color: active ? "#fff" : "#3c414b"
   };
 }
@@ -128,7 +128,7 @@ function chipStyle(active: boolean): CSSProperties {
 function statusBadge(status: string): CSSProperties {
   const s = status || "new";
   const color =
-    s === "won" ? "#1f9d6b" : s === "booked" ? "#5b5bd6" : s === "lost" ? "#b23b3b" : s === "contacted" ? "#c77d14" : "#8a909c";
+    s === "won" ? "var(--positive)" : s === "booked" ? "var(--brand)" : s === "lost" ? "#b23b3b" : s === "contacted" ? "#c77d14" : "#8a909c";
   return {
     fontSize: 11,
     fontWeight: 700,

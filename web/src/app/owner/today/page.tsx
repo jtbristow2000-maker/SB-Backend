@@ -51,8 +51,8 @@ export default async function Today() {
   const callsToday = calls.filter((c) => c.started_at && dayKey(new Date(c.started_at)) === todayKey).length;
 
   const metrics = [
-    { label: "Callbacks waiting", value: callbacks.length, accent: "#5b5bd6", icon: "📞", href: "/owner" },
-    { label: "Replied — waiting on you", value: replied, accent: "#1f9d6b", icon: "💬", href: "/owner" },
+    { label: "Callbacks waiting", value: callbacks.length, accent: "var(--brand)", icon: "📞", href: "/owner" },
+    { label: "Replied — waiting on you", value: replied, accent: "var(--positive)", icon: "💬", href: "/owner" },
     { label: "Voicemails", value: voicemails, accent: "#c77d14", icon: "🎙️", href: "/owner/leads" },
     { label: "Calls today", value: callsToday, accent: "#3a7bd0", icon: "📆", href: "/owner/leads" }
   ];
@@ -118,9 +118,9 @@ const S = {
   sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "26px 0 10px" } as CSSProperties,
   empty: { padding: "24px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", color: "#3c414b", fontSize: 14 } as CSSProperties,
   rowMeta: { color: "#3c414b", fontSize: 13, marginTop: 3 } as CSSProperties,
-  replied: { fontSize: 11, fontWeight: 700, color: "#1f9d6b", background: "rgba(31,157,107,0.12)", padding: "2px 9px", borderRadius: 999 } as CSSProperties,
-  link: { color: "#5b5bd6", fontWeight: 600 } as CSSProperties,
-  viewAll: { display: "inline-block", marginTop: 8, color: "#5b5bd6", fontWeight: 600, fontSize: 13, textDecoration: "none" } as CSSProperties
+  replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "2px 9px", borderRadius: 999 } as CSSProperties,
+  link: { color: "var(--brand)", fontWeight: 600 } as CSSProperties,
+  viewAll: { display: "inline-block", marginTop: 8, color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" } as CSSProperties
 };
 
 function metricChip(accent: string): CSSProperties {
@@ -128,5 +128,5 @@ function metricChip(accent: string): CSSProperties {
 }
 
 function rowStyle(replied: boolean): CSSProperties {
-  return { display: "block", textDecoration: "none", padding: "13px 15px", marginBottom: 9, borderRadius: 13, background: "#fff", border: "1px solid #eceef2", borderLeft: `3px solid ${replied ? "#1f9d6b" : "#d8dce3"}`, boxShadow: "0 1px 3px rgba(17,21,28,0.05)" };
+  return { display: "block", textDecoration: "none", padding: "13px 15px", marginBottom: 9, borderRadius: 13, background: "#fff", border: "1px solid #eceef2", borderLeft: `3px solid ${replied ? "var(--positive)" : "#d8dce3"}`, boxShadow: "0 1px 3px rgba(17,21,28,0.05)" };
 }
