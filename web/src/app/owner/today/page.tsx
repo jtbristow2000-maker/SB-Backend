@@ -10,7 +10,11 @@ export const runtime = "nodejs";
 // ---------------------------------------------------------------------------
 // Today — the overview/home screen: greeting, metric cards, needs-attention.
 // Server component; metrics derived from the sandbox runtime + read-API builder.
+// Greeting, date, and "calls today" are computed in the business timezone so
+// they're correct regardless of where the server runs (Vercel = UTC).
 // ---------------------------------------------------------------------------
+
+const FALLBACK_TZ = "America/New_York";
 
 function fmtPhone(p: string | null): string {
   if (!p) return "Unknown number";
@@ -18,8 +22,8 @@ function fmtPhone(p: string | null): string {
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
 }
 
-function greeting(): string {
-  const h = new Date().getHours();
+function greeting(tz: string): string {
+  const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(new Date())) % 24;
   return h < 12 ? "Good morning." : h < 18 ? "Good afternoon." : "Good evening.";
 }
 
@@ -33,14 +37,18 @@ export default async function Today() {
     rt.taskRepository.list()
   ]);
   const business = businesses[0] ?? null;
+  const tz = business?.timezone || FALLBACK_TZ;
   const callbacks = business
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })
     : [];
 
   const replied = callbacks.filter((c) => c.customer_replied).length;
   const voicemails = calls.filter((c) => c.transcript || c.call_type === "voicemail").length;
-  const todayStr = new Date().toDateString();
-  const callsToday = calls.filter((c) => c.started_at && new Date(c.started_at).toDateString() === todayStr).length;
+  // Compare calendar days in the business timezone (en-CA → YYYY-MM-DD).
+  const dayKey = (d: Date) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const todayKey = dayKey(new Date());
+  const callsToday = calls.filter((c) => c.started_at && dayKey(new Date(c.started_at)) === todayKey).length;
 
   const metrics = [
     { label: "Callbacks waiting", value: callbacks.length, accent: "#5b5bd6", icon: "📞" },
@@ -51,8 +59,10 @@ export default async function Today() {
 
   return (
     <main style={S.page}>
-      <div style={S.greeting}>{greeting()}</div>
-      <div style={S.date}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</div>
+      <div style={S.greeting}>{greeting(tz)}</div>
+      <div style={S.date}>
+        {new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric" })}
+      </div>
 
       <div style={S.metricRow}>
         {metrics.map((m) => (

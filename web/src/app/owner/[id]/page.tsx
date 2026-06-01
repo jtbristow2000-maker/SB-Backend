@@ -12,7 +12,11 @@ export const runtime = "nodejs";
 // Owner screen 2 — Lead detail, per web/OWNER_UX.md.
 // Server component reusing Codex's buildProfileDetail (GET /api/profiles/{id}).
 // Shows the merged call + voicemail + SMS timeline and the open callback task.
+// Times render in the business timezone; the timeline is oldest→newest (newest
+// at the bottom, like a text thread).
 // ---------------------------------------------------------------------------
+
+const FALLBACK_TZ = "America/New_York";
 
 function fmtPhone(p: string | null): string {
   if (!p) return "Unknown number";
@@ -20,9 +24,15 @@ function fmtPhone(p: string | null): string {
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
 }
 
-function fmtTime(iso: string | null): string {
+function fmtTime(iso: string | null, tz: string): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: tz,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
 }
 
 function callLabel(callType: string, hasTranscript: boolean): string {
@@ -49,6 +59,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     rt.taskRepository.list()
   ]);
   const business = businesses[0] ?? null;
+  const tz = business?.timezone || FALLBACK_TZ;
   const detail = business
     ? buildProfileDetail({ businessId: business.id, profileId: id, profiles, calls, messages, tasks })
     : null;
@@ -63,6 +74,12 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   }
 
   const { profile, timeline, open_task, customer_replied } = detail;
+  // Oldest first, so the newest call/message sits at the bottom (text-thread style).
+  const orderedTimeline = [...timeline].sort((a, b) => {
+    const at = a.at ?? "";
+    const bt = b.at ?? "";
+    return at < bt ? -1 : at > bt ? 1 : 0;
+  });
 
   return (
     <main style={S.shell}>
@@ -75,7 +92,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </div>
         <div style={S.sub}>
           {fmtPhone(profile.phone_e164)} · status {profile.status}
-          {profile.last_contact_at ? ` · last heard ${fmtTime(profile.last_contact_at)}` : ""}
+          {profile.last_contact_at ? ` · last heard ${fmtTime(profile.last_contact_at, tz)}` : ""}
         </div>
       </header>
 
@@ -108,13 +125,13 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       </div>
 
       <div style={S.paneTitle}>TIMELINE</div>
-      {timeline.length === 0 && <div style={S.empty}>Nothing yet.</div>}
+      {orderedTimeline.length === 0 && <div style={S.empty}>Nothing yet.</div>}
 
-      {timeline.map((item) =>
+      {orderedTimeline.map((item) =>
         item.kind === "call" ? (
           <div key={item.call.id} style={S.callItem}>
             <div style={S.callHead}>
-              📞 {callLabel(item.call.call_type, Boolean(item.call.transcript))} · {fmtTime(item.at)}
+              📞 {callLabel(item.call.call_type, Boolean(item.call.transcript))} · {fmtTime(item.at, tz)}
               {item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
             </div>
             {item.call.transcript && (
@@ -132,7 +149,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
                 {item.message.direction === "outbound"
                   ? `Auto-reply · ${autoReplyText(item.message.status)}`
                   : "Customer"}{" "}
-                · {fmtTime(item.at)}
+                · {fmtTime(item.at, tz)}
               </div>
             </div>
           </div>

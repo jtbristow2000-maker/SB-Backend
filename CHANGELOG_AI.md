@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner GUI: timezone (ET) + timeline order (newest at bottom)
+
+### Changed
+- `web/src/app/owner/[id]/page.tsx`: all timestamps now render in the business timezone
+  (`business.timezone`, default `America/New_York`) instead of the server's UTC. The lead timeline is
+  now ordered **oldest → newest** so the newest call/message sits at the bottom, like a text thread.
+- `web/src/app/owner/today/page.tsx`: the greeting, date, and "Calls today" count are all computed in
+  the business timezone (via `Intl.DateTimeFormat` with `timeZone`), so they're correct regardless of
+  where the server runs (Vercel is UTC).
+
+### Notes
+- Frontend only; no backend/contract changes. Resolves the "show times in EST" and "newest messages
+  at the bottom" requests.
+
 ## [2026-06-01] - Owner GUI: live auto-refresh (no manual reload)
 
 ### Added
