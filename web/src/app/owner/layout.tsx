@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { AutoRefresh } from "./AutoRefresh";
 import { OwnerNav } from "./OwnerNav";
 
 // ---------------------------------------------------------------------------
@@ -13,6 +14,7 @@ import { OwnerNav } from "./OwnerNav";
 export default function OwnerLayout({ children }: { children: ReactNode }) {
   return (
     <div className="owner-shell">
+      <AutoRefresh seconds={10} />
       {/* Desktop sidebar */}
       <aside className="owner-sidebar">
         <div className="owner-brand">
@@ -28,7 +30,7 @@ export default function OwnerLayout({ children }: { children: ReactNode }) {
 
         <div className="owner-sidebar-footer">
           <Link href="/" className="owner-console-link">↗ Sandbox Console</Link>
-          <div className="owner-version">Live · Supabase</div>
+          <div className="owner-version">● Live · updates automatically</div>
         </div>
       </aside>
 

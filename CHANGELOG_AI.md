@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner GUI: live auto-refresh (no manual reload)
+
+### Added
+- `web/src/app/owner/AutoRefresh.tsx`: a client island that calls `router.refresh()` every 10s (and
+  when the tab regains focus) so new calls, voicemails, and replies appear on the owner screens
+  without a manual browser refresh. Uses RSC refresh (no full reload), so scroll position is kept.
+- Wired into `web/src/app/owner/layout.tsx` (covers all `/owner/*` screens); sidebar footer now shows
+  "● Live · updates automatically".
+
+### Notes
+- Resolves the "I had to refresh to see the call" report. A voicemail lands in two stages — the call
+  arrives first, then Twilio's recording/transcription callback upgrades it to a voicemail a few
+  seconds later; auto-refresh now surfaces that second stage on its own. The voicemail capture flow
+  itself is working (verified live: the test call recorded `recording_url` + transcript).
+
 ## [2026-06-01] - Owner GUI: mobile-responsive shell (sidebar + bottom tab bar)
 
 ### Added
