@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { getAppConfig } from "@/server/config";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
 import type { AppointmentStatus } from "@/server/db/schema";
-import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
+import { recommendServicesFromTranscript } from "@/server/providers";
 
 // ---------------------------------------------------------------------------
 // Owner screen server actions (sandbox). These mutate the same in-memory runtime
@@ -340,4 +341,38 @@ export async function simulateLead(formData: FormData): Promise<void> {
   revalidatePath("/owner/leads");
   revalidatePath(`/owner/${profile.id}`);
   redirect(`/owner/${profile.id}`);
+}
+
+// AI service matcher for the reply composer: given a voicemail transcript and the
+// owner's exact service menu, asks the configured model which menu item(s) apply
+// (judging severity/damage/vehicle). Returns only names from the menu; falls back
+// to [] (composer keeps its keyword guess) when AI isn't configured or errors.
+export async function suggestServicesWithAI(input: {
+  transcript: string;
+  serviceNames: string[];
+}): Promise<string[]> {
+  const transcript = (input?.transcript ?? "").trim();
+  const serviceNames = Array.isArray(input?.serviceNames) ? input.serviceNames.filter(Boolean) : [];
+  if (!transcript || serviceNames.length === 0) return [];
+
+  const cfg = getAppConfig();
+  if (!hasConfiguredExtractionProvider(cfg)) return [];
+
+  const requested = (process.env.EXTRACTION_PROVIDER ?? "").trim().toLowerCase();
+  const anthropicReady = cfg.anthropicConfigured && Boolean(process.env.ANTHROPIC_API_KEY);
+  const openAiReady = cfg.openAiConfigured && Boolean(process.env.OPENAI_API_KEY);
+
+  let provider: "anthropic" | "openai" | null = null;
+  if (requested === "openai" && openAiReady) provider = "openai";
+  else if (requested === "anthropic" && anthropicReady) provider = "anthropic";
+  else if (anthropicReady) provider = "anthropic";
+  else if (openAiReady) provider = "openai";
+  if (!provider) return [];
+
+  const apiKey = (provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY) ?? "";
+  try {
+    return await recommendServicesFromTranscript({ transcript, serviceNames, provider, apiKey });
+  } catch {
+    return [];
+  }
 }

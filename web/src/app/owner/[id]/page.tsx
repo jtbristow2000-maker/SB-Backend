@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
+import { getAppConfig } from "@/server/config";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildProfileDetail } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
@@ -136,6 +137,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   // Context the reply composer uses to pre-pick services + detect a price question.
   const contextText = [aiX.service_requested, aiSummaryText, aiTranscript].filter(Boolean).join(" ");
   const pricingInquiry = /\b(price|pricing|cost|how much|quote|charge|rate|rates)\b/i.test(contextText);
+  const aiEnabled = hasConfiguredExtractionProvider(getAppConfig());
 
   return (
     <main style={S.shell}>
@@ -186,6 +188,8 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           requestedWhen={aiX.requested_datetime ?? ""}
           contextText={contextText}
           pricingInquiry={pricingInquiry}
+          transcript={heroCall?.transcript ?? ""}
+          aiEnabled={aiEnabled}
         />
       )}
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
+import { suggestServicesWithAI } from "@/app/owner/actions";
 import type { BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
 
 // Interactive reply builder for a missed-call lead. Shows the whole flow in one place:
@@ -97,8 +98,9 @@ function detectVehicle(ctx: string): string | null {
   return null;
 }
 function detectTier(ctx: string): "full" | "light" | null {
-  if (/\bfull\b/.test(ctx)) return "full";
-  if (/\b(light|basic|quick|wash|wax|exterior|maintenance)\b/.test(ctx)) return "light";
+  // Severity words imply a full detail; "exterior" is NOT a light cue (e.g. "exterior damage").
+  if (/\b(full|deep|complete|messy|filthy|trashed|nasty|disaster|gross|wreck|destroyed)\b/.test(ctx)) return "full";
+  if (/\b(light|basic|quick|wash|wax|maintenance)\b/.test(ctx)) return "light";
   return null;
 }
 // Best guess at which configured services the voicemail is about.
@@ -119,9 +121,13 @@ function suggestServiceIdxs(contextText: string, ranges: QuoteRangeSettings[]): 
         picked.push(i);
       }
     } else {
-      // Specialty / add-on service: match on its distinctive words (dog, hair, stain…).
+      // Specialty / add-on service: match on its distinctive words (dog, hair, stain…),
+      // plus common real-world synonyms for the mess being described.
       const tokens = name.split(" ").filter((t) => t && !FILLER.has(t));
-      const hit = tokens.some((t) => c.includes(t.replace(/s$/, "")));
+      const extra: string[] = [];
+      if (name.includes("stain")) extra.push("blood", "feather", "spill", "mud", "vomit", "sap", "mess");
+      if (name.includes("hair")) extra.push("fur", "shedding", "pet");
+      const hit = tokens.some((t) => c.includes(t.replace(/s$/, ""))) || extra.some((k) => c.includes(k));
       if (hit) picked.push(i);
     }
   });
@@ -191,7 +197,9 @@ export function ReplyComposer({
   busy,
   requestedWhen,
   contextText,
-  pricingInquiry
+  pricingInquiry,
+  transcript,
+  aiEnabled
 }: {
   customerName: string;
   businessName: string;
@@ -202,6 +210,8 @@ export function ReplyComposer({
   requestedWhen: string;
   contextText: string;
   pricingInquiry: boolean;
+  transcript: string;
+  aiEnabled: boolean;
 }) {
   const allSlots = useMemo(() => computeSlots(busy, businessHours, requestedWhen), [busy, businessHours, requestedWhen]);
   const initialPicks = useMemo(() => suggestServiceIdxs(contextText, quoteRanges), [contextText, quoteRanges]);
@@ -211,6 +221,35 @@ export function ReplyComposer({
   const [includeMenu, setIncludeMenu] = useState<boolean>(() => pricingInquiry && initialPicks.length === 0);
   const [edited, setEdited] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [aiState, setAiState] = useState<"idle" | "loading" | "done" | "skip">("idle");
+
+  // Let the AI read the transcript against the actual menu (judges severity/damage),
+  // overriding the keyword guess. Runs once per open; survives the 10s soft refresh.
+  const ranAi = useRef(false);
+  useEffect(() => {
+    if (ranAi.current) return;
+    ranAi.current = true;
+    if (!aiEnabled || !transcript.trim() || quoteRanges.length === 0) {
+      setAiState("skip");
+      return;
+    }
+    setAiState("loading");
+    suggestServicesWithAI({ transcript, serviceNames: quoteRanges.map((r) => r.service) })
+      .then((names) => {
+        if (names.length > 0) {
+          const byLower = new Map(quoteRanges.map((r, i) => [r.service.toLowerCase(), i]));
+          const idxs = names
+            .map((n) => byLower.get(n.toLowerCase()))
+            .filter((i): i is number => typeof i === "number");
+          if (idxs.length > 0) {
+            setSelectedIdxs(new Set(idxs));
+            setEdited(null);
+          }
+        }
+        setAiState("done");
+      })
+      .catch(() => setAiState("done"));
+  }, [aiEnabled, transcript, quoteRanges]);
 
   const selected = useMemo(
     () => [...selectedIdxs].sort((a, b) => a - b).map((i) => quoteRanges[i]).filter(Boolean),
@@ -273,7 +312,16 @@ export function ReplyComposer({
       {/* Services → live quote */}
       {quoteRanges.length > 0 ? (
         <>
-          <div style={S.sectionLabel}>What they want {initialPicks.length > 0 && <span style={S.auto}>· auto-picked from the voicemail</span>}</div>
+          <div style={S.sectionLabel}>
+            What they want{" "}
+            {aiState === "loading" ? (
+              <span style={S.auto}>· ✨ AI reading the voicemail…</span>
+            ) : aiState === "done" ? (
+              <span style={S.auto}>· ✨ picked by AI</span>
+            ) : initialPicks.length > 0 ? (
+              <span style={S.auto}>· auto-picked</span>
+            ) : null}
+          </div>
           <div style={S.chips}>
             {quoteRanges.map((r, i) => {
               const on = selectedIdxs.has(i);

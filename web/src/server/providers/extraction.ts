@@ -186,3 +186,115 @@ function extractJsonObject(text: string): string | null {
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
+
+// ---------------------------------------------------------------------------
+// Service matching — given a voicemail transcript and the business's exact
+// service menu, let the model pick which menu item(s) the caller actually needs
+// (judging severity, damage, vehicle), rather than brittle keyword rules.
+// Returns only names that exist in the provided menu.
+// ---------------------------------------------------------------------------
+
+export function buildServiceMatchPrompt(transcript: string, serviceNames: string[]): string {
+  return [
+    "A customer left this voicemail for a local service business:",
+    `"""${transcript}"""`,
+    "",
+    "The business offers exactly these services (use these EXACT names):",
+    serviceNames.map((n) => `- ${n}`).join("\n"),
+    "",
+    "Pick the 1-3 services that best match what the caller needs. Guidance:",
+    "- Judge severity: a very dirty / messy / trashed vehicle needs a FULL detail, not a light one.",
+    "- Add any specialty service that fits the described problem (e.g. blood, feathers, spills, mud, vomit, sap → a stain-removal service; heavy pet/dog hair → a pet-hair service).",
+    "- If the vehicle type (sedan / SUV / midsize) is not clearly stated, choose the sedan option.",
+    "- Only choose from the list above, by their exact names. Do not invent services.",
+    "",
+    'Return strict JSON: { "services": string[] }'
+  ].join("\n");
+}
+
+export async function recommendServicesFromTranscript(input: {
+  transcript: string;
+  serviceNames: string[];
+  provider: "anthropic" | "openai";
+  apiKey: string;
+  model?: string;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}): Promise<string[]> {
+  if (!input.transcript.trim() || input.serviceNames.length === 0) {
+    return [];
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const prompt = buildServiceMatchPrompt(input.transcript, input.serviceNames);
+  const system = "You match a caller's request to a fixed service menu. Return only strict JSON.";
+
+  try {
+    let text = "";
+    if (input.provider === "anthropic") {
+      const response = await (input.fetchImpl ?? fetch)(ANTHROPIC_MESSAGES_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": input.apiKey,
+          "anthropic-version": ANTHROPIC_VERSION
+        },
+        body: JSON.stringify({
+          model: input.model ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_ANTHROPIC_MODEL,
+          max_tokens: 200,
+          temperature: 0,
+          system,
+          messages: [{ role: "user", content: prompt }]
+        }),
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`Anthropic service match failed with HTTP ${response.status}`);
+      const body = (await response.json()) as AnthropicMessageResponse;
+      text = body.content?.find((item) => item.type === "text" && item.text)?.text ?? "";
+    } else {
+      const response = await (input.fetchImpl ?? fetch)(OPENAI_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${input.apiKey}`
+        },
+        body: JSON.stringify({
+          model: input.model ?? process.env.OPENAI_EXTRACTION_MODEL ?? DEFAULT_OPENAI_MODEL,
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: prompt }
+          ]
+        }),
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`OpenAI service match failed with HTTP ${response.status}`);
+      const body = (await response.json()) as OpenAIChatCompletionResponse;
+      text = body.choices?.[0]?.message?.content ?? "";
+    }
+    return parseServiceNames(text, input.serviceNames);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function parseServiceNames(text: string, allowed: string[]): string[] {
+  const jsonText = extractJsonObject(text);
+  if (!jsonText) return [];
+  try {
+    const parsed = JSON.parse(jsonText) as { services?: unknown };
+    if (!Array.isArray(parsed.services)) return [];
+    const byLower = new Map(allowed.map((n) => [n.trim().toLowerCase(), n]));
+    const out: string[] = [];
+    for (const candidate of parsed.services) {
+      if (typeof candidate !== "string") continue;
+      const canonical = byLower.get(candidate.trim().toLowerCase());
+      if (canonical && !out.includes(canonical)) out.push(canonical);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}

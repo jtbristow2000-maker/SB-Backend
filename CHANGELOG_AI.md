@@ -1,5 +1,25 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - AI-driven service matching in the reply composer
+
+### Added
+- `recommendServicesFromTranscript()` (provider layer): given a voicemail transcript + the business's
+  exact service menu, asks the configured model (Anthropic/OpenAI) which menu item(s) apply — judging
+  severity ("super messy" → full detail), damage ("blood/feathers/spills" → stain removal), and
+  vehicle. Returns only names that exist in the menu.
+- `suggestServicesWithAI` server action that selects the configured provider/key and calls it.
+- ReplyComposer now runs this automatically when a lead opens (once per open, survives the 10s soft
+  refresh), overriding the keyword guess with the AI's picks; the chips show "✨ picked by AI".
+  Falls back to the keyword matcher when AI is off or errors.
+
+### Fixed
+- Keyword fallback no longer treats "exterior" (as in "exterior damage") as a *light* cue, adds
+  severity words ("messy/filthy/trashed…" → full), and maps real-world mess synonyms
+  (blood/feathers/spill/mud/vomit → stain-removal; fur/shedding/pet → pet-hair service).
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Lead page: voicemail transcript as the centerpiece
 
 ### Changed
