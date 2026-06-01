@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Keep the quote/time chips visible in the bottom composer
+
+### Changed
+- Reverted the chip-collapsing from the streamline pass: the services / quote / "offer these times"
+  chips are **always visible** again in the composer (no toggle). The composer stays positioned at the
+  bottom in the conversation area (the only change the owner actually wanted). One compose box, full
+  controls visible.
+
+### Verified
+- `npm run verify` (24 files, 87 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Streamline lead page to one compose box
 
 ### Changed

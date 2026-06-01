@@ -270,7 +270,6 @@ export function ReplyComposer({
   const [edited, setEdited] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [aiState, setAiState] = useState<"idle" | "loading" | "done" | "skip">("idle");
-  const [showControls, setShowControls] = useState(false);
 
   // Let the AI read the transcript against the actual menu (judges severity/damage),
   // overriding the keyword guess. Runs once per open; survives the 10s soft refresh.
@@ -368,86 +367,77 @@ export function ReplyComposer({
   return (
     <div style={S.card}>
       <div style={S.head}>
-        <span>✨ Reply to {customerName || "this lead"}</span>
-        <span style={S.badge}>{aiState === "loading" ? "✨ reading the voicemail…" : "suggested · editable"}</span>
+        <span>✨ Suggested reply</span>
+        <span style={S.badge}>built from your settings</span>
       </div>
 
-      <textarea
-        value={text}
-        onChange={(e) => setEdited(e.target.value)}
-        rows={5}
-        placeholder="Type a reply, or tweak the suggestion…"
-        style={S.textarea}
-      />
+      {/* Services → live quote */}
+      {quoteRanges.length > 0 ? (
+        <>
+          <div style={S.sectionLabel}>
+            What they want{" "}
+            {aiState === "loading" ? (
+              <span style={S.auto}>· ✨ AI reading the voicemail…</span>
+            ) : aiState === "done" ? (
+              <span style={S.auto}>· ✨ picked by AI</span>
+            ) : initialPicks.length > 0 ? (
+              <span style={S.auto}>· auto-picked</span>
+            ) : null}
+          </div>
+          <div style={S.chips}>
+            {quoteRanges.map((r, i) => {
+              const on = selectedIdxs.has(i);
+              return (
+                <button key={`${r.service}-${i}`} type="button" onClick={() => toggleService(i)} style={chip(on)}>
+                  {on ? "✓ " : ""}{r.service} <span style={S.chipPrice}>{priceText(r)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={S.quoteLine}>
+            {selected.length === 0
+              ? "No service selected — tap the ones they asked about."
+              : `Quote: ${totalLow === totalHigh ? fmtUsd(totalLow) : `${fmtUsd(totalLow)}–${fmtUsd(totalHigh)}`}${selected.length > 1 ? " total" : ""}`}
+          </div>
+          <button type="button" onClick={toggleMenu} style={menuToggle(includeMenu)}>
+            {includeMenu ? "✓ Including full price list" : "+ Add full price list"}
+          </button>
+        </>
+      ) : (
+        <div style={S.noRanges}>Add your services + prices in Settings to quote automatically.</div>
+      )}
+
+      {/* Times to offer */}
+      {allSlots.length > 0 && (
+        <>
+          <div style={S.sectionLabel}>Offer these times</div>
+          {outsideLabel && (
+            <div style={S.outsideNote}>
+              ⚠ They asked for {outsideLabel.toLowerCase()} — outside your hours. The reply offers your next open times instead (tweak it if you can make an exception).
+            </div>
+          )}
+          <div style={S.chips}>
+            {allSlots.map((slot) => {
+              const on = selectedSlots.includes(slot);
+              return (
+                <button key={slot} type="button" onClick={() => toggleSlot(slot)} style={chip(on)}>
+                  {on ? "✓ " : ""}{slot}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Assembled message */}
+      <div style={S.sectionLabel}>Message</div>
+      <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={5} style={S.textarea} />
       <div style={S.actions}>
         <button type="button" onClick={send} disabled={sendState === "sending"} style={S.sendBtn}>
           {sendState === "sending" ? "Sending…" : sendState === "sent" ? "✓ Sent" : "💬 Send"}
         </button>
         <button type="button" onClick={copy} style={S.copyBtn}>{copied ? "✓ Copied" : "📋 Copy"}</button>
-        {(quoteRanges.length > 0 || allSlots.length > 0) && (
-          <button type="button" onClick={() => setShowControls((v) => !v)} style={S.tuneBtn}>
-            {showControls ? "Hide options" : "⚙ Quote & times"}
-          </button>
-        )}
       </div>
-
-      {showControls && (
-        <div style={S.controls}>
-          {quoteRanges.length > 0 ? (
-            <>
-              <div style={S.sectionLabel}>
-                What they want{" "}
-                {aiState === "done" ? (
-                  <span style={S.auto}>· ✨ picked by AI</span>
-                ) : initialPicks.length > 0 ? (
-                  <span style={S.auto}>· auto-picked</span>
-                ) : null}
-              </div>
-              <div style={S.chips}>
-                {quoteRanges.map((r, i) => {
-                  const on = selectedIdxs.has(i);
-                  return (
-                    <button key={`${r.service}-${i}`} type="button" onClick={() => toggleService(i)} style={chip(on)}>
-                      {on ? "✓ " : ""}{r.service} <span style={S.chipPrice}>{priceText(r)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={S.quoteLine}>
-                {selected.length === 0
-                  ? "No service selected — tap the ones they asked about."
-                  : `Quote: ${totalLow === totalHigh ? fmtUsd(totalLow) : `${fmtUsd(totalLow)}–${fmtUsd(totalHigh)}`}${selected.length > 1 ? " total" : ""}`}
-              </div>
-              <button type="button" onClick={toggleMenu} style={menuToggle(includeMenu)}>
-                {includeMenu ? "✓ Including full price list" : "+ Add full price list"}
-              </button>
-            </>
-          ) : (
-            <div style={S.noRanges}>Add your services + prices in Settings to quote automatically.</div>
-          )}
-
-          {allSlots.length > 0 && (
-            <>
-              <div style={S.sectionLabel}>Offer these times</div>
-              {outsideLabel && (
-                <div style={S.outsideNote}>
-                  ⚠ They asked for {outsideLabel.toLowerCase()} — outside your hours. The reply offers your next open times instead.
-                </div>
-              )}
-              <div style={S.chips}>
-                {allSlots.map((slot) => {
-                  const on = selectedSlots.includes(slot);
-                  return (
-                    <button key={slot} type="button" onClick={() => toggleSlot(slot)} style={chip(on)}>
-                      {on ? "✓ " : ""}{slot}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
