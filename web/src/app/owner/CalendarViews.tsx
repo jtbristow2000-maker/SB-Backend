@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
 
-import { setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
+import { deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
 
 // Calendar with Week (hourly time axis + positioned blocks), Month (grid), and
 // Agenda views. Date math is in the browser's local timezone — for a single
@@ -95,6 +95,22 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
   const [selected, setSelected] = useState<Selection | null>(null);
   const openEvent = (ev: Ev, mode: "view" | "edit") => setSelected({ ev, mode });
 
+  // Desktop hover preview (skipped on touch, where the click popup is the path).
+  const [hover, setHover] = useState<{ ev: Ev; left: number; top: number } | null>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showHover = (ev: Ev, rect: DOMRect) => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    const vw = typeof window !== "undefined" ? window.innerWidth : 360;
+    setHover({ ev, left: Math.min(Math.max(rect.left, 8), vw - 288), top: rect.bottom + 6 });
+  };
+  const queueHideHover = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => setHover(null), 160);
+  };
+  const cancelHideHover = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+  };
+
   const evs: Ev[] = useMemo(
     () => events.map((e) => ({ ...e, startDate: new Date(e.start), endDate: e.end ? new Date(e.end) : null })),
     [events]
@@ -139,7 +155,9 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
       </div>
       <div style={S.periodLabel}>{periodLabel}</div>
 
-      {view === "week" && <WeekView anchor={anchor} evs={evs} onOpen={openEvent} />}
+      {view === "week" && (
+        <WeekView anchor={anchor} evs={evs} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
+      )}
       {view === "month" && (
         <MonthView
           anchor={anchor}
@@ -160,11 +178,27 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
           onEdit={() => setSelected((s) => (s ? { ...s, mode: "edit" } : s))}
         />
       )}
+
+      {hover && !selected && (
+        <HoverCard ev={hover.ev} left={hover.left} top={hover.top} onEnter={cancelHideHover} onLeave={queueHideHover} />
+      )}
     </div>
   );
 }
 
-function WeekView({ anchor, evs, onOpen }: { anchor: Date; evs: Ev[]; onOpen: (ev: Ev, mode: "view" | "edit") => void }) {
+function WeekView({
+  anchor,
+  evs,
+  onOpen,
+  onHover,
+  onHoverLeave
+}: {
+  anchor: Date;
+  evs: Ev[];
+  onOpen: (ev: Ev, mode: "view" | "edit") => void;
+  onHover: (ev: Ev, rect: DOMRect) => void;
+  onHoverLeave: () => void;
+}) {
   const weekStart = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
@@ -197,7 +231,17 @@ function WeekView({ anchor, evs, onOpen }: { anchor: Date; evs: Ev[]; onOpen: (e
                 ))}
                 {dayEvents.map((e) => {
                   const g = blockGeom(e.startDate, e.endDate);
-                  return <EventBlock key={e.id} ev={e} top={g.top} height={g.height} onOpen={onOpen} />;
+                  return (
+                    <EventBlock
+                      key={e.id}
+                      ev={e}
+                      top={g.top}
+                      height={g.height}
+                      onOpen={onOpen}
+                      onHover={onHover}
+                      onHoverLeave={onHoverLeave}
+                    />
+                  );
                 })}
               </div>
             );
@@ -212,12 +256,16 @@ function EventBlock({
   ev,
   top,
   height,
-  onOpen
+  onOpen,
+  onHover,
+  onHoverLeave
 }: {
   ev: Ev;
   top: number;
   height: number;
   onOpen: (ev: Ev, mode: "view" | "edit") => void;
+  onHover: (ev: Ev, rect: DOMRect) => void;
+  onHoverLeave: () => void;
 }) {
   const color = statusColor(ev.status);
   // Distinguish single click (view) from double click (edit) with a short timer.
@@ -251,7 +299,14 @@ function EventBlock({
     fontFamily: "inherit"
   };
   return (
-    <button type="button" style={style} onClick={handleClick} onDoubleClick={handleDouble} title={ev.title}>
+    <button
+      type="button"
+      style={style}
+      onClick={handleClick}
+      onDoubleClick={handleDouble}
+      onMouseEnter={(e) => onHover(ev, e.currentTarget.getBoundingClientRect())}
+      onMouseLeave={onHoverLeave}
+    >
       <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {timeLabel(ev.startDate)}
       </div>
@@ -362,6 +417,49 @@ function nearestDuration(ev: Ev): number {
   return DURATION_OPTIONS.reduce((best, d) => (Math.abs(d - mins) < Math.abs(best - mins) ? d : best), 60);
 }
 
+// Lightweight hover preview (desktop). Positioned fixed so the scroll container
+// doesn't clip it, and hoverable so the owner can move in and click the Maps link.
+function HoverCard({
+  ev,
+  left,
+  top,
+  onEnter,
+  onLeave
+}: {
+  ev: Ev;
+  left: number;
+  top: number;
+  onEnter: () => void;
+  onLeave: () => void;
+}) {
+  const color = statusColor(ev.status);
+  const mapsHref = ev.location
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`
+    : null;
+  return (
+    <div style={{ ...S.hoverCard, left, top }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>{ev.title}</div>
+      <div style={S.hoverRow}>
+        🗓 {ev.startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} ·{" "}
+        {timeLabel(ev.startDate)}{ev.endDate ? `–${timeLabel(ev.endDate)}` : ""}
+      </div>
+      <div style={S.hoverRow}>
+        <span style={{ ...S.statusPill, background: `${color}1f`, color }}>{ev.status.replace("_", " ")}</span>
+      </div>
+      {ev.priceLabel && <div style={S.hoverRow}>💰 {ev.priceLabel}{ev.service ? ` · ${ev.service}` : ""}</div>}
+      {ev.location && (
+        <div style={S.hoverRow}>
+          📍 {ev.location}
+          {mapsHref && <> · <a href={mapsHref} target="_blank" rel="noreferrer" style={S.mapLink}>Maps ↗</a></>}
+        </div>
+      )}
+      {ev.notes && <div style={S.hoverRow}>📝 {ev.notes}</div>}
+      {ev.who && <div style={S.hoverRow}>👤 {ev.who}</div>}
+      <div style={S.hoverHint}>Click for full details · double-click to edit</div>
+    </div>
+  );
+}
+
 // Detail / edit popup for one appointment. Single click on an event opens "view"
 // (details, price, address → maps, notes); double click (or the Edit button) opens
 // the edit form, which saves via the updateAppointment server action.
@@ -387,6 +485,16 @@ function AppointmentModal({
   const save = (formData: FormData) => {
     startTransition(async () => {
       await updateAppointment(formData);
+      onClose();
+    });
+  };
+
+  const del = () => {
+    if (typeof window !== "undefined" && !window.confirm("Delete this appointment? This can't be undone.")) return;
+    const fd = new FormData();
+    fd.set("appointmentId", ev.id);
+    startTransition(async () => {
+      await deleteAppointment(fd);
       onClose();
     });
   };
@@ -433,6 +541,7 @@ function AppointmentModal({
               <button type="button" onClick={onEdit} style={S.btnPrimary}>✎ Edit</button>
               {ev.customerProfileId && <Link href={`/owner/${ev.customerProfileId}`} style={S.btnGhost}>Open lead</Link>}
               {ev.phone && <a href={`tel:${ev.phone}`} style={S.btnGhost}>📞 Call</a>}
+              <button type="button" onClick={del} disabled={pending} style={S.btnDanger}>🗑 Delete</button>
             </div>
           </div>
         ) : (
@@ -555,5 +664,9 @@ const S: Record<string, CSSProperties> = {
   btnGhost: { display: "inline-block", padding: "10px 14px", borderRadius: 10, border: "1px solid #d8dce3", background: "#fff", color: "#1e2026", fontWeight: 600, fontSize: 14, cursor: "pointer", textDecoration: "none", textAlign: "center" },
   formLabel: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 700, color: "#3c414b" },
   input: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit" },
-  textarea: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }
+  textarea: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
+  btnDanger: { display: "inline-block", padding: "10px 14px", borderRadius: 10, border: "1px solid #f1c4c4", background: "#fff", color: "#b23b3b", fontWeight: 700, fontSize: 14, cursor: "pointer" },
+  hoverCard: { position: "fixed", width: 272, maxWidth: "calc(100vw - 16px)", background: "#fff", border: "1px solid #e3e6ec", borderRadius: 10, boxShadow: "0 8px 28px rgba(17,21,28,0.18)", padding: "10px 12px", fontSize: 12, lineHeight: 1.45, color: "#1e2026", zIndex: 900 },
+  hoverRow: { marginTop: 3 },
+  hoverHint: { marginTop: 8, paddingTop: 6, borderTop: "1px solid #f1f2f5", fontSize: 11, color: "#8a909c" }
 };

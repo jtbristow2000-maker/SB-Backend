@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Calendar hover preview + delete; booking notes from the voicemail
+
+### Added
+- **Hover preview** on week-view events (desktop): a fixed-position card with date/time, status,
+  price, address (clickable **Maps ↗**), notes, and customer — positioned so the scroll container
+  doesn't clip it and you can move in to click the link.
+- **Delete appointments**: `AppointmentRepository.delete()` (in-memory + Supabase) + a
+  `deleteAppointment` action + a 🗑 Delete button (with confirm) in the detail popup.
+- Booking from a lead now **pre-fills the appointment notes** from the voicemail summary/transcript
+  (condition + vehicle), so calendar events carry context instead of starting blank.
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Calendar event details/edit + quote range reordering
 
 ### Added

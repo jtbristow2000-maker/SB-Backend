@@ -22,6 +22,7 @@ export interface AppointmentRepository {
   create(input: AppointmentCreateInput): Promise<AppointmentRow>;
   findById(id: string): Promise<AppointmentRow | null>;
   update(id: string, input: AppointmentUpdateInput): Promise<AppointmentRow>;
+  delete(id: string): Promise<void>;
   list(): Promise<AppointmentRow[]>;
 }
 
@@ -76,6 +77,10 @@ export class InMemoryAppointmentRepository implements AppointmentRepository {
 
     this.appointments.set(id, updated);
     return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.appointments.delete(id);
   }
 
   async list(): Promise<AppointmentRow[]> {

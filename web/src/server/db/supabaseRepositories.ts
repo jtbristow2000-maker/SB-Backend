@@ -479,6 +479,11 @@ export class SupabaseAppointmentRepository implements AppointmentRepository {
     return requireRow(data, error, "update appointment");
   }
 
+  async delete(id: string): Promise<void> {
+    const { error } = await this.client.from("appointments").delete().eq("id", id);
+    failIfError(error, "delete appointment");
+  }
+
   async list(): Promise<AppointmentRow[]> {
     const { data, error } = await this.client.from("appointments").select("*");
     return rowsOrThrow(data, error, "list appointments");

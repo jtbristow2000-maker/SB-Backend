@@ -226,6 +226,21 @@ export async function updateAppointment(formData: FormData): Promise<void> {
   if (existing.customer_profile_id) revalidatePath(`/owner/${existing.customer_profile_id}`);
 }
 
+export async function deleteAppointment(formData: FormData): Promise<void> {
+  const appointmentId = String(formData.get("appointmentId") ?? "").trim();
+  if (!appointmentId) return;
+  const rt = await getIntakeRuntime();
+  const existing = await rt.appointmentRepository.findById(appointmentId);
+  try {
+    await rt.appointmentRepository.delete(appointmentId);
+  } catch {
+    /* appointment may have been reset */
+  }
+  revalidatePath("/owner/calendar");
+  revalidatePath("/owner/today");
+  if (existing?.customer_profile_id) revalidatePath(`/owner/${existing.customer_profile_id}`);
+}
+
 export async function saveSettings(formData: FormData): Promise<void> {
   const rt = await getIntakeRuntime();
   const business = (await rt.businessRepository.list())[0] ?? null;

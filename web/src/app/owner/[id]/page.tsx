@@ -138,6 +138,9 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   const contextText = [aiX.service_requested, aiSummaryText, aiTranscript].filter(Boolean).join(" ");
   const pricingInquiry = /\b(price|pricing|cost|how much|quote|charge|rate|rates)\b/i.test(contextText);
   const aiEnabled = hasConfiguredExtractionProvider(getAppConfig());
+  // Pre-fill booking notes from the voicemail (condition / vehicle / details) so the
+  // appointment carries context onto the calendar instead of starting blank.
+  const bookingNotes = aiSummaryText ?? (aiTranscript ? aiTranscript.slice(0, 200) : "");
 
   return (
     <main style={S.shell}>
@@ -225,6 +228,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           value={`${profile.display_name || fmtPhone(profile.phone_e164)}${aiX.service_requested ? ` — ${aiX.service_requested}` : ""}`}
         />
         <input type="hidden" name="service" value={aiX.service_requested ?? ""} />
+        <input type="hidden" name="notes" value={bookingNotes} />
         <span style={S.bookLabel}>📅 Book:</span>
         <input name="start" type="datetime-local" required style={S.bookInput} aria-label="Appointment time" />
         <select name="duration" defaultValue="60" style={S.bookSelect} aria-label="Duration">
