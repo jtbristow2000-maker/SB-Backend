@@ -62,7 +62,6 @@ export default async function OwnerCallbacks() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/owner" style={S.linkBtn}>↻ Refresh</Link>
-          <Link href="/" style={S.linkBtnGhost}>Simulate ↗</Link>
         </div>
       </header>
 
@@ -70,7 +69,7 @@ export default async function OwnerCallbacks() {
         <div style={S.empty}>
           You&apos;re all caught up — no callbacks waiting.
           <div style={{ marginTop: 8, fontSize: 13 }}>
-            Go to the <Link href="/" style={S.inlineLink}>Sandbox Console</Link> and simulate a missed call.
+            New leads from missed calls and texts will show up here automatically.
           </div>
         </div>
       )}

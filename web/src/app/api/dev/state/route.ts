@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { requireApiKey } from "@/server/auth/apiKey";
 import { getAppConfig } from "@/server/config";
 import { getIntakeRuntime } from "@/server/intake/runtime";
 import { withRequestLogging } from "@/server/observability/requestLogging";
@@ -14,6 +15,12 @@ export async function GET(request: NextRequest) {
     if (!getAppConfig().sandboxMode) {
       logger.setContext({ outcome: "sandbox_disabled" });
       return NextResponse.json({ error: "dev console disabled outside sandbox" }, { status: 404 });
+    }
+
+    const authError = requireApiKey(request);
+    if (authError) {
+      logger.setContext({ outcome: "unauthorized" });
+      return authError;
     }
 
     try {

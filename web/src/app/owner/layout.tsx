@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { AutoRefresh } from "./AutoRefresh";
@@ -29,7 +28,6 @@ export default function OwnerLayout({ children }: { children: ReactNode }) {
         <OwnerNav variant="sidebar" />
 
         <div className="owner-sidebar-footer">
-          <Link href="/" className="owner-console-link">↗ Sandbox Console</Link>
           <div className="owner-version">● Live · updates automatically</div>
         </div>
       </aside>
@@ -40,7 +38,6 @@ export default function OwnerLayout({ children }: { children: ReactNode }) {
           <span className="owner-logo owner-logo-sm">B</span>
           <span>Business Hub</span>
         </div>
-        <Link href="/" className="owner-topbar-console">Console</Link>
       </header>
 
       <div className="owner-content">{children}</div>

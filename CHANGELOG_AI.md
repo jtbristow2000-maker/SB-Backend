@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Retire the Sandbox Console; lock the dev endpoints
+
+### Changed
+- Removed the clickable Sandbox Console simulator (the system is now exercised with real calls).
+  `/` (`web/src/app/page.tsx`) redirects to the owner dashboard (`/owner/today`).
+- Stripped the "Sandbox Console" / "Console" / "Simulate" links from the owner layout and the
+  Callbacks/Today screens, and reworded the empty states (no more simulator references).
+
+### Security
+- `GET /api/dev/state` and `POST /api/dev/reset` now require the API key (`X-API-Key`) in addition
+  to sandbox mode — the in-memory state dump is no longer publicly reachable.
+
+### Notes
+- The Twilio webhook routes the console used to drive are unchanged (now hit by real Twilio
+  traffic). Frontend + dev-route guard only; `npm run verify` green (80 passed, 1 skipped).
+
 ## [2026-06-01] - Backend: OpenAI voicemail extraction provider
 
 ### Added

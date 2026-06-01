@@ -77,7 +77,7 @@ export default async function Today() {
       <div style={S.sectionLabel}>NEEDS ATTENTION</div>
       {callbacks.length === 0 ? (
         <div style={S.empty}>
-          You&apos;re all caught up. <Link href="/" style={S.link}>Simulate a missed call</Link> to see leads here.
+          You&apos;re all caught up. New missed calls will show up here automatically.
         </div>
       ) : (
         <div>
