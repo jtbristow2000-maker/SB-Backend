@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify": "tsc --noEmit && vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
