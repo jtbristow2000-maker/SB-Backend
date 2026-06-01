@@ -16,7 +16,10 @@ type TwilioPost = (request: NextRequest) => Promise<Response>;
 const authToken = "test_twilio_auth_token";
 const originalEnv = {
   TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
-  WEBHOOK_SIGNATURE_REQUIRED: process.env.WEBHOOK_SIGNATURE_REQUIRED
+  WEBHOOK_SIGNATURE_REQUIRED: process.env.WEBHOOK_SIGNATURE_REQUIRED,
+  PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL,
+  APP_BASE_URL: process.env.APP_BASE_URL,
+  NEXT_PUBLIC_APP_BASE_URL: process.env.NEXT_PUBLIC_APP_BASE_URL
 };
 
 const routes: Array<{ name: string; url: string; post: TwilioPost }> = [
@@ -60,6 +63,9 @@ const routes: Array<{ name: string; url: string; post: TwilioPost }> = [
 function configureRequiredSignatures(): void {
   process.env.WEBHOOK_SIGNATURE_REQUIRED = "true";
   process.env.TWILIO_AUTH_TOKEN = authToken;
+  delete process.env.PUBLIC_BASE_URL;
+  delete process.env.APP_BASE_URL;
+  delete process.env.NEXT_PUBLIC_APP_BASE_URL;
 }
 
 function makeRequest(
@@ -85,9 +91,20 @@ function makeUnsignedRequest(url: string, params: Record<string, string>): NextR
   });
 }
 
+function restoreEnvVar(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
+
 afterEach(() => {
-  process.env.TWILIO_AUTH_TOKEN = originalEnv.TWILIO_AUTH_TOKEN;
-  process.env.WEBHOOK_SIGNATURE_REQUIRED = originalEnv.WEBHOOK_SIGNATURE_REQUIRED;
+  restoreEnvVar("TWILIO_AUTH_TOKEN", originalEnv.TWILIO_AUTH_TOKEN);
+  restoreEnvVar("WEBHOOK_SIGNATURE_REQUIRED", originalEnv.WEBHOOK_SIGNATURE_REQUIRED);
+  restoreEnvVar("PUBLIC_BASE_URL", originalEnv.PUBLIC_BASE_URL);
+  restoreEnvVar("APP_BASE_URL", originalEnv.APP_BASE_URL);
+  restoreEnvVar("NEXT_PUBLIC_APP_BASE_URL", originalEnv.NEXT_PUBLIC_APP_BASE_URL);
 });
 
 describe("BACKEND-12 Twilio webhook signatures", () => {
@@ -120,6 +137,33 @@ describe("BACKEND-12 Twilio webhook signatures", () => {
 
     expect(response.status).toBe(200);
     expect(body.receivedFieldNames).toEqual(["CallSid", "From", "To"]);
+  });
+
+  it("accepts a valid signature generated for the public URL behind a proxy", async () => {
+    configureRequiredSignatures();
+    process.env.PUBLIC_BASE_URL = "https://jobs.example.com";
+
+    const publicUrl = "https://jobs.example.com/api/webhooks/twilio/incoming-call";
+    const internalUrl = "http://127.0.0.1:3000/api/webhooks/twilio/incoming-call";
+    const params = {
+      From: "+15551234567",
+      To: "+15557654321",
+      CallSid: "CA_SIGNATURE_PROXY"
+    };
+    const signature = createTwilioSignature(publicUrl, params, authToken);
+    const request = new NextRequest(internalUrl, {
+      method: "POST",
+      headers: {
+        "x-twilio-signature": signature,
+        "x-forwarded-host": "jobs.example.com",
+        "x-forwarded-proto": "https"
+      },
+      body: new URLSearchParams(params)
+    });
+
+    const response = await incomingCallPost(request);
+
+    expect(response.status).toBe(200);
   });
 
   it("rejects a tampered signature when checks are required", async () => {

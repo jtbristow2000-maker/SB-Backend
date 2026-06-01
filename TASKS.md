@@ -510,7 +510,7 @@ produces a lead + voicemail transcript + auto-text, and the owner is notified an
 **Stack:** Next.js App Router API routes · Supabase Postgres · Vitest · Twilio for comms.
 **Conventions (established in `web/`):** server logic in `web/src/server/<domain>/`; routes in `web/src/app/api/.../route.ts`; SQL in `web/supabase/migrations/NNNN_*.sql`; tests colocated `*.test.ts`.
 **Guardrails:** sandbox-first; real SMS/calls behind `SMS_SENDING_ENABLED` / `CALL_FORWARDING_ENABLED` (default false); no hardcoded secrets; update `CHANGELOG_AI.md`; do not touch `dashboard/`.
-**Status:** BACKEND-00→18 are **DONE in `web/`** (track consolidation, capture pipeline, read APIs, owner profile/task edits, and owner-approved outbound SMS). **Start at BACKEND-19.**
+**Status:** BACKEND-00→19 and BACKEND-22 are **DONE in `web/`** (track consolidation, capture pipeline, read APIs, owner profile/task edits, owner-approved outbound SMS, Supabase persistence, and deploy observability). **BACKEND-20/21 remain pending and were intentionally not bundled into observability work.**
 
 Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
@@ -754,7 +754,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ---
 
-### BACKEND-22 — Observability + deployment readiness   (M)
+### BACKEND-22 — Observability + deployment readiness   (M) — DONE
 
 **Goal:** Make the web backend deployable and observable before live Twilio wiring.
 **Files:** `web/src/server/...`, `web/src/app/api/health/...`, deploy docs/config.

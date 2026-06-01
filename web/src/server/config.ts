@@ -7,8 +7,14 @@ function readBoolean(name: string, fallback: boolean): boolean {
   return ["1", "true", "yes", "on"].includes(raw.toLowerCase());
 }
 
+function readString(name: string): string | undefined {
+  const raw = process.env[name]?.trim();
+  return raw ? raw : undefined;
+}
+
 export type AppConfig = {
   appBaseUrl: string;
+  publicBaseUrl: string | null;
   apiKeyConfigured: boolean;
   environment: string;
   persistence: "memory" | "supabase";
@@ -21,16 +27,21 @@ export type AppConfig = {
   supabaseConfigured: boolean;
   twilioConfigured: boolean;
   openAiConfigured: boolean;
+  sentryConfigured: boolean;
 };
 
 export function getAppConfig(): AppConfig {
   const persistence = process.env.PERSISTENCE === "supabase" ? "supabase" : "memory";
+  const publicBaseUrl =
+    readString("PUBLIC_BASE_URL") ??
+    readString("APP_BASE_URL") ??
+    readString("NEXT_PUBLIC_APP_BASE_URL") ??
+    null;
 
   return {
     appBaseUrl:
-      process.env.APP_BASE_URL ??
-      process.env.NEXT_PUBLIC_APP_BASE_URL ??
-      "http://localhost:3000",
+      publicBaseUrl ?? "http://localhost:3000",
+    publicBaseUrl,
     apiKeyConfigured: Boolean(process.env.API_KEY),
     environment: process.env.NODE_ENV ?? "development",
     persistence,
@@ -51,6 +62,7 @@ export function getAppConfig(): AppConfig {
         process.env.TWILIO_AUTH_TOKEN &&
         process.env.TWILIO_PHONE_NUMBER
     ),
-    openAiConfigured: Boolean(process.env.OPENAI_API_KEY)
+    openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    sentryConfigured: Boolean(process.env.SENTRY_DSN)
   };
 }

@@ -1,30 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { requireApiKey } from "@/server/auth/apiKey";
-import { getAppConfig } from "@/server/config";
+import { buildDeepHealthPayload } from "@/server/health/deepHealth";
+import { withRequestLogging } from "@/server/observability/requestLogging";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const authError = requireApiKey(request);
-  if (authError) {
-    return authError;
-  }
+  return withRequestLogging(request, "/api/health", async (logger) => {
+    const authError = requireApiKey(request);
+    if (authError) {
+      logger.setContext({ outcome: "unauthorized" });
+      return authError;
+    }
 
-  const config = getAppConfig();
+    const payload = await buildDeepHealthPayload();
+    logger.setContext({ outcome: payload.status });
 
-  return NextResponse.json({
-    status: "ok",
-    service: "SB Web API",
-    environment: config.environment,
-    sandboxMode: config.sandboxMode,
-    apiKeyConfigured: config.apiKeyConfigured,
-    smsSendingEnabled: config.smsSendingEnabled,
-    callForwardingEnabled: config.callForwardingEnabled,
-    realMessageSendingEnabled: config.realMessageSendingEnabled,
-    realCallAutomationEnabled: config.realCallAutomationEnabled,
-    supabaseConfigured: config.supabaseConfigured,
-    twilioConfigured: config.twilioConfigured,
-    openAiConfigured: config.openAiConfigured
+    return NextResponse.json(payload, {
+      status: payload.status === "ok" ? 200 : 503
+    });
   });
 }

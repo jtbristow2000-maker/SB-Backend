@@ -1,5 +1,23 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - BACKEND-22 observability and deployment readiness
+
+### Added
+- Deep `/api/health` payload for persistence mode, Supabase connectivity status, sandbox provider modes, safety flags, and integration configuration without exposing secrets.
+- Structured JSON request logging for API and Twilio webhook routes with request id, route, outcome, business id, and provider call/message ids.
+- Lightweight optional Sentry-compatible error capture behind `SENTRY_DSN`; unset remains a no-op.
+- `web/DEPLOY.md` with Vercel root-directory setup, Supabase migration guidance, Twilio webhook URLs, local tunnel flow, and safe environment variable checklist.
+
+### Changed
+- Twilio signature validation now builds the signed URL from `PUBLIC_BASE_URL` / `APP_BASE_URL` and forwarded headers so Vercel/proxy deployments can validate production signatures.
+- `web/.env.example` documents `PUBLIC_BASE_URL` and `SENTRY_DSN`.
+- `TASKS.md` marks BACKEND-22 complete while leaving BACKEND-20/21 explicitly pending.
+
+### Verified
+- `npm run verify` passes: TypeScript typecheck plus 67 passing Vitest tests and 1 skipped Supabase contract test.
+- `npm run build` passes for the Next.js production build.
+- Added tests for deep health payloads, proxied Twilio signature validation, and structured webhook logs.
+
 ## [2026-05-31] - Fix: type Supabase repo factory by interface (strict typecheck)
 
 ### Fixed

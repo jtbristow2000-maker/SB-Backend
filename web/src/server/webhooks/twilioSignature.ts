@@ -43,6 +43,29 @@ export function validateTwilioSignature({
   return timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
+export function buildTwilioSignatureUrl(request: NextRequest): string {
+  const requestUrl = new URL(request.url);
+  const configuredBase = firstConfiguredBaseUrl();
+
+  if (configuredBase) {
+    return new URL(`${requestUrl.pathname}${requestUrl.search}`, normalizeBaseUrl(configuredBase))
+      .toString();
+  }
+
+  const forwardedHost = firstForwardedValue(
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host")
+  );
+  if (!forwardedHost) {
+    return request.url;
+  }
+
+  const forwardedProto =
+    firstForwardedValue(request.headers.get("x-forwarded-proto")) ??
+    requestUrl.protocol.replace(":", "");
+
+  return `${forwardedProto}://${forwardedHost}${requestUrl.pathname}${requestUrl.search}`;
+}
+
 export function verifyTwilioRequestSignature(
   request: NextRequest,
   params: Record<string, string>
@@ -64,7 +87,7 @@ export function verifyTwilioRequestSignature(
   }
 
   const isValid = validateTwilioSignature({
-    url: request.url,
+    url: buildTwilioSignatureUrl(request),
     params,
     signature,
     authToken
@@ -75,6 +98,31 @@ export function verifyTwilioRequestSignature(
   }
 
   return { ok: true, required: true, bypassed: false };
+}
+
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+}
+
+function firstConfiguredBaseUrl(): string | null {
+  return (
+    readString("PUBLIC_BASE_URL") ??
+    readString("APP_BASE_URL") ??
+    readString("NEXT_PUBLIC_APP_BASE_URL") ??
+    null
+  );
+}
+
+function readString(name: string): string | undefined {
+  const raw = process.env[name]?.trim();
+  return raw ? raw : undefined;
+}
+
+function firstForwardedValue(value: string | null): string | null {
+  return value
+    ?.split(",")
+    .map((part) => part.trim())
+    .find(Boolean) ?? null;
 }
 
 function signatureFailure(reason: string): TwilioSignatureVerification {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getAppConfig } from "@/server/config";
+import { withRequestLogging } from "@/server/observability/requestLogging";
 import { readVerifiedTwilioPayload } from "@/server/webhooks/twilioForm";
 
 export type TwilioWebhookKind = "incoming_call" | "incoming_sms" | "recording_callback";
@@ -22,28 +23,49 @@ function placeholderResponse(kind: TwilioWebhookKind, payload: Record<string, st
 }
 
 export async function handleIncomingCallWebhook(request: NextRequest) {
-  const verified = await readVerifiedTwilioPayload(request);
-  if (!verified.ok) {
-    return verified.response;
-  }
+  return withRequestLogging(request, "/api/webhooks/twilio/incoming-call", async (logger) => {
+    const verified = await readVerifiedTwilioPayload(request);
+    if (!verified.ok) {
+      logger.setContext({ outcome: "twilio_signature_failed" });
+      return verified.response;
+    }
 
-  return placeholderResponse("incoming_call", verified.payload);
+    logger.setContext({
+      providerCallId: verified.payload.CallSid ?? null,
+      outcome: "placeholder_only"
+    });
+    return placeholderResponse("incoming_call", verified.payload);
+  });
 }
 
 export async function handleIncomingSmsWebhook(request: NextRequest) {
-  const verified = await readVerifiedTwilioPayload(request);
-  if (!verified.ok) {
-    return verified.response;
-  }
+  return withRequestLogging(request, "/api/webhooks/twilio/incoming-sms", async (logger) => {
+    const verified = await readVerifiedTwilioPayload(request);
+    if (!verified.ok) {
+      logger.setContext({ outcome: "twilio_signature_failed" });
+      return verified.response;
+    }
 
-  return placeholderResponse("incoming_sms", verified.payload);
+    logger.setContext({
+      providerMessageId: verified.payload.MessageSid ?? null,
+      outcome: "placeholder_only"
+    });
+    return placeholderResponse("incoming_sms", verified.payload);
+  });
 }
 
 export async function handleRecordingCallbackWebhook(request: NextRequest) {
-  const verified = await readVerifiedTwilioPayload(request);
-  if (!verified.ok) {
-    return verified.response;
-  }
+  return withRequestLogging(request, "/api/webhooks/twilio/recording-callback", async (logger) => {
+    const verified = await readVerifiedTwilioPayload(request);
+    if (!verified.ok) {
+      logger.setContext({ outcome: "twilio_signature_failed" });
+      return verified.response;
+    }
 
-  return placeholderResponse("recording_callback", verified.payload);
+    logger.setContext({
+      providerCallId: verified.payload.CallSid ?? null,
+      outcome: "placeholder_only"
+    });
+    return placeholderResponse("recording_callback", verified.payload);
+  });
 }
