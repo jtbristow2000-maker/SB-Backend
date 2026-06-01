@@ -7,6 +7,9 @@ import {
   createSandboxProviders,
   type ExtractionProvider,
   type SandboxProviderLog,
+  type TranscriptionInput,
+  type TranscriptionProvider,
+  type TranscriptionResult,
   type VoicemailExtractionInput,
   type VoicemailExtractionResult
 } from "@/server/providers";
@@ -31,12 +34,41 @@ describe("BACKEND-07 voice intake service", () => {
     };
   }
 
+  function createFakeTranscriptionProvider(input: {
+    result?: TranscriptionResult;
+    calls: TranscriptionInput[];
+    throws?: boolean;
+  }): TranscriptionProvider {
+    return {
+      providerName: "fake",
+      async transcribeRecording(payload) {
+        input.calls.push(payload);
+        if (input.throws) {
+          throw new Error("fake transcription failure");
+        }
+
+        return (
+          input.result ?? {
+            provider: "fake",
+            status: "completed",
+            action: "transcription.fake.completed",
+            networkCallsMade: false,
+            transcript: "Hi, this is Shaw. I need a full exterior and interior detail Saturday.",
+            confidence: 0.98
+          }
+        );
+      }
+    };
+  }
+
   async function setupService(
     options: {
       smsSendingEnabled?: boolean;
       smsThrows?: boolean;
       aiExtractionEnabled?: boolean;
       extractionProvider?: ExtractionProvider;
+      fastTranscriptionEnabled?: boolean;
+      transcriptionProvider?: TranscriptionProvider;
     } = {}
   ) {
     const providerLogs: SandboxProviderLog[] = [];
@@ -66,6 +98,7 @@ describe("BACKEND-07 voice intake service", () => {
       auditEventRepository,
       callProvider: providers.calls,
       extractionProvider: options.extractionProvider ?? providers.extraction,
+      transcriptionProvider: options.transcriptionProvider ?? providers.transcription,
       smsProvider: options.smsThrows
         ? {
             async sendMessage() {
@@ -74,7 +107,8 @@ describe("BACKEND-07 voice intake service", () => {
           }
         : providers.sms,
       isSmsSendingEnabled: () => options.smsSendingEnabled ?? false,
-      isAiExtractionEnabled: () => options.aiExtractionEnabled ?? false
+      isAiExtractionEnabled: () => options.aiExtractionEnabled ?? false,
+      isFastTranscriptionEnabled: () => options.fastTranscriptionEnabled ?? false
     });
 
     return {
@@ -187,6 +221,25 @@ describe("BACKEND-07 voice intake service", () => {
       actor: "system",
       event_type: "message.auto_text.queued"
     });
+  });
+
+  it("omits Twilio transcription attributes when fast transcription is enabled", async () => {
+    const { service } = await setupService({ fastTranscriptionEnabled: true });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_FAST_TWIML"
+    });
+
+    const result = await service.handleDialStatus({
+      callSid: "CA_FAST_TWIML",
+      dialCallStatus: "no-answer"
+    });
+
+    expect(result.status).toBe("voicemail");
+    expect(result.twiml).toContain('recordingStatusCallback="/api/webhooks/twilio/recording"');
+    expect(result.twiml).not.toContain('transcribe="true"');
+    expect(result.twiml).not.toContain("transcribeCallback=");
   });
 
   it("sends missed-call auto-text through sandbox provider when SMS sending is enabled", async () => {
@@ -324,6 +377,116 @@ describe("BACKEND-07 voice intake service", () => {
     });
     expect(profiles[0].display_name).toBe("Shaw");
     expect(auditEvents.map((event) => event.event_type)).toContain("voicemail.ai_extracted");
+  });
+
+  it("fast-transcribes recording-ready callbacks and then runs AI extraction", async () => {
+    const transcriptionCalls: TranscriptionInput[] = [];
+    const extractionCalls: VoicemailExtractionInput[] = [];
+    const { callRecordRepository, service } = await setupService({
+      aiExtractionEnabled: true,
+      fastTranscriptionEnabled: true,
+      transcriptionProvider: createFakeTranscriptionProvider({ calls: transcriptionCalls }),
+      extractionProvider: createFakeExtractionProvider({
+        calls: extractionCalls,
+        result: {
+          caller_name: "Shaw",
+          requested_datetime: "Saturday",
+          service_requested: "full exterior and interior detail",
+          summary: "Shaw wants a full detail Saturday."
+        }
+      })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_FAST_STT"
+    });
+
+    const result = await service.handleRecording({
+      callSid: "CA_FAST_STT",
+      recordingUrl: "https://api.twilio.test/recording"
+    });
+
+    const calls = await callRecordRepository.list();
+    expect(result.status).toBe("updated");
+    expect(transcriptionCalls).toHaveLength(1);
+    expect(transcriptionCalls[0]).toMatchObject({
+      recordingUrl: "https://api.twilio.test/recording",
+      businessId: "00000000-0000-4000-8000-000000000201"
+    });
+    expect(extractionCalls).toHaveLength(1);
+    expect(extractionCalls[0].transcript).toContain("this is Shaw");
+    expect(calls[0]).toMatchObject({
+      call_type: "voicemail",
+      recording_url: "https://api.twilio.test/recording",
+      transcript: "Hi, this is Shaw. I need a full exterior and interior detail Saturday.",
+      ai_summary: "Shaw wants a full detail Saturday.",
+      extracted_json: {
+        caller_name: "Shaw",
+        requested_datetime: "Saturday",
+        service_requested: "full exterior and interior detail",
+        summary: "Shaw wants a full detail Saturday."
+      },
+      needs_review: true
+    });
+  });
+
+  it("does not fast-transcribe recording-ready callbacks when the flag is disabled", async () => {
+    const transcriptionCalls: TranscriptionInput[] = [];
+    const { callRecordRepository, service } = await setupService({
+      fastTranscriptionEnabled: false,
+      transcriptionProvider: createFakeTranscriptionProvider({ calls: transcriptionCalls })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_FAST_OFF"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_FAST_OFF",
+      recordingUrl: "https://api.twilio.test/recording"
+    });
+
+    const calls = await callRecordRepository.list();
+    expect(transcriptionCalls).toHaveLength(0);
+    expect(calls[0]).toMatchObject({
+      call_type: "voicemail",
+      recording_url: "https://api.twilio.test/recording",
+      transcript: null,
+      needs_review: true
+    });
+  });
+
+  it("keeps the recording callback successful when fast transcription fails", async () => {
+    const transcriptionCalls: TranscriptionInput[] = [];
+    const { callRecordRepository, service } = await setupService({
+      fastTranscriptionEnabled: true,
+      transcriptionProvider: createFakeTranscriptionProvider({
+        calls: transcriptionCalls,
+        throws: true
+      })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_FAST_FAIL"
+    });
+
+    const result = await service.handleRecording({
+      callSid: "CA_FAST_FAIL",
+      recordingUrl: "https://api.twilio.test/recording"
+    });
+
+    const calls = await callRecordRepository.list();
+    expect(result.status).toBe("updated");
+    expect(transcriptionCalls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      call_type: "voicemail",
+      recording_url: "https://api.twilio.test/recording",
+      transcript: null,
+      needs_review: true
+    });
   });
 
   it("does not call the extraction provider when AI extraction is disabled", async () => {

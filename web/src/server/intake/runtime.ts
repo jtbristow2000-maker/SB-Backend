@@ -10,7 +10,11 @@ import {
 import { CustomerProfileService } from "@/server/customerProfiles/service";
 import { createSupabaseRepositories } from "@/server/db/supabaseRepositories";
 import { getSupabaseServerClient } from "@/server/db/supabaseClient";
-import { AnthropicExtractionProvider, createSandboxProviders } from "@/server/providers";
+import {
+  AnthropicExtractionProvider,
+  createSandboxProviders,
+  OpenAITranscriptionProvider
+} from "@/server/providers";
 import { getAppConfig } from "@/server/config";
 
 import { type AuditEventRepository, InMemoryAuditEventRepository } from "./auditEvents";
@@ -71,6 +75,14 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
   await bootstrapSingleTenantBusiness(businessRepository);
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
   const providers = createSandboxProviders();
+  const transcriptionProvider =
+    config.fastTranscriptionEnabled && config.openAiConfigured && process.env.OPENAI_API_KEY
+      ? new OpenAITranscriptionProvider({
+          apiKey: process.env.OPENAI_API_KEY,
+          twilioAccountSid: process.env.TWILIO_ACCOUNT_SID,
+          twilioAuthToken: process.env.TWILIO_AUTH_TOKEN
+        })
+      : providers.transcription;
   const extractionProvider =
     config.aiExtractionEnabled && config.anthropicConfigured && process.env.ANTHROPIC_API_KEY
       ? new AnthropicExtractionProvider({
@@ -87,11 +99,16 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     auditEventRepository,
     callProvider: providers.calls,
     extractionProvider,
+    transcriptionProvider,
     smsProvider: providers.sms,
     isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled,
     isAiExtractionEnabled: () => {
       const currentConfig = getAppConfig();
       return currentConfig.aiExtractionEnabled && currentConfig.anthropicConfigured;
+    },
+    isFastTranscriptionEnabled: () => {
+      const currentConfig = getAppConfig();
+      return currentConfig.fastTranscriptionEnabled && currentConfig.openAiConfigured;
     }
   });
   const smsIntakeService = new SmsIntakeService({

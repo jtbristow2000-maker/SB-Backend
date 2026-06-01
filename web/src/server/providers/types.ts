@@ -1,10 +1,10 @@
-export type ProviderActionStatus = "logged" | "skipped";
+export type ProviderActionStatus = "logged" | "skipped" | "completed";
 
 export type ProviderActionResult = {
   provider: string;
   status: ProviderActionStatus;
   action: string;
-  networkCallsMade: false;
+  networkCallsMade: boolean;
 };
 
 export type SmsSendInput = {
@@ -61,7 +61,7 @@ export type DialTwimlInput = {
 export type RecordVoicemailTwimlInput = {
   greeting: string;
   recordingStatusCallbackUrl: string;
-  transcribeCallbackUrl: string;
+  transcribeCallbackUrl?: string | null;
   maxLengthSeconds: number;
 };
 
@@ -72,8 +72,8 @@ export type TranscriptionInput = {
 };
 
 export type TranscriptionResult = ProviderActionResult & {
-  transcript: null;
-  confidence: null;
+  transcript: string | null;
+  confidence: number | null;
 };
 
 export interface TranscriptionProvider {

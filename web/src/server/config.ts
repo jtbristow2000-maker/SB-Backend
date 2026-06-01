@@ -22,6 +22,7 @@ export type AppConfig = {
   webhookSignatureRequired: boolean;
   smsSendingEnabled: boolean;
   callForwardingEnabled: boolean;
+  fastTranscriptionEnabled: boolean;
   realMessageSendingEnabled: boolean;
   realCallAutomationEnabled: boolean;
   supabaseConfigured: boolean;
@@ -51,6 +52,7 @@ export function getAppConfig(): AppConfig {
     webhookSignatureRequired: readBoolean("WEBHOOK_SIGNATURE_REQUIRED", false),
     smsSendingEnabled: readBoolean("SMS_SENDING_ENABLED", false),
     callForwardingEnabled: readBoolean("CALL_FORWARDING_ENABLED", false),
+    fastTranscriptionEnabled: readBoolean("FAST_TRANSCRIPTION_ENABLED", false),
     realMessageSendingEnabled: readBoolean("REAL_MESSAGE_SENDING_ENABLED", false),
     realCallAutomationEnabled: readBoolean("REAL_CALL_AUTOMATION_ENABLED", false),
     aiExtractionEnabled: readBoolean("AI_EXTRACTION_ENABLED", false),
@@ -65,7 +67,7 @@ export function getAppConfig(): AppConfig {
         process.env.TWILIO_AUTH_TOKEN &&
         process.env.TWILIO_PHONE_NUMBER
     ),
-    openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    openAiConfigured: Boolean(readString("OPENAI_API_KEY")),
     anthropicConfigured: Boolean(readString("ANTHROPIC_API_KEY")),
     sentryConfigured: Boolean(process.env.SENTRY_DSN)
   };

@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Backend: fast voicemail transcription from recording-ready callback
+
+### Added
+- `OpenAITranscriptionProvider` behind `FAST_TRANSCRIPTION_ENABLED=true` and `OPENAI_API_KEY`, using the OpenAI audio transcription endpoint with `gpt-4o-mini-transcribe` by default.
+- Recording-ready callbacks can now fast-transcribe Twilio recording audio, store the transcript, and immediately trigger the existing AI voicemail extraction path.
+- Tests for fast transcription success, disabled behavior, provider failure safety, and TwiML with/without Twilio's slow transcription fallback.
+
+### Changed
+- Voicemail `<Record>` TwiML omits Twilio `transcribe="true"` / `transcribeCallback` when fast transcription is enabled, while keeping `recordingStatusCallback` as the fast path.
+- Twilio transcription callbacks now only fill the transcript when it is still empty, so a later Twilio callback does not overwrite a good fast transcript.
+- Profile detail timeline call items now include `ai_summary` and `extracted_json`, matching the owner UI's backend contract.
+- `web/.env.example` documents `FAST_TRANSCRIPTION_ENABLED` and `OPENAI_TRANSCRIPTION_MODEL`.
+
+### Verified
+- `npm run verify` passes: 76 tests passing, 1 Supabase contract test skipped.
+
 ## [2026-06-01] - Owner GUI: AI quick-summary card + "Transcribing…" state
 
 ### Added

@@ -146,7 +146,7 @@ describe("BACKEND-13 Twilio webhook idempotency", () => {
     expect(calls[0]).toMatchObject({
       call_type: "voicemail",
       recording_url: "https://api.twilio.test/recording.wav",
-      transcript: "Updated transcript.",
+      transcript: "First transcript.",
       needs_review: true
     });
   });

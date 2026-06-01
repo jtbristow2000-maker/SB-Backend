@@ -11,6 +11,8 @@ export type ProfileCallTimelineItem = {
     duration_seconds: number | null;
     transcript: string | null;
     recording_url: string | null;
+    ai_summary: string | null;
+    extracted_json: CallRecordRow["extracted_json"];
     needs_review: boolean;
   };
 };
@@ -98,6 +100,8 @@ function buildTimeline(calls: CallRecordRow[], messages: MessageRow[]): ProfileT
       duration_seconds: call.duration_seconds,
       transcript: call.transcript,
       recording_url: call.recording_url,
+      ai_summary: call.ai_summary,
+      extracted_json: call.extracted_json,
       needs_review: call.needs_review
     }
   }));

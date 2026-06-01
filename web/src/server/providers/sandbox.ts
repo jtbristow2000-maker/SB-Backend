@@ -141,11 +141,15 @@ export class SandboxCallProvider implements CallProvider {
   }
 
   buildRecordVoicemailTwiml(input: RecordVoicemailTwimlInput): string {
+    const transcribeAttributes = input.transcribeCallbackUrl
+      ? ` transcribe="true" transcribeCallback="${escapeXml(input.transcribeCallbackUrl)}"`
+      : "";
+
     return [
       '<?xml version="1.0" encoding="UTF-8"?>',
       "<Response>",
       `<Say>${escapeXml(input.greeting)}</Say>`,
-      `<Record transcribe="true" recordingStatusCallback="${escapeXml(input.recordingStatusCallbackUrl)}" recordingStatusCallbackEvent="completed" transcribeCallback="${escapeXml(input.transcribeCallbackUrl)}" maxLength="${input.maxLengthSeconds}" />`,
+      `<Record recordingStatusCallback="${escapeXml(input.recordingStatusCallbackUrl)}" recordingStatusCallbackEvent="completed"${transcribeAttributes} maxLength="${input.maxLengthSeconds}" />`,
       "</Response>"
     ].join("");
   }

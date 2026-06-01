@@ -223,6 +223,8 @@ describe("BACKEND-15 GET /api/profiles/[id]", () => {
           duration_seconds: 42,
           transcript: "Hi, I need a full detail this Saturday.",
           recording_url: "https://api.twilio.test/recording.wav",
+          ai_summary: null,
+          extracted_json: {},
           needs_review: true
         }
       }

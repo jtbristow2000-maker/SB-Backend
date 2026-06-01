@@ -81,4 +81,19 @@ describe("BACKEND-04 sandbox providers", () => {
     expect(twiml).toContain('transcribeCallback="/api/webhooks/twilio/recording"');
     expect(twiml).toContain('maxLength="120"');
   });
+
+  it("builds voicemail Record TwiML without Twilio transcription fallback", () => {
+    const providers = createSandboxProviders();
+
+    const twiml = providers.calls.buildRecordVoicemailTwiml({
+      greeting: "Please leave a message.",
+      recordingStatusCallbackUrl: "/api/webhooks/twilio/recording",
+      transcribeCallbackUrl: null,
+      maxLengthSeconds: 120
+    });
+
+    expect(twiml).toContain('recordingStatusCallback="/api/webhooks/twilio/recording"');
+    expect(twiml).not.toContain('transcribe="true"');
+    expect(twiml).not.toContain("transcribeCallback=");
+  });
 });

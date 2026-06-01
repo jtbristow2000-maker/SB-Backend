@@ -9,7 +9,12 @@ import type {
   TaskRow
 } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
-import type { CallProvider, ExtractionProvider, VoicemailExtractionResult } from "@/server/providers";
+import type {
+  CallProvider,
+  ExtractionProvider,
+  TranscriptionProvider,
+  VoicemailExtractionResult
+} from "@/server/providers";
 
 import type { AuditEventRepository } from "./auditEvents";
 import type { CallRecordRepository } from "./callRecords";
@@ -72,6 +77,7 @@ export type VoiceIntakeDependencies = {
   auditEventRepository: AuditEventRepository;
   callProvider: CallProvider;
   extractionProvider: ExtractionProvider;
+  transcriptionProvider: TranscriptionProvider;
   smsProvider: {
     sendMessage(input: {
       businessId: string;
@@ -82,6 +88,7 @@ export type VoiceIntakeDependencies = {
   };
   isSmsSendingEnabled: () => boolean;
   isAiExtractionEnabled: () => boolean;
+  isFastTranscriptionEnabled: () => boolean;
 };
 
 export class VoiceIntakeService {
@@ -302,7 +309,9 @@ export class VoiceIntakeService {
       twiml: this.dependencies.callProvider.buildRecordVoicemailTwiml({
         greeting: "Sorry we missed your call. Please leave a message after the beep.",
         recordingStatusCallbackUrl: RECORDING_WEBHOOK_URL,
-        transcribeCallbackUrl: TRANSCRIPTION_CALLBACK_URL,
+        transcribeCallbackUrl: this.dependencies.isFastTranscriptionEnabled()
+          ? null
+          : TRANSCRIPTION_CALLBACK_URL,
         maxLengthSeconds: VOICEMAIL_MAX_LENGTH_SECONDS
       })
     };
@@ -338,19 +347,61 @@ export class VoiceIntakeService {
       return { status: "call_not_found" };
     }
 
-    const transcript = payload.transcript?.trim() || null;
-    const updated = await this.dependencies.callRecordRepository.update(callRecord.id, {
+    const incomingTranscript = payload.transcript?.trim() || null;
+    const recordingUrl = payload.recordingUrl ?? callRecord.recording_url;
+    let transcript = callRecord.transcript ?? incomingTranscript;
+    let updated = await this.dependencies.callRecordRepository.update(callRecord.id, {
       call_type: "voicemail",
-      recording_url: payload.recordingUrl ?? callRecord.recording_url,
-      transcript: transcript ?? callRecord.transcript,
+      recording_url: recordingUrl,
+      transcript,
       needs_review: true
     });
-    const enriched = transcript ? await this.extractVoicemailSuggestions(updated, transcript) : updated;
+
+    if (!transcript && payload.recordingUrl && this.dependencies.isFastTranscriptionEnabled()) {
+      transcript = await this.transcribeRecordingSafe(updated, payload.recordingUrl);
+      if (transcript) {
+        updated = await this.dependencies.callRecordRepository.update(updated.id, {
+          transcript,
+          needs_review: true
+        });
+      }
+    }
+
+    const shouldExtract = Boolean(transcript && !callRecord.transcript);
+    const enriched =
+      shouldExtract && transcript
+        ? await this.extractVoicemailSuggestions(updated, transcript)
+        : updated;
 
     return {
       status: "updated",
       callRecord: enriched
     };
+  }
+
+  private async transcribeRecordingSafe(
+    callRecord: CallRecordRow,
+    recordingUrl: string
+  ): Promise<string | null> {
+    try {
+      const result = await this.dependencies.transcriptionProvider.transcribeRecording({
+        businessId: callRecord.business_id,
+        recordingUrl,
+        sourceId: callRecord.id
+      });
+
+      return result.transcript?.trim() || null;
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          event: "voicemail.fast_transcription_failed",
+          business_id: callRecord.business_id,
+          call_record_id: callRecord.id,
+          error: error instanceof Error ? error.message : "unknown"
+        })
+      );
+      return null;
+    }
   }
 
   private async extractVoicemailSuggestions(
