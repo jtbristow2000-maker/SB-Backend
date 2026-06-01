@@ -19,6 +19,7 @@ export type AppConfig = {
   environment: string;
   persistence: "memory" | "supabase";
   sandboxMode: boolean;
+  simulatorEnabled: boolean;
   webhookSignatureRequired: boolean;
   smsSendingEnabled: boolean;
   callForwardingEnabled: boolean;
@@ -49,6 +50,9 @@ export function getAppConfig(): AppConfig {
     environment: process.env.NODE_ENV ?? "development",
     persistence,
     sandboxMode: readBoolean("SANDBOX_MODE", true),
+    // Owner-side test tool that spawns fake leads. On by default so it's available
+    // while building; set SIMULATOR_ENABLED=false to hide it from a client's app.
+    simulatorEnabled: readBoolean("SIMULATOR_ENABLED", true),
     webhookSignatureRequired: readBoolean("WEBHOOK_SIGNATURE_REQUIRED", false),
     smsSendingEnabled: readBoolean("SMS_SENDING_ENABLED", false),
     callForwardingEnabled: readBoolean("CALL_FORWARDING_ENABLED", false),

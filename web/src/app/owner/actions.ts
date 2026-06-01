@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { getAppConfig } from "@/server/config";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
@@ -193,4 +194,111 @@ export async function saveSettings(formData: FormData): Promise<void> {
   revalidatePath("/owner");
   revalidatePath("/owner/today");
   revalidatePath("/owner/calendar");
+}
+
+// ---------------------------------------------------------------------------
+// Simulator — spawns a DISTINCT fake lead (unique phone) with pre-filled
+// AI-extracted details, so the quote/suggested-reply tool can be tested across
+// many scenarios without needing many real phone numbers. Gated by
+// SIMULATOR_ENABLED (on by default; turn off for client deployments).
+// ---------------------------------------------------------------------------
+
+const SIM_VOICEMAIL_FALLBACK =
+  "Hey, this is {name}. I'm looking to get {service} done — give me a call back when you can. Thanks!";
+
+// A valid-looking US number (area code 415), avoiding the 555 exchange that the
+// phone normalizer rejects. Used only to keep each test lead a separate customer.
+function randomSimPhone(): string {
+  let exchange = 200 + Math.floor(Math.random() * 700); // 200–899
+  if (exchange === 555) exchange = 556;
+  const line = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
+  return `+1415${exchange}${line}`;
+}
+
+export async function simulateLead(formData: FormData): Promise<void> {
+  if (!getAppConfig().simulatorEnabled) return;
+
+  const name = String(formData.get("name") ?? "").trim();
+  const service = String(formData.get("service") ?? "").trim();
+  const requested = String(formData.get("requested_datetime") ?? "").trim();
+  let voicemail = String(formData.get("voicemail") ?? "").trim();
+
+  const rt = await getIntakeRuntime();
+  const business = (await rt.businessRepository.list())[0] ?? null;
+  if (!business) return;
+
+  // Unique phone => every test lead is its own customer (not piled onto one).
+  const existing = new Set(
+    (await rt.customerProfileRepository.list())
+      .map((p) => p.phone_e164)
+      .filter((p): p is string => Boolean(p))
+  );
+  let phone = randomSimPhone();
+  for (let i = 0; i < 25 && existing.has(phone); i++) phone = randomSimPhone();
+
+  if (!voicemail) {
+    voicemail = SIM_VOICEMAIL_FALLBACK
+      .replaceAll("{name}", name || "there")
+      .replaceAll("{service}", service || "some work");
+  }
+
+  const summary = [
+    name ? `${name} called` : "Caller left a voicemail",
+    service ? `about ${service}` : null,
+    requested ? `— wants ${requested}` : null
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .concat(".");
+
+  const now = new Date().toISOString();
+  const { profile } = await rt.customerProfileService.upsertByBusinessAndPhone({
+    businessId: business.id,
+    phone,
+    displayName: name || null,
+    source: "simulator",
+    status: "new",
+    summary,
+    lastContactAt: now
+  });
+
+  await rt.callRecordRepository.create({
+    business_id: business.id,
+    customer_profile_id: profile.id,
+    provider: "sandbox",
+    provider_call_id: `SIM-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+    direction: "inbound",
+    call_type: "voicemail",
+    from_phone_e164: phone,
+    to_phone_e164: business.business_phone_e164,
+    started_at: now,
+    duration_seconds: 20 + Math.floor(Math.random() * 40),
+    transcript: voicemail,
+    ai_summary: summary,
+    extracted_json: {
+      caller_name: name || null,
+      requested_datetime: requested || null,
+      service_requested: service || null,
+      summary
+    },
+    needs_review: true
+  });
+
+  const existingTask = await rt.taskRepository.findOpenCallbackTask(profile.id);
+  if (!existingTask) {
+    await rt.taskRepository.create({
+      business_id: business.id,
+      customer_profile_id: profile.id,
+      task_type: "callback",
+      title: "Call back missed caller",
+      notes: "Simulated test lead",
+      status: "open"
+    });
+  }
+
+  revalidatePath("/owner");
+  revalidatePath("/owner/today");
+  revalidatePath("/owner/leads");
+  revalidatePath(`/owner/${profile.id}`);
+  redirect(`/owner/${profile.id}`);
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
+import { getAppConfig } from "@/server/config";
 import { getBusinessSettings } from "@/server/business/settings";
 import { getIntakeRuntime } from "@/server/intake/runtime";
 
@@ -26,6 +27,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
   const rt = await getIntakeRuntime();
   const business = (await rt.businessRepository.list())[0] ?? null;
   const settings = getBusinessSettings(business);
+  const simulatorEnabled = getAppConfig().simulatorEnabled;
   const themeStyle = {
     "--brand": settings.brand_color,
     "--brand-rgb": hexToRgb(settings.brand_color)
@@ -48,7 +50,10 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
         <OwnerNav variant="sidebar" />
 
         <div className="owner-sidebar-footer">
-          <Link href="/owner/settings" className="owner-console-link">⚙ Settings</Link>
+          {simulatorEnabled && (
+            <Link href="/owner/simulator" className="owner-console-link" style={{ display: "block", marginBottom: 6 }}>🧪 Simulator</Link>
+          )}
+          <Link href="/owner/settings" className="owner-console-link" style={{ display: "block" }}>⚙ Settings</Link>
           <div className="owner-version">● Live · updates automatically</div>
         </div>
       </aside>
@@ -59,7 +64,12 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
           <span className="owner-logo owner-logo-sm">{(business?.name || "B").charAt(0).toUpperCase()}</span>
           <span>{business?.name || "Business Hub"}</span>
         </div>
-        <Link href="/owner/settings" className="owner-topbar-console">⚙ Settings</Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {simulatorEnabled && (
+            <Link href="/owner/simulator" className="owner-topbar-console" aria-label="Simulator">🧪</Link>
+          )}
+          <Link href="/owner/settings" className="owner-topbar-console">⚙ Settings</Link>
+        </div>
       </header>
 
       <div className="owner-content">{children}</div>

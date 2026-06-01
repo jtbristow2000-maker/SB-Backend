@@ -1,5 +1,31 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Lead simulator (owner-side test tool)
+
+### Added
+- **Simulator page** (`web/src/app/owner/simulator/page.tsx`): spawns a pretend missed-call lead so
+  the quote / suggested-reply tool can be tested across scenarios without juggling real phone
+  numbers. A service-name datalist is seeded from the configured quote ranges so it's obvious which
+  inputs trigger a price range.
+- `simulateLead` server action (`web/src/app/owner/actions.ts`): generates a **unique** valid US
+  number per submit (so every test lead is a distinct customer, not piled onto one), upserts the
+  profile, creates a voicemail call record with `extracted_json` (caller_name / service_requested /
+  requested_datetime / summary) + `ai_summary`, opens a callback task, then redirects to the new
+  lead. Mirrors the shapes the real voice-intake pipeline produces.
+- `SIMULATOR_ENABLED` config flag (default **on**) gating the action + nav links, so the tool can be
+  hidden from client deployments by setting it to `false`.
+- Simulator links in the owner sidebar footer + mobile top bar (shown only when enabled).
+
+### Notes
+- Works against live Supabase data (unlike the sandbox-only `/api/dev/*` console, which 404s in
+  production), so simulated leads appear in the real owner UI exactly like genuine ones.
+- Cleanup for now is manual: open a test lead and set its status to **Lost**. A bulk "clear test
+  leads" action can come later (repos have no delete yet).
+
+### Verified
+- `npm run verify` passes (23 test files, 1 Supabase contract test skipped) and `next build` passes
+  with the new `/owner/simulator` route.
+
 ## [2026-06-01] - Owner Settings screen + full brand theming + settings-driven replies
 
 ### Added
