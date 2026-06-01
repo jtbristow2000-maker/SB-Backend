@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-18 owner-approved outbound SMS API
+
+### Added
+- `POST /api/messages`: API-key guarded owner action endpoint for sending/queuing a text to a known customer profile.
+- `web/src/server/messages/outbound.ts`: validation and send orchestration that scopes profiles to the seeded business, honors `SMS_SENDING_ENABLED`, records outbound SMS messages, updates `last_contact_at`, and writes owner audit events.
+- Tests covering disabled-SMS queueing with no provider call, enabled sandbox-provider sends, unknown profile 404s, auth rejection, and empty-body validation.
+
+### Notes
+- This endpoint is owner-triggered only; no webhook or automatic caller path invokes it.
+- With `SMS_SENDING_ENABLED=false`, messages are recorded as `queued` and no provider send is attempted. With the flag enabled, the current sandbox provider only logs and makes no network calls.
+- No real SMS/Twilio REST calls, calls, AI, payments, dashboard changes, legacy backend changes, or production secrets were implemented.
+
 ## [2026-05-31] - Web owner dashboard: app shell + Today overview
 
 ### Added
