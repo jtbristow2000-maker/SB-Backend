@@ -33,7 +33,7 @@ describe("BACKEND-06 single-tenant business bootstrap", () => {
   });
 
   it("uses safe defaults when optional env values are missing", () => {
-    const seed = getBusinessSeedFromEnv({});
+    const seed = getBusinessSeedFromEnv({} as NodeJS.ProcessEnv);
 
     expect(seed.name).toBe("Local Service Business");
     expect(seed.timezone).toBe("America/New_York");

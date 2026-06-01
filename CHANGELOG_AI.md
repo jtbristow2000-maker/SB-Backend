@@ -1,5 +1,28 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Web owner dashboard: action buttons (status, mark done, text back)
+
+### Added
+- `web/src/app/owner/actions.ts`: three sandbox server actions — `setProfileStatus`,
+  `markCallbackDone`, and `sendOwnerText` — that mutate the same in-memory runtime the owner
+  screens read, then `revalidatePath` so the UI refreshes. No API key needed in the browser; the
+  real app will call the guarded `/api/*` endpoints once auth + Supabase persistence land.
+
+### Changed
+- `web/src/app/owner/[id]/page.tsx`: the Lead detail screen is now interactive, not just a viewer —
+  a status dropdown (`new/contacted/booked/won/lost`), a "✓ Mark callback done" button shown when an
+  open task exists, and a "Send text" compose box under the timeline. Honors `SMS_SENDING_ENABLED`
+  (records `queued` in sandbox, no delivery).
+
+### Fixed
+- `web/src/server/business/bootstrap.test.ts`: `getBusinessSeedFromEnv({})` failed `tsc --noEmit`
+  because Next's `NodeJS.ProcessEnv` requires `NODE_ENV`; cast to `{} as NodeJS.ProcessEnv`. Tests
+  still ran (Vitest strips types) — this only un-reds the strict typecheck.
+
+### Notes
+- Sandbox/in-memory only; no `dashboard/`, intake, Twilio, or production changes. Mutations are lost
+  on server restart until Supabase persistence lands.
+
 ## [2026-05-31] - BACKEND-18 owner-approved outbound SMS API
 
 ### Added

@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
 import { buildProfileDetail } from "@/server/profiles/detail";
+import { markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -84,6 +85,28 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
+      <div style={S.actionsRow}>
+        <form action={setProfileStatus} style={S.inlineForm}>
+          <input type="hidden" name="profileId" value={profile.id} />
+          <select name="status" defaultValue={profile.status} style={S.select}>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="booked">Booked</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+          <button type="submit" style={S.btnGhost}>Save status</button>
+        </form>
+
+        {open_task && (
+          <form action={markCallbackDone}>
+            <input type="hidden" name="taskId" value={open_task.id} />
+            <input type="hidden" name="profileId" value={profile.id} />
+            <button type="submit" style={S.btnPrimary}>✓ Mark callback done</button>
+          </form>
+        )}
+      </div>
+
       <div style={S.paneTitle}>TIMELINE</div>
       {timeline.length === 0 && <div style={S.empty}>Nothing yet.</div>}
 
@@ -116,8 +139,15 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         )
       )}
 
+      <form action={sendOwnerText} style={S.compose}>
+        <input type="hidden" name="profileId" value={profile.id} />
+        <input name="body" placeholder="Type a reply to text back…" style={S.textInput} autoComplete="off" />
+        <button type="submit" style={S.btnPrimary}>Send text</button>
+      </form>
+
       <footer style={S.footer}>
-        Powered by the same logic as <code>GET /api/profiles/{"{id}"}</code> (sandbox, in-memory).
+        Sending is OFF in sandbox — replies are recorded but not delivered. Powered by the same logic
+        as <code>GET /api/profiles/{"{id}"}</code>.
       </footer>
     </main>
   );
@@ -137,7 +167,14 @@ const S: Record<string, CSSProperties> = {
   transcript: { marginTop: 4, fontSize: 13, color: "#3c414b" },
   review: { color: "#9a6210", fontSize: 11 },
   bubbleMeta: { marginTop: 3, fontSize: 11, color: "#8a909c" },
-  footer: { marginTop: 26, color: "#8a909c", fontSize: 12 }
+  footer: { marginTop: 18, color: "#8a909c", fontSize: 12 },
+  actionsRow: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "8px 0 4px" },
+  inlineForm: { display: "flex", gap: 6, alignItems: "center" },
+  select: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
+  btnPrimary: { padding: "9px 13px", borderRadius: 9, border: "none", background: "#5b5bd6", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnGhost: { padding: "9px 12px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#1e2026", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  compose: { display: "flex", gap: 8, marginTop: 16 },
+  textInput: { flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 }
 };
 
 function bubbleWrap(out: boolean): CSSProperties {
