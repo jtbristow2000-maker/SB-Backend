@@ -182,7 +182,7 @@ export default function SandboxConsole() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
           <a
-            href="/owner"
+            href="/owner/today"
             style={{ padding: "8px 12px", borderRadius: 10, background: "#5b5bd6", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
           >
             Open owner view →

@@ -1,5 +1,23 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Web owner dashboard: app shell + Today overview
+
+### Added
+- `web/src/app/owner/layout.tsx`: a premium **app shell** (graphite sidebar with Today / Callbacks
+  nav + brand block + link back to the Sandbox Console) wrapping all `/owner/*` screens, matching
+  the WinForms dashboard look.
+- `web/src/app/owner/today/page.tsx`: the **Today** overview — time-aware greeting, a row of metric
+  cards (callbacks waiting, replied-waiting, voicemails, calls today) derived from the read-API
+  builder, and a "Needs attention" preview of the top callbacks linking to lead detail.
+
+### Changed
+- `web/src/app/page.tsx`: Sandbox Console "Open owner view →" now lands on `/owner/today`.
+
+### Notes
+- Server components reading the in-memory sandbox runtime; the existing Callbacks list (`/owner`) and
+  Lead detail (`/owner/[id]`) now inherit the sidebar shell. Sandbox-only; no backend/intake or
+  `dashboard/` changes.
+
 ## [2026-05-31] - BACKEND-17 owner tasks API
 
 ### Added
