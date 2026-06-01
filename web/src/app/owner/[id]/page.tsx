@@ -9,11 +9,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
-// Owner screen 2 — Lead detail, per web/OWNER_UX.md.
-// Server component reusing Codex's buildProfileDetail (GET /api/profiles/{id}).
-// Shows an AI "quick summary" (name / wants / when), the open callback task,
-// and the merged call + voicemail + SMS timeline (oldest→newest, like a text
-// thread). Times render in the business timezone.
+// Owner screen — Lead detail. AI quick-summary, one-tap Call/Text, the open
+// callback task, status controls, and the merged call + voicemail + SMS
+// timeline (oldest→newest). Times render in the business timezone.
 // ---------------------------------------------------------------------------
 
 const FALLBACK_TZ = "America/New_York";
@@ -58,7 +56,7 @@ function callLabel(callType: string, hasTranscript: boolean, hasRecording: boole
 function autoReplyText(status: string): string {
   if (status === "sent") return "sent";
   if (status === "failed") return "FAILED";
-  if (status === "queued") return "not sent (sandbox)";
+  if (status === "queued") return "not sent yet";
   return status;
 }
 
@@ -95,9 +93,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     return at < bt ? -1 : at > bt ? 1 : 0;
   });
 
-  // Most recent of THIS lead's calls that has AI-extracted details, for the
-  // quick-summary card. Sourced from the full call rows (the read-API timeline
-  // intentionally projects a smaller shape that omits ai_summary/extracted_json).
+  // Most recent of THIS lead's calls that has AI-extracted details, for the quick-summary card.
   const profileCalls = calls
     .filter((c) => c.customer_profile_id === profile.id)
     .sort((a, b) => {
@@ -146,6 +142,13 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
               {aiX.requested_datetime && <span><strong>When:</strong> {aiX.requested_datetime}</span>}
             </div>
           )}
+        </div>
+      )}
+
+      {profile.phone_e164 && (
+        <div style={S.quickActions}>
+          <a href={`tel:${profile.phone_e164}`} style={S.callBtn}>📞 Call back</a>
+          <a href={`sms:${profile.phone_e164}`} style={S.textBtn}>💬 Text</a>
         </div>
       )}
 
@@ -213,13 +216,13 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 
       <form action={sendOwnerText} style={S.compose}>
         <input type="hidden" name="profileId" value={profile.id} />
-        <input name="body" placeholder="Type a reply to text back…" style={S.textInput} autoComplete="off" />
-        <button type="submit" style={S.btnPrimary}>Send text</button>
+        <input name="body" placeholder="Log a reply…" style={S.textInput} autoComplete="off" />
+        <button type="submit" style={S.btnPrimary}>Send</button>
       </form>
 
       <footer style={S.footer}>
-        Sending is OFF in sandbox — replies are recorded but not delivered. Powered by the same logic
-        as <code>GET /api/profiles/{"{id}"}</code>.
+        Replies sent here go out from your business number once texting is switched on. To reply right
+        now, tap <strong>Call back</strong> or <strong>Text</strong> above (from your phone).
       </footer>
     </main>
   );
@@ -236,7 +239,10 @@ const S: Record<string, CSSProperties> = {
   aiBadge: { fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "rgba(124,58,237,0.12)", padding: "2px 8px", borderRadius: 999 },
   aiSummary: { fontSize: 14, color: "#1e2026", lineHeight: 1.45 },
   aiFields: { display: "flex", flexWrap: "wrap", gap: "4px 16px", marginTop: 8, fontSize: 13, color: "#3c414b" },
-  taskBar: { padding: "9px 13px", borderRadius: 10, background: "rgba(91,91,214,0.08)", color: "#3a3a9a", fontSize: 13, margin: "12px 0 6px" },
+  quickActions: { display: "flex", gap: 10, margin: "12px 0 4px" },
+  callBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "#1f9d6b", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" },
+  textBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 15, textDecoration: "none" },
+  taskBar: { padding: "9px 13px", borderRadius: 10, background: "rgba(91,91,214,0.08)", color: "#3a3a9a", fontSize: 13, margin: "10px 0 6px" },
   paneTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "14px 0 8px" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#8a909c" },
   callItem: { padding: "9px 0", borderBottom: "1px solid #f1f2f5" },
@@ -245,7 +251,7 @@ const S: Record<string, CSSProperties> = {
   transcribing: { marginTop: 4, fontSize: 13, color: "#8a909c", fontStyle: "italic" },
   review: { color: "#9a6210", fontSize: 11 },
   bubbleMeta: { marginTop: 3, fontSize: 11, color: "#8a909c" },
-  footer: { marginTop: 18, color: "#8a909c", fontSize: 12 },
+  footer: { marginTop: 18, color: "#8a909c", fontSize: 12, lineHeight: 1.5 },
   actionsRow: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "8px 0 4px" },
   inlineForm: { display: "flex", gap: 6, alignItems: "center" },
   select: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },

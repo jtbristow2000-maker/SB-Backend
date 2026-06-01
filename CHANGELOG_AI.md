@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner GUI: one-tap Call/Text + copy cleanup
+
+### Added
+- Lead detail: prominent **📞 Call back** (`tel:`) and **💬 Text** (`sms:`) buttons that open the
+  owner's phone dialer/messages for the customer's number — the fastest way to respond, and works
+  today (no Twilio sending needed).
+
+### Changed
+- Reworded the lead-detail footer to explain the in-app "Log a reply" box vs. tapping Call/Text;
+  renamed its input to "Log a reply…". Replaced the stale "sandbox, in-memory / GET /api/profiles"
+  footer on the Callbacks list with "Updates automatically as new calls and texts come in."
+
+### Notes
+- Frontend only. The remaining "owner app features" (Settings: auto-text wording + hours; and the
+  calendar/appointments view) need backend work (Codex) and are queued.
+
 ## [2026-06-01] - Owner GUI: Leads directory (searchable, all leads)
 
 ### Added

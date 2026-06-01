@@ -98,8 +98,7 @@ export default async function OwnerCallbacks() {
       </div>
 
       <footer style={S.footer}>
-        Live view of the missed-call pipeline (sandbox, in-memory). Powered by the same logic as{" "}
-        <code>GET /api/profiles</code>.
+        Updates automatically as new calls and texts come in.
       </footer>
     </main>
   );
