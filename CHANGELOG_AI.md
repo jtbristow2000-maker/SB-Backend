@@ -1,5 +1,25 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner GUI: mobile-responsive shell (sidebar + bottom tab bar)
+
+### Added
+- `web/src/app/owner/OwnerNav.tsx`: a small client nav island that highlights the active screen
+  (via `usePathname`); shared by the desktop sidebar and the mobile bottom tab bar.
+
+### Changed
+- `web/src/app/owner/layout.tsx`: the owner shell is now responsive. **Desktop** keeps the graphite
+  left sidebar; **mobile** (≤768px) switches to a slim sticky top bar + a fixed bottom tab bar
+  (thumb-friendly, native-app style) since the owner uses this on a phone in the field. Active tab is
+  highlighted on both.
+- `web/src/app/styles.css`: added the `owner-*` shell classes + a `@media (max-width:768px)`
+  breakpoint (sidebar hidden on mobile, top/tab bars shown, content padded for the fixed bar,
+  iOS safe-area inset handled).
+
+### Verified
+- `npm run build` passes. Booted a memory-mode dev server and confirmed `/owner`, `/owner/today`, and
+  `/owner/[id]` return 200 with the responsive structure present and active-tab highlighting working;
+  a seeded lead renders on the detail page. (Memory mode — the real Supabase was not touched.)
+
 ## [2026-06-01] - Repo cleanup: archive retired prototypes into archive/
 
 ### Changed

@@ -47,3 +47,81 @@ p {
   line-height: 1.6;
   color: #65738a;
 }
+
+/* ====================== Owner app shell (responsive) ====================== */
+.owner-shell {
+  min-height: 100vh;
+  display: flex;
+  background: #f6f7f9;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: #1e2026;
+}
+
+/* Desktop left sidebar */
+.owner-sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  background: #16181d;
+  color: #9ca3af;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+}
+.owner-brand { display: flex; align-items: center; gap: 12px; padding: 0 18px 18px; }
+.owner-logo {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, #5b5bd6, #7c3aed);
+  color: #fff; font-weight: 700; font-size: 18px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.owner-brand-name { color: #fff; font-weight: 700; font-size: 14px; }
+.owner-brand-sub { color: #8a909c; font-size: 11px; }
+.owner-menu-label { color: #6b7280; font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 8px 18px 6px; }
+.owner-nav-link {
+  display: flex; align-items: center; gap: 10px;
+  color: #cdd2da; text-decoration: none; font-size: 14px; font-weight: 600;
+  padding: 11px 18px; margin: 2px 10px; border-radius: 9px;
+}
+.owner-nav-link:hover { background: rgba(255, 255, 255, 0.05); }
+.owner-nav-link.active { background: rgba(91, 91, 214, 0.22); color: #fff; }
+.owner-sidebar-footer { margin-top: auto; padding: 12px 18px 0; }
+.owner-console-link { color: #cdd2da; text-decoration: none; font-size: 12px; font-weight: 600; }
+.owner-version { color: #5b6270; font-size: 11px; margin-top: 8px; }
+
+.owner-content { flex: 1; min-width: 0; }
+
+/* Mobile-only chrome — hidden on desktop */
+.owner-topbar { display: none; }
+.owner-tabbar { display: none; }
+
+/* ============================== Mobile ============================== */
+@media (max-width: 768px) {
+  .owner-shell { display: block; }
+  .owner-sidebar { display: none; }
+
+  .owner-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #16181d; color: #fff;
+    padding: 11px 16px;
+    position: sticky; top: 0; z-index: 30;
+  }
+  .owner-topbar-brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; }
+  .owner-logo-sm { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; }
+  .owner-topbar-console { color: #cdd2da; text-decoration: none; font-size: 13px; font-weight: 600; }
+
+  .owner-content { padding-bottom: 78px; }
+
+  .owner-tabbar {
+    display: flex;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+    background: #16181d; border-top: 1px solid #262a31;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .owner-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 9px 0 11px; color: #9ca3af; text-decoration: none;
+    font-size: 11px; font-weight: 600;
+  }
+  .owner-tab.active { color: #fff; }
+  .owner-tab-icon { font-size: 19px; line-height: 1; }
+}
