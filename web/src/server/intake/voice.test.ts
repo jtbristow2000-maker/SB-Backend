@@ -6,6 +6,7 @@ import { CustomerProfileService } from "@/server/customerProfiles/service";
 import {
   createSandboxProviders,
   type ExtractionProvider,
+  type SmsProvider,
   type SandboxProviderLog,
   type TranscriptionInput,
   type TranscriptionProvider,
@@ -61,10 +62,41 @@ describe("BACKEND-07 voice intake service", () => {
     };
   }
 
+  function createFakeSmsProvider(input: {
+    providerName?: string;
+    networkCallsMade?: boolean;
+    throws?: boolean;
+  }): SmsProvider {
+    return {
+      providerName: input.providerName ?? "fake",
+      async sendMessage() {
+        if (input.throws) {
+          throw new Error("fake sms send failure");
+        }
+
+        return {
+          provider: input.providerName ?? "fake",
+          status: input.networkCallsMade ? "completed" : "logged",
+          action: "sms.send.fake",
+          networkCallsMade: input.networkCallsMade ?? false
+        };
+      },
+      async recordInboundMessage() {
+        return {
+          provider: input.providerName ?? "fake",
+          status: "logged",
+          action: "sms.inbound.fake",
+          networkCallsMade: false
+        };
+      }
+    };
+  }
+
   async function setupService(
     options: {
       smsSendingEnabled?: boolean;
       smsThrows?: boolean;
+      smsProvider?: SmsProvider;
       aiExtractionEnabled?: boolean;
       extractionProvider?: ExtractionProvider;
       fastTranscriptionEnabled?: boolean;
@@ -99,13 +131,11 @@ describe("BACKEND-07 voice intake service", () => {
       callProvider: providers.calls,
       extractionProvider: options.extractionProvider ?? providers.extraction,
       transcriptionProvider: options.transcriptionProvider ?? providers.transcription,
-      smsProvider: options.smsThrows
-        ? {
-            async sendMessage() {
-              throw new Error("sandbox send failure");
-            }
-          }
-        : providers.sms,
+      smsProvider:
+        options.smsProvider ??
+        (options.smsThrows
+          ? createFakeSmsProvider({ throws: true })
+          : providers.sms),
       isSmsSendingEnabled: () => options.smsSendingEnabled ?? false,
       isAiExtractionEnabled: () => options.aiExtractionEnabled ?? false,
       isFastTranscriptionEnabled: () => options.fastTranscriptionEnabled ?? false
@@ -243,7 +273,7 @@ describe("BACKEND-07 voice intake service", () => {
     expect(result.twiml).not.toContain("transcribeCallback=");
   });
 
-  it("sends missed-call auto-text through sandbox provider when SMS sending is enabled", async () => {
+  it("keeps missed-call auto-text queued when sandbox provider does not transmit", async () => {
     const { messageRepository, auditEventRepository, providerLogs, service } = await setupService({
       smsSendingEnabled: true
     });
@@ -261,8 +291,34 @@ describe("BACKEND-07 voice intake service", () => {
     const messages = await messageRepository.list();
     const auditEvents = await auditEventRepository.list();
     expect(messages).toHaveLength(1);
-    expect(messages[0].status).toBe("sent");
+    expect(messages[0].status).toBe("queued");
+    expect(messages[0].sent_at).toBeNull();
     expect(providerLogs.map((entry) => entry.action)).toContain("sms.send.logged_only");
+    expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.queued");
+  });
+
+  it("marks missed-call auto-text sent only when the provider transmits", async () => {
+    const { messageRepository, auditEventRepository, service } = await setupService({
+      smsSendingEnabled: true,
+      smsProvider: createFakeSmsProvider({ providerName: "twilio", networkCallsMade: true })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUTOTEXT_REAL_SEND"
+    });
+
+    await service.handleDialStatus({
+      callSid: "CA_AUTOTEXT_REAL_SEND",
+      dialCallStatus: "busy"
+    });
+
+    const messages = await messageRepository.list();
+    const auditEvents = await auditEventRepository.list();
+    expect(messages).toHaveLength(1);
+    expect(messages[0].provider).toBe("twilio");
+    expect(messages[0].status).toBe("sent");
+    expect(messages[0].sent_at).not.toBeNull();
     expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.sent");
   });
 
@@ -307,7 +363,8 @@ describe("BACKEND-07 voice intake service", () => {
     const auditEvents = await auditEventRepository.list();
     expect(result.status).toBe("voicemail");
     expect(messages).toHaveLength(1);
-    expect(messages[0].status).toBe("sent");
+    expect(messages[0].status).toBe("failed");
+    expect(messages[0].sent_at).toBeNull();
     expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.failed");
   });
 

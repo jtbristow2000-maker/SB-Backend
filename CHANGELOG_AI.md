@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Truthful missed-call auto-text status
+
+### Fixed
+- Missed-call auto-text records now report `sent` only when the SMS provider says a real network call was made, stay `queued` for sandbox/log-only providers, and move to `failed` when provider sending throws.
+- Updated voice intake tests to cover sandbox queued, real provider sent, and provider failure paths.
+
+### Verified
+- `npm run verify` (24 files, 88 tests, 1 skipped) passes.
+
 ## [2026-06-01] - Owner-facing hover rundown on the callback lists
 
 ### Added

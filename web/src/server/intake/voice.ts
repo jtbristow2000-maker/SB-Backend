@@ -13,6 +13,7 @@ import { normalizePhoneNumber } from "@/server/phone/normalize";
 import type {
   CallProvider,
   ExtractionProvider,
+  SmsProvider,
   TranscriptionProvider,
   VoicemailExtractionResult
 } from "@/server/providers";
@@ -79,14 +80,7 @@ export type VoiceIntakeDependencies = {
   callProvider: CallProvider;
   extractionProvider: ExtractionProvider;
   transcriptionProvider: TranscriptionProvider;
-  smsProvider: {
-    sendMessage(input: {
-      businessId: string;
-      to: string;
-      from?: string;
-      body: string;
-    }): Promise<{ status: string }>;
-  };
+  smsProvider: SmsProvider;
   isSmsSendingEnabled: () => boolean;
   isAiExtractionEnabled: () => boolean;
   isFastTranscriptionEnabled: () => boolean;
@@ -223,17 +217,16 @@ export class VoiceIntakeService {
       settingsJson: business?.settings_json ?? {}
     });
     const smsSendingEnabled = this.dependencies.isSmsSendingEnabled();
-    const messageStatus = smsSendingEnabled ? "sent" : "queued";
     const autoTextProviderMessageId = this.buildMissedCallAutoTextMessageId(callRecord);
     const existingOutboundMessage =
       await this.dependencies.messageRepository.findByProviderMessageId(
         callRecord.business_id,
         autoTextProviderMessageId
       );
-    const outboundMessage = existingOutboundMessage
+    let outboundMessage = existingOutboundMessage
       ? await this.dependencies.messageRepository.update(existingOutboundMessage.id, {
           customer_profile_id: callRecord.customer_profile_id,
-          provider: "sandbox",
+          provider: this.dependencies.smsProvider.providerName,
           provider_message_id: autoTextProviderMessageId,
           direction: "outbound",
           channel: "sms",
@@ -246,36 +239,59 @@ export class VoiceIntakeService {
       : await this.dependencies.messageRepository.create({
           business_id: callRecord.business_id,
           customer_profile_id: callRecord.customer_profile_id,
-          provider: "sandbox",
+          provider: this.dependencies.smsProvider.providerName,
           provider_message_id: autoTextProviderMessageId,
           direction: "outbound",
           channel: "sms",
           from_phone_e164: callRecord.to_phone_e164,
           to_phone_e164: callRecord.from_phone_e164,
           body: autoText,
-          status: messageStatus,
-          sent_at: messageStatus === "sent" ? new Date().toISOString() : null
+          status: "queued",
+          sent_at: null
         });
 
     if (!existingOutboundMessage && smsSendingEnabled && callRecord.from_phone_e164) {
       try {
-        await this.dependencies.smsProvider.sendMessage({
+        const smsResult = await this.dependencies.smsProvider.sendMessage({
           businessId: callRecord.business_id,
           to: callRecord.from_phone_e164,
           from: callRecord.to_phone_e164 ?? undefined,
           body: autoText
         });
-        await this.dependencies.auditEventRepository.create({
-          business_id: callRecord.business_id,
-          customer_profile_id: callRecord.customer_profile_id,
-          actor: "system",
-          event_type: "message.auto_text.sent",
-          event_json: {
-            messageId: outboundMessage.id,
-            providerCallId: callRecord.provider_call_id
-          }
-        });
+        if (smsResult.networkCallsMade) {
+          outboundMessage = await this.dependencies.messageRepository.update(outboundMessage.id, {
+            status: "sent",
+            sent_at: new Date().toISOString()
+          });
+          await this.dependencies.auditEventRepository.create({
+            business_id: callRecord.business_id,
+            customer_profile_id: callRecord.customer_profile_id,
+            actor: "system",
+            event_type: "message.auto_text.sent",
+            event_json: {
+              messageId: outboundMessage.id,
+              providerCallId: callRecord.provider_call_id
+            }
+          });
+        } else {
+          await this.dependencies.auditEventRepository.create({
+            business_id: callRecord.business_id,
+            customer_profile_id: callRecord.customer_profile_id,
+            actor: "system",
+            event_type: "message.auto_text.queued",
+            event_json: {
+              messageId: outboundMessage.id,
+              providerCallId: callRecord.provider_call_id,
+              smsSendingEnabled: true,
+              networkCallsMade: false
+            }
+          });
+        }
       } catch (error) {
+        outboundMessage = await this.dependencies.messageRepository.update(outboundMessage.id, {
+          status: "failed",
+          sent_at: null
+        });
         await this.dependencies.auditEventRepository.create({
           business_id: callRecord.business_id,
           customer_profile_id: callRecord.customer_profile_id,

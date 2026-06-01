@@ -619,6 +619,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 **Requirements:**
 - On a missed call, send an auto-text via `SmsProvider` (sandbox logs; only hits Twilio when `SMS_SENDING_ENABLED=true`). Copy from Business `settings_json` with a sane default ("Sorry we missed your call — reply here and we'll get right back to you. — {business_name}").
 - Record an outbound `Message(direction=outbound, channel=sms, status=sent|queued)`. Wrap send so a failure cannot break the call flow; log an `AuditEvent`.
+- Status alignment added 2026-06-01: auto-text records now mark `sent` only when the provider reports `networkCallsMade=true`, remain `queued` for sandbox/log-only providers, and mark `failed` on provider exceptions.
 **Acceptance:** missed call with flag ON → one outbound Message + provider send; flag OFF → Message recorded as `queued`/sandbox, no network.
 **Test:** simulate a missed call with flag on/off; assert outbound Message count and provider behavior.
 
