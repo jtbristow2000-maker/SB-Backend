@@ -112,6 +112,7 @@ describe("BACKEND-07 voice intake service", () => {
     });
 
     return {
+      businessRepository,
       customerProfileRepository,
       callRecordRepository,
       messageRepository,
@@ -263,6 +264,27 @@ describe("BACKEND-07 voice intake service", () => {
     expect(messages[0].status).toBe("sent");
     expect(providerLogs.map((entry) => entry.action)).toContain("sms.send.logged_only");
     expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.sent");
+  });
+
+  it("uses the business settings auto-text message when configured", async () => {
+    const { businessRepository, messageRepository, service } = await setupService();
+    await businessRepository.updateSettings("00000000-0000-4000-8000-000000000201", {
+      auto_text_message: "Thanks for calling {business_name}. We will text you soon."
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_SETTINGS_AUTOTEXT"
+    });
+
+    await service.handleDialStatus({
+      callSid: "CA_SETTINGS_AUTOTEXT",
+      dialCallStatus: "no-answer"
+    });
+
+    const messages = await messageRepository.list();
+    expect(messages).toHaveLength(1);
+    expect(messages[0].body).toBe("Thanks for calling Detail Test Co. We will text you soon.");
   });
 
   it("does not break missed-call flow when auto-text provider send fails", async () => {

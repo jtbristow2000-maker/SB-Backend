@@ -4,6 +4,8 @@ import type {
   BusinessRepository,
   BusinessSeedInput
 } from "@/server/business/bootstrap";
+import type { BusinessSettingsUpdate } from "@/server/business/settings";
+import { mergeBusinessSettingsJson } from "@/server/business/settings";
 import type {
   CustomerProfileCreateInput,
   CustomerProfileRepository,
@@ -136,6 +138,25 @@ export class SupabaseBusinessRepository implements BusinessRepository {
       .single();
 
     return requireRow(data, error, "update business");
+  }
+
+  async updateSettings(id: string, partial: BusinessSettingsUpdate): Promise<BusinessRow> {
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new Error(`Business ${id} was not found.`);
+    }
+
+    const { data, error } = await this.client
+      .from("businesses")
+      .update({
+        settings_json: mergeBusinessSettingsJson(existing.settings_json, partial),
+        updated_at: nowIso()
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "update business settings");
   }
 
   async list(): Promise<BusinessRow[]> {

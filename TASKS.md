@@ -510,7 +510,7 @@ produces a lead + voicemail transcript + auto-text, and the owner is notified an
 **Stack:** Next.js App Router API routes · Supabase Postgres · Vitest · Twilio for comms.
 **Conventions (established in `web/`):** server logic in `web/src/server/<domain>/`; routes in `web/src/app/api/.../route.ts`; SQL in `web/supabase/migrations/NNNN_*.sql`; tests colocated `*.test.ts`.
 **Guardrails:** sandbox-first; real SMS/calls behind `SMS_SENDING_ENABLED` / `CALL_FORWARDING_ENABLED` (default false); no hardcoded secrets; update `CHANGELOG_AI.md`; do not touch `archive/` (frozen prototypes).
-**Status:** BACKEND-00→19 and BACKEND-22 are **DONE in `web/`** (track consolidation, capture pipeline, read APIs, owner profile/task edits, owner-approved outbound SMS, Supabase persistence, and deploy observability). **BACKEND-20/21 remain pending and were intentionally not bundled into observability work.**
+**Status:** BACKEND-00→19, BACKEND-21, and BACKEND-22 are **DONE in `web/`** (track consolidation, capture pipeline, read APIs, owner profile/task edits, owner-approved outbound SMS, Supabase persistence, follow-up sweep, and deploy observability). **BACKEND-20 optional REST endpoints remain pending.**
 
 Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
@@ -748,7 +748,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ---
 
-### BACKEND-21 — Follow-up sweep job   (M)
+### BACKEND-21 — Follow-up sweep job   (M) — DONE
 
 **Goal:** Surface stale leads so none are forgotten.
 **Files:** `web/src/app/api/internal/...` or `web/src/server/jobs/...`, tests.

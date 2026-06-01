@@ -1,4 +1,5 @@
 import type { BusinessRepository } from "@/server/business/bootstrap";
+import { getBusinessSettings } from "@/server/business/settings";
 import type { CustomerProfileRepository } from "@/server/customerProfiles/repository";
 import type { CustomerProfileService } from "@/server/customerProfiles/service";
 import type {
@@ -321,13 +322,9 @@ export class VoiceIntakeService {
     businessName: string;
     settingsJson: unknown;
   }): string {
-    const template =
-      typeof input.settingsJson === "object" &&
-      input.settingsJson !== null &&
-      "missed_call_auto_text" in input.settingsJson &&
-      typeof (input.settingsJson as Record<string, unknown>).missed_call_auto_text === "string"
-        ? (input.settingsJson as Record<string, string>).missed_call_auto_text
-        : "Sorry we missed your call — reply here and we'll get right back to you. — {business_name}";
+    const template = getBusinessSettings({
+      settings_json: input.settingsJson as JsonValue
+    }).auto_text_message;
 
     return template.replaceAll("{business_name}", input.businessName);
   }

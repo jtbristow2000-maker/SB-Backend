@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { getBusinessSettings } from "@/server/business/settings";
 import { getIntakeRuntime, resetIntakeRuntimeForTests } from "@/server/intake/runtime";
 
 import { getSupabaseServerClient } from "./supabaseClient";
@@ -80,6 +81,14 @@ describeSupabase("BACKEND-19 Supabase repository contract", () => {
         businessPhone: "+13104567890",
         timezone: "America/New_York"
       });
+      await repos.businessRepository.updateSettings(business.id, {
+        auto_text_message: "Thanks for calling {business_name}. We will reply soon.",
+        brand_color: "#5b5bd6"
+      });
+      const businessWithSettings = await repos.businessRepository.updateSettings(business.id, {
+        business_hours: { open: "08:30", close: "17:30", days: [1, 2, 3, 4, 5] },
+        quote_ranges: [{ service: "Exterior detail", low: 125, high: 225 }]
+      });
       const profile = await repos.customerProfileRepository.create({
         business_id: business.id,
         display_name: "Persistent Caller",
@@ -123,6 +132,12 @@ describeSupabase("BACKEND-19 Supabase repository contract", () => {
       )).toMatchObject({
         id: profile.id,
         display_name: "Persistent Caller"
+      });
+      expect(getBusinessSettings(businessWithSettings)).toMatchObject({
+        auto_text_message: "Thanks for calling {business_name}. We will reply soon.",
+        brand_color: "#5b5bd6",
+        business_hours: { open: "08:30", close: "17:30", days: [1, 2, 3, 4, 5] },
+        quote_ranges: [{ service: "Exterior detail", low: 125, high: 225 }]
       });
       expect(await repos.callRecordRepository.findByProviderCallId(
         business.id,

@@ -1,5 +1,33 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - BACKEND-21 follow-up sweep job
+
+### Added
+- `POST /api/internal/jobs/sweep-followups`, protected by `INTERNAL_JOB_TOKEN`, for cron-style stale lead sweeps.
+- `sweepFollowUps()` job logic that finds `new` / `contacted` profiles older than `FOLLOW_UP_STALE_HOURS` with no recent owner SMS, status-change audit, or completed task.
+- Idempotent daily `follow_up` task creation with `task.follow_up.created` audit events; owner reminders only, no customer messages.
+- Tests covering token enforcement, stale vs fresh/owner-touched profiles, and same-day duplicate prevention.
+
+### Changed
+- `web/.env.example` documents `INTERNAL_JOB_TOKEN` and `FOLLOW_UP_STALE_HOURS`.
+- `TASKS.md` marks BACKEND-21 complete and leaves only BACKEND-20 optional REST endpoints pending in this block.
+
+### Verified
+- `npm run verify` passes: 84 tests passing, 1 Supabase contract test skipped.
+
+## [2026-06-01] - Backend: per-business settings store
+
+### Added
+- Typed `BusinessSettings` helpers for `businesses.settings_json`, including brand color, auto-text message, business hours, and quote ranges with safe defaults.
+- `BusinessRepository.updateSettings()` for in-memory and Supabase repositories, merging partial settings into the existing JSON without touching bootstrap name/phone/timezone updates.
+- Tests for in-memory settings merge/read behavior, bootstrap preserving settings, Supabase repository settings round-trip, and missed-call auto-text using the configured settings message.
+
+### Changed
+- Missed-call auto-text now reads the canonical `auto_text_message` setting while keeping the existing default and legacy `missed_call_auto_text` fallback.
+
+### Verified
+- `npm run verify` passes: 82 tests passing, 1 Supabase contract test skipped.
+
 ## [2026-06-01] - Theming foundation: brand design tokens
 
 ### Added

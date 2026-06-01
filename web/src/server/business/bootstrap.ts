@@ -1,6 +1,9 @@
 import type { BusinessRow } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
 
+import type { BusinessSettingsUpdate } from "./settings";
+import { mergeBusinessSettingsJson } from "./settings";
+
 const DEFAULT_BUSINESS_ID = "00000000-0000-4000-8000-000000000001";
 
 export type BusinessSeedInput = {
@@ -17,6 +20,7 @@ export interface BusinessRepository {
   findByBusinessPhone(phoneE164: string): Promise<BusinessRow | null>;
   create(input: BusinessSeedInput & { id: string }): Promise<BusinessRow>;
   update(id: string, input: BusinessSeedInput): Promise<BusinessRow>;
+  updateSettings(id: string, partial: BusinessSettingsUpdate): Promise<BusinessRow>;
   list(): Promise<BusinessRow[]>;
 }
 
@@ -97,6 +101,22 @@ export class InMemoryBusinessRepository implements BusinessRepository {
       owner_phone_e164: normalizeOptionalPhone(input.ownerPhone),
       business_phone_e164: normalizeOptionalPhone(input.businessPhone),
       timezone: input.timezone,
+      updated_at: nowIso()
+    };
+
+    this.businesses.set(id, updated);
+    return updated;
+  }
+
+  async updateSettings(id: string, partial: BusinessSettingsUpdate): Promise<BusinessRow> {
+    const existing = this.businesses.get(id);
+    if (!existing) {
+      throw new Error(`Business ${id} was not found.`);
+    }
+
+    const updated: BusinessRow = {
+      ...existing,
+      settings_json: mergeBusinessSettingsJson(existing.settings_json, partial),
       updated_at: nowIso()
     };
 
