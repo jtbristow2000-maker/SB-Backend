@@ -19,6 +19,7 @@ import {
 } from "@/server/providers";
 import { type AppConfig, getAppConfig } from "@/server/config";
 
+import { type AppointmentRepository, InMemoryAppointmentRepository } from "./appointments";
 import { type AuditEventRepository, InMemoryAuditEventRepository } from "./auditEvents";
 import { type CallRecordRepository, InMemoryCallRecordRepository } from "./callRecords";
 import { type MessageRepository, InMemoryMessageRepository } from "./messages";
@@ -34,6 +35,7 @@ type IntakeRuntime = {
   messageRepository: MessageRepository;
   taskRepository: TaskRepository;
   auditEventRepository: AuditEventRepository;
+  appointmentRepository: AppointmentRepository;
   providers: ReturnType<typeof createSandboxProviders>;
   voiceIntakeService: VoiceIntakeService;
   smsIntakeService: SmsIntakeService;
@@ -68,7 +70,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
           callRecordRepository: new InMemoryCallRecordRepository(),
           messageRepository: new InMemoryMessageRepository(),
           taskRepository: new InMemoryTaskRepository(),
-          auditEventRepository: new InMemoryAuditEventRepository()
+          auditEventRepository: new InMemoryAuditEventRepository(),
+          appointmentRepository: new InMemoryAppointmentRepository()
         };
   const {
     businessRepository,
@@ -76,7 +79,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     callRecordRepository,
     messageRepository,
     taskRepository,
-    auditEventRepository
+    auditEventRepository,
+    appointmentRepository
   } = repositories;
 
   await bootstrapSingleTenantBusiness(businessRepository);
@@ -127,6 +131,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     messageRepository,
     taskRepository,
     auditEventRepository,
+    appointmentRepository,
     providers,
     voiceIntakeService,
     smsIntakeService

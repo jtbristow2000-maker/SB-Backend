@@ -10,6 +10,10 @@ import type {
   CustomerProfileUpdateInput
 } from "@/server/customerProfiles/repository";
 import type {
+  AppointmentCreateInput,
+  AppointmentRepository
+} from "@/server/intake/appointments";
+import type {
   AuditEventCreateInput,
   AuditEventRepository
 } from "@/server/intake/auditEvents";
@@ -28,6 +32,7 @@ import type {
 import { normalizePhoneNumber } from "@/server/phone/normalize";
 
 import type {
+  AppointmentRow,
   AuditEventRow,
   BusinessRow,
   CallRecordRow,
@@ -404,6 +409,61 @@ export class SupabaseAuditEventRepository implements AuditEventRepository {
   }
 }
 
+export class SupabaseAppointmentRepository implements AppointmentRepository {
+  constructor(private readonly client: SupabaseClient<Database>) {}
+
+  async create(input: AppointmentCreateInput): Promise<AppointmentRow> {
+    const { data, error } = await this.client
+      .from("appointments")
+      .insert({
+        business_id: input.business_id,
+        customer_profile_id: input.customer_profile_id ?? null,
+        source_call_record_id: input.source_call_record_id ?? null,
+        title: input.title,
+        service_requested: input.service_requested ?? null,
+        scheduled_start_at: input.scheduled_start_at,
+        scheduled_end_at: input.scheduled_end_at ?? null,
+        timezone: input.timezone ?? "America/New_York",
+        status: input.status ?? "scheduled",
+        location: input.location ?? null,
+        notes: input.notes ?? null
+      })
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "create appointment");
+  }
+
+  async findById(id: string): Promise<AppointmentRow | null> {
+    const { data, error } = await this.client
+      .from("appointments")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    failIfError(error, "find appointment by id");
+    return data;
+  }
+
+  async update(
+    id: string,
+    input: Partial<Omit<AppointmentRow, "id" | "business_id" | "created_at">>
+  ): Promise<AppointmentRow> {
+    const { data, error } = await this.client
+      .from("appointments")
+      .update({ ...input, updated_at: nowIso() })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "update appointment");
+  }
+
+  async list(): Promise<AppointmentRow[]> {
+    const { data, error } = await this.client.from("appointments").select("*");
+    return rowsOrThrow(data, error, "list appointments");
+  }
+}
+
 export type IntakeRepositories = {
   businessRepository: BusinessRepository;
   customerProfileRepository: CustomerProfileRepository;
@@ -411,6 +471,7 @@ export type IntakeRepositories = {
   messageRepository: MessageRepository;
   taskRepository: TaskRepository;
   auditEventRepository: AuditEventRepository;
+  appointmentRepository: AppointmentRepository;
 };
 
 // Return the repositories typed as their interfaces (not the concrete classes) so
@@ -424,6 +485,7 @@ export function createSupabaseRepositories(client: SupabaseClient<Database>): In
     callRecordRepository: new SupabaseCallRecordRepository(client),
     messageRepository: new SupabaseMessageRepository(client),
     taskRepository: new SupabaseTaskRepository(client),
-    auditEventRepository: new SupabaseAuditEventRepository(client)
+    auditEventRepository: new SupabaseAuditEventRepository(client),
+    appointmentRepository: new SupabaseAppointmentRepository(client)
   };
 }

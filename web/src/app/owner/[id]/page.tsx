@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
 import { buildProfileDetail } from "@/server/profiles/detail";
-import { markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
+import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -180,6 +180,19 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         )}
       </div>
 
+      <form action={createAppointment} style={S.bookRow}>
+        <input type="hidden" name="profileId" value={profile.id} />
+        <input
+          type="hidden"
+          name="title"
+          value={`${profile.display_name || fmtPhone(profile.phone_e164)}${aiX.service_requested ? ` — ${aiX.service_requested}` : ""}`}
+        />
+        <input type="hidden" name="service" value={aiX.service_requested ?? ""} />
+        <span style={S.bookLabel}>📅 Book:</span>
+        <input name="start" type="datetime-local" required style={S.bookInput} aria-label="Appointment time" />
+        <button type="submit" style={S.btnGhost}>Add</button>
+      </form>
+
       <div style={S.paneTitle}>TIMELINE</div>
       {orderedTimeline.length === 0 && <div style={S.empty}>Nothing yet.</div>}
 
@@ -257,6 +270,9 @@ const S: Record<string, CSSProperties> = {
   select: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
   btnPrimary: { padding: "9px 13px", borderRadius: 9, border: "none", background: "#5b5bd6", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   btnGhost: { padding: "9px 12px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#1e2026", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  bookRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "2px 0 4px" },
+  bookLabel: { fontSize: 13, fontWeight: 600, color: "#3c414b" },
+  bookInput: { flex: 1, minWidth: 170, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
   compose: { display: "flex", gap: 8, marginTop: 16 },
   textInput: { flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 }
 };

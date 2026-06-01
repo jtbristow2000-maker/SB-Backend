@@ -1,5 +1,29 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Appointments + Schedule calendar (full feature, solo)
+
+Built the whole appointments feature end-to-end while Codex was unavailable (repository + UI),
+following the existing repo/provider patterns. Covers most of BACKEND-20 (see its STATUS note in
+TASKS.md) — only the optional REST `/api/appointments` endpoints remain.
+
+### Added
+- `web/src/server/intake/appointments.ts`: `AppointmentRepository` interface + `InMemoryAppointmentRepository`
+  (mirrors tasks/messages). `SupabaseAppointmentRepository` added to `supabaseRepositories.ts` + the
+  `IntakeRepositories` factory; `appointmentRepository` wired into `getIntakeRuntime()` (both modes).
+- `createAppointment` + `setAppointmentStatus` server actions in `owner/actions.ts`, including a
+  DST-aware `datetime-local` (business-tz wall clock) → UTC conversion (no date library).
+- **Schedule** screen `web/src/app/owner/calendar/page.tsx`: upcoming appointments grouped by day
+  (business tz), a "book an appointment" form, and per-item status. Added "📅 Schedule" to OwnerNav.
+- Lead detail: a "📅 Book" form that pre-fills the customer + AI-extracted service.
+
+### Verified
+- `npm run verify` green (typecheck + 80 tests, 1 skipped). Round-tripped the appointments table on
+  live Supabase (insert/read/delete) — persistence confirmed.
+
+### Notes
+- web/ only; no archive/ changes. Owner UI uses server actions (no REST needed). When Codex returns,
+  BACKEND-20's repository is already done — only the optional REST endpoints remain.
+
 ## [2026-06-01] - Owner GUI: Today metric cards are now clickable
 
 ### Changed

@@ -730,6 +730,13 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ### BACKEND-20 — Appointments API (list / create / update)   (M)
 
+> **STATUS (Claude, 2026-06-01):** The appointment **repository** (InMemory + Supabase),
+> `getIntakeRuntime()` wiring, the `createAppointment` / `setAppointmentStatus` server actions, and
+> the owner **Schedule** UI (`/owner/calendar`) + "book from a lead" are **DONE** and verified
+> against live Supabase. **Do not rebuild the repository.** Remaining (optional): the API-key-guarded
+> REST endpoints below (`/api/appointments`) for external/programmatic access — the owner UI uses
+> server actions, not REST.
+
 **Goal:** Back the agenda/calendar in the owner UI.
 **Files:** `web/src/app/api/appointments/...`, `web/src/server/appointments/...`, tests.
 **Requirements:**

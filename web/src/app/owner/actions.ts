@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getAppConfig } from "@/server/config";
+import type { AppointmentStatus } from "@/server/db/schema";
 import { getIntakeRuntime } from "@/server/intake/runtime";
 
 // ---------------------------------------------------------------------------
@@ -76,4 +77,70 @@ export async function sendOwnerText(formData: FormData): Promise<void> {
   }
 
   revalidateOwner(profileId);
+}
+
+const APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  "scheduled",
+  "confirmed",
+  "completed",
+  "cancelled",
+  "no_show"
+];
+
+// Convert a datetime-local wall-clock string ("YYYY-MM-DDTHH:mm", entered in the
+// business timezone) into a UTC ISO instant — DST-aware, no date library.
+function zonedWallTimeToUtcIso(wall: string, timeZone: string): string {
+  const base = wall.length >= 19 ? wall.slice(0, 19) : `${wall}:00`;
+  const guessUtc = new Date(`${base}Z`);
+  if (Number.isNaN(guessUtc.getTime())) {
+    return new Date().toISOString();
+  }
+  const tzShown = new Date(guessUtc.toLocaleString("en-US", { timeZone }));
+  const utcShown = new Date(guessUtc.toLocaleString("en-US", { timeZone: "UTC" }));
+  const offsetMs = utcShown.getTime() - tzShown.getTime();
+  return new Date(guessUtc.getTime() + offsetMs).toISOString();
+}
+
+export async function createAppointment(formData: FormData): Promise<void> {
+  const profileId = String(formData.get("profileId") ?? "").trim() || null;
+  const startLocal = String(formData.get("start") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const service = String(formData.get("service") ?? "").trim() || null;
+  if (!startLocal) return;
+
+  const rt = await getIntakeRuntime();
+  const business = (await rt.businessRepository.list())[0] ?? null;
+  if (!business) return;
+  const tz = business.timezone || "America/New_York";
+
+  await rt.appointmentRepository.create({
+    business_id: business.id,
+    customer_profile_id: profileId,
+    title: title || service || "Appointment",
+    service_requested: service,
+    scheduled_start_at: zonedWallTimeToUtcIso(startLocal, tz),
+    timezone: tz,
+    status: "scheduled"
+  });
+
+  revalidatePath("/owner/calendar");
+  revalidatePath("/owner/today");
+  if (profileId) {
+    revalidatePath(`/owner/${profileId}`);
+  }
+}
+
+export async function setAppointmentStatus(formData: FormData): Promise<void> {
+  const appointmentId = String(formData.get("appointmentId") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  if (!appointmentId || !APPOINTMENT_STATUSES.includes(status as AppointmentStatus)) {
+    return;
+  }
+  const rt = await getIntakeRuntime();
+  try {
+    await rt.appointmentRepository.update(appointmentId, { status: status as AppointmentStatus });
+  } catch {
+    /* appointment may have been reset */
+  }
+  revalidatePath("/owner/calendar");
 }
