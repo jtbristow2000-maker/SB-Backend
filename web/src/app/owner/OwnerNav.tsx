@@ -8,15 +8,23 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/owner/today", label: "Today", icon: "📊" },
-  { href: "/owner", label: "Callbacks", icon: "📞" }
+  { href: "/owner", label: "Callbacks", icon: "📞" },
+  { href: "/owner/leads", label: "Leads", icon: "👥" }
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/owner/today") {
     return pathname === "/owner/today";
   }
-  // Callbacks tab stays active on the list AND on a lead detail page (/owner/<id>).
-  return pathname === "/owner" || (pathname.startsWith("/owner/") && pathname !== "/owner/today");
+  if (href === "/owner/leads") {
+    return pathname === "/owner/leads";
+  }
+  // Callbacks tab stays active on the list AND on a lead detail page (/owner/<id>),
+  // but not on the other top-level tabs.
+  return (
+    pathname === "/owner" ||
+    (pathname.startsWith("/owner/") && pathname !== "/owner/today" && pathname !== "/owner/leads")
+  );
 }
 
 export function OwnerNav({ variant }: { variant: "sidebar" | "tabbar" }) {

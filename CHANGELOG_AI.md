@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner GUI: Leads directory (searchable, all leads)
+
+### Added
+- `web/src/app/owner/leads/page.tsx` + `web/src/app/owner/LeadDirectory.tsx`: a new **Leads** tab —
+  a searchable directory of *every* lead (Callbacks only shows open callbacks). Client-side search
+  by name or phone number + status filter chips (All / New / Contacted / Booked / Won / Lost), each
+  row linking to the lead detail. Sorted most-recently-heard first; times in the business timezone.
+- Added "Leads" to `OwnerNav` (sidebar + bottom tab bar) with active-tab highlighting.
+
+### Notes
+- Frontend only; reads existing profile data. No backend/contract changes. Part of the "owner app
+  features" phase (Settings + calendar/appointments still to come, those need backend work).
+
 ## [2026-06-01] - Retire the Sandbox Console; lock the dev endpoints
 
 ### Changed
