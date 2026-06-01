@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { bootstrapSingleTenantBusiness, InMemoryBusinessRepository } from "@/server/business/bootstrap";
 import { InMemoryCustomerProfileRepository } from "@/server/customerProfiles/repository";
 import { CustomerProfileService } from "@/server/customerProfiles/service";
-import { createSandboxProviders, type SandboxProviderLog } from "@/server/providers";
+import {
+  createSandboxProviders,
+  type ExtractionProvider,
+  type SandboxProviderLog,
+  type VoicemailExtractionInput,
+  type VoicemailExtractionResult
+} from "@/server/providers";
 
 import { InMemoryAuditEventRepository } from "./auditEvents";
 import { InMemoryCallRecordRepository } from "./callRecords";
@@ -12,7 +18,27 @@ import { InMemoryTaskRepository } from "./tasks";
 import { OWNER_DIAL_TIMEOUT_SECONDS, VOICE_STATUS_ACTION_URL, VoiceIntakeService } from "./voice";
 
 describe("BACKEND-07 voice intake service", () => {
-  async function setupService(options: { smsSendingEnabled?: boolean; smsThrows?: boolean } = {}) {
+  function createFakeExtractionProvider(input: {
+    result: VoicemailExtractionResult;
+    calls: VoicemailExtractionInput[];
+  }): ExtractionProvider {
+    return {
+      providerName: "fake",
+      async extractVoicemailDetails(payload) {
+        input.calls.push(payload);
+        return input.result;
+      }
+    };
+  }
+
+  async function setupService(
+    options: {
+      smsSendingEnabled?: boolean;
+      smsThrows?: boolean;
+      aiExtractionEnabled?: boolean;
+      extractionProvider?: ExtractionProvider;
+    } = {}
+  ) {
     const providerLogs: SandboxProviderLog[] = [];
     const businessRepository = new InMemoryBusinessRepository();
     await bootstrapSingleTenantBusiness(businessRepository, {
@@ -32,12 +58,14 @@ describe("BACKEND-07 voice intake service", () => {
     const providers = createSandboxProviders((entry) => providerLogs.push(entry));
     const service = new VoiceIntakeService({
       businessRepository,
+      customerProfileRepository,
       customerProfileService,
       callRecordRepository,
       messageRepository,
       taskRepository,
       auditEventRepository,
       callProvider: providers.calls,
+      extractionProvider: options.extractionProvider ?? providers.extraction,
       smsProvider: options.smsThrows
         ? {
             async sendMessage() {
@@ -45,7 +73,8 @@ describe("BACKEND-07 voice intake service", () => {
             }
           }
         : providers.sms,
-      isSmsSendingEnabled: () => options.smsSendingEnabled ?? false
+      isSmsSendingEnabled: () => options.smsSendingEnabled ?? false,
+      isAiExtractionEnabled: () => options.aiExtractionEnabled ?? false
     });
 
     return {
@@ -242,6 +271,125 @@ describe("BACKEND-07 voice intake service", () => {
       recording_url: "https://api.twilio.test/recording.wav",
       transcript: "Hi, I need a detail this week. Updated transcript.",
       needs_review: true
+    });
+  });
+
+  it("extracts voicemail suggestions from transcripts when AI extraction is enabled", async () => {
+    const extractionCalls: VoicemailExtractionInput[] = [];
+    const extractionProvider = createFakeExtractionProvider({
+      calls: extractionCalls,
+      result: {
+        caller_name: "Shaw",
+        requested_datetime: "Saturday",
+        service_requested: "full exterior and interior detail",
+        summary: "Shaw wants a full exterior and interior detail on Saturday."
+      }
+    });
+    const {
+      auditEventRepository,
+      callRecordRepository,
+      customerProfileRepository,
+      service
+    } = await setupService({
+      aiExtractionEnabled: true,
+      extractionProvider
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AI_EXTRACT"
+    });
+
+    const result = await service.handleRecording({
+      callSid: "CA_AI_EXTRACT",
+      transcript: "Hi, this is Shaw. Could I get a full exterior and interior detail Saturday?"
+    });
+
+    const calls = await callRecordRepository.list();
+    const profiles = await customerProfileRepository.list();
+    const auditEvents = await auditEventRepository.list();
+    expect(result.status).toBe("updated");
+    expect(extractionCalls).toHaveLength(1);
+    expect(extractionCalls[0].transcript).toContain("this is Shaw");
+    expect(calls[0]).toMatchObject({
+      call_type: "voicemail",
+      ai_summary: "Shaw wants a full exterior and interior detail on Saturday.",
+      extracted_json: {
+        caller_name: "Shaw",
+        requested_datetime: "Saturday",
+        service_requested: "full exterior and interior detail",
+        summary: "Shaw wants a full exterior and interior detail on Saturday."
+      },
+      needs_review: true
+    });
+    expect(profiles[0].display_name).toBe("Shaw");
+    expect(auditEvents.map((event) => event.event_type)).toContain("voicemail.ai_extracted");
+  });
+
+  it("does not call the extraction provider when AI extraction is disabled", async () => {
+    const extractionCalls: VoicemailExtractionInput[] = [];
+    const { callRecordRepository, service } = await setupService({
+      aiExtractionEnabled: false,
+      extractionProvider: createFakeExtractionProvider({
+        calls: extractionCalls,
+        result: {
+          caller_name: "Shaw",
+          requested_datetime: "Saturday",
+          service_requested: "detail",
+          summary: "Shaw wants a detail."
+        }
+      })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AI_OFF"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_AI_OFF",
+      transcript: "Hi, this is Shaw. I need a detail."
+    });
+
+    const calls = await callRecordRepository.list();
+    expect(extractionCalls).toHaveLength(0);
+    expect(calls[0].ai_summary).toBeNull();
+    expect(calls[0].extracted_json).toEqual({});
+  });
+
+  it("does not call the extraction provider for missed calls without a transcript", async () => {
+    const extractionCalls: VoicemailExtractionInput[] = [];
+    const { callRecordRepository, service } = await setupService({
+      aiExtractionEnabled: true,
+      extractionProvider: createFakeExtractionProvider({
+        calls: extractionCalls,
+        result: {
+          caller_name: "Shaw",
+          requested_datetime: "Saturday",
+          service_requested: "detail",
+          summary: "Shaw wants a detail."
+        }
+      })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_NO_TRANSCRIPT"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_NO_TRANSCRIPT",
+      recordingUrl: "https://api.twilio.test/recording.wav"
+    });
+
+    const calls = await callRecordRepository.list();
+    expect(extractionCalls).toHaveLength(0);
+    expect(calls[0]).toMatchObject({
+      call_type: "voicemail",
+      recording_url: "https://api.twilio.test/recording.wav",
+      transcript: null,
+      ai_summary: null,
+      extracted_json: {}
     });
   });
 });

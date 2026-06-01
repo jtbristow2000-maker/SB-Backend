@@ -96,3 +96,25 @@ export interface StorageProvider {
   readonly providerName: string;
   saveObject(input: StorageSaveInput): Promise<StorageSaveResult>;
 }
+
+export type VoicemailExtractionInput = {
+  businessId: string;
+  callRecordId: string;
+  customerProfileId?: string | null;
+  transcript: string;
+  timezone?: string | null;
+};
+
+export type VoicemailExtractionResult = {
+  caller_name: string | null;
+  requested_datetime: string | null;
+  service_requested: string | null;
+  summary: string | null;
+};
+
+export interface ExtractionProvider {
+  readonly providerName: string;
+  extractVoicemailDetails(
+    input: VoicemailExtractionInput
+  ): Promise<VoicemailExtractionResult | null>;
+}

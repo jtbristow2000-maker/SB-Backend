@@ -10,7 +10,7 @@ import {
 import { CustomerProfileService } from "@/server/customerProfiles/service";
 import { createSupabaseRepositories } from "@/server/db/supabaseRepositories";
 import { getSupabaseServerClient } from "@/server/db/supabaseClient";
-import { createSandboxProviders } from "@/server/providers";
+import { AnthropicExtractionProvider, createSandboxProviders } from "@/server/providers";
 import { getAppConfig } from "@/server/config";
 
 import { type AuditEventRepository, InMemoryAuditEventRepository } from "./auditEvents";
@@ -71,16 +71,28 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
   await bootstrapSingleTenantBusiness(businessRepository);
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
   const providers = createSandboxProviders();
+  const extractionProvider =
+    config.aiExtractionEnabled && config.anthropicConfigured && process.env.ANTHROPIC_API_KEY
+      ? new AnthropicExtractionProvider({
+          apiKey: process.env.ANTHROPIC_API_KEY
+        })
+      : providers.extraction;
   const voiceIntakeService = new VoiceIntakeService({
     businessRepository,
+    customerProfileRepository,
     customerProfileService,
     callRecordRepository,
     messageRepository,
     taskRepository,
     auditEventRepository,
     callProvider: providers.calls,
+    extractionProvider,
     smsProvider: providers.sms,
-    isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled
+    isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled,
+    isAiExtractionEnabled: () => {
+      const currentConfig = getAppConfig();
+      return currentConfig.aiExtractionEnabled && currentConfig.anthropicConfigured;
+    }
   });
   const smsIntakeService = new SmsIntakeService({
     businessRepository,

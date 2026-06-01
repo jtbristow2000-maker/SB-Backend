@@ -27,6 +27,8 @@ export type AppConfig = {
   supabaseConfigured: boolean;
   twilioConfigured: boolean;
   openAiConfigured: boolean;
+  anthropicConfigured: boolean;
+  aiExtractionEnabled: boolean;
   sentryConfigured: boolean;
 };
 
@@ -51,6 +53,7 @@ export function getAppConfig(): AppConfig {
     callForwardingEnabled: readBoolean("CALL_FORWARDING_ENABLED", false),
     realMessageSendingEnabled: readBoolean("REAL_MESSAGE_SENDING_ENABLED", false),
     realCallAutomationEnabled: readBoolean("REAL_CALL_AUTOMATION_ENABLED", false),
+    aiExtractionEnabled: readBoolean("AI_EXTRACTION_ENABLED", false),
     supabaseConfigured: Boolean(
       process.env.SUPABASE_URL ??
         process.env.NEXT_PUBLIC_SUPABASE_URL ??
@@ -63,6 +66,7 @@ export function getAppConfig(): AppConfig {
         process.env.TWILIO_PHONE_NUMBER
     ),
     openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    anthropicConfigured: Boolean(readString("ANTHROPIC_API_KEY")),
     sentryConfigured: Boolean(process.env.SENTRY_DSN)
   };
 }

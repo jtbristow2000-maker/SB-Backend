@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - BACKEND-23 AI voicemail understanding
+
+### Added
+- `web/src/server/providers/extraction.ts`: optional Anthropic-backed voicemail extraction provider plus JSON parsing helpers.
+- `ExtractionProvider` interface and sandbox extraction provider alongside the existing sandbox provider set.
+- Voicemail transcript extraction in `VoiceIntakeService.handleRecording()` when `AI_EXTRACTION_ENABLED=true` and `ANTHROPIC_API_KEY` is present.
+- Extracted voicemail suggestions are stored in `call_records.extracted_json`, with a one-line `ai_summary`, `needs_review=true`, and a `voicemail.ai_extracted` audit event.
+
+### Changed
+- Empty customer profile names are filled from `caller_name` suggestions; owner-entered names are not overwritten.
+- `web/.env.example` documents `AI_EXTRACTION_ENABLED`, `ANTHROPIC_API_KEY`, and `ANTHROPIC_MODEL`.
+
+### Notes
+- Default behavior remains AI-free: when the flag is off or the key is absent, extraction is skipped and no network call is made.
+- Extraction failures are caught and logged without failing the recording webhook or call flow.
+
 ## [2026-06-01] - Backend: show voicemail recording before transcript callback
 
 ### Changed

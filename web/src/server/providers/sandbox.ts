@@ -1,6 +1,7 @@
 import type {
   CallProvider,
   DialTwimlInput,
+  ExtractionProvider,
   IncomingCallInput,
   InboundSmsInput,
   ProviderActionResult,
@@ -13,7 +14,9 @@ import type {
   StorageSaveResult,
   TranscriptionInput,
   TranscriptionProvider,
-  TranscriptionResult
+  TranscriptionResult,
+  VoicemailExtractionInput,
+  VoicemailExtractionResult
 } from "./types";
 
 export type SandboxProviderLog = {
@@ -200,11 +203,39 @@ export class SandboxStorageProvider implements StorageProvider {
   }
 }
 
+export class SandboxExtractionProvider implements ExtractionProvider {
+  readonly providerName = "sandbox";
+
+  constructor(private readonly logger: SandboxLogger = defaultLogger) {}
+
+  async extractVoicemailDetails(
+    input: VoicemailExtractionInput
+  ): Promise<VoicemailExtractionResult> {
+    this.logger({
+      provider: "sandbox",
+      action: "ai.voicemail_extraction.logged_only",
+      businessId: input.businessId,
+      details: {
+        callRecordId: input.callRecordId,
+        transcriptLength: input.transcript.length
+      }
+    });
+
+    return {
+      caller_name: null,
+      requested_datetime: null,
+      service_requested: null,
+      summary: input.transcript.trim().slice(0, 120) || null
+    };
+  }
+}
+
 export function createSandboxProviders(logger?: SandboxLogger) {
   return {
     sms: new SandboxSmsProvider(logger),
     calls: new SandboxCallProvider(logger),
     transcription: new SandboxTranscriptionProvider(logger),
-    storage: new SandboxStorageProvider(logger)
+    storage: new SandboxStorageProvider(logger),
+    extraction: new SandboxExtractionProvider(logger)
   };
 }

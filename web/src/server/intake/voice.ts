@@ -1,8 +1,15 @@
 import type { BusinessRepository } from "@/server/business/bootstrap";
+import type { CustomerProfileRepository } from "@/server/customerProfiles/repository";
 import type { CustomerProfileService } from "@/server/customerProfiles/service";
-import type { AuditEventRow, CallRecordRow, CustomerProfileRow, TaskRow } from "@/server/db/schema";
+import type {
+  AuditEventRow,
+  CallRecordRow,
+  CustomerProfileRow,
+  JsonValue,
+  TaskRow
+} from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
-import type { CallProvider } from "@/server/providers";
+import type { CallProvider, ExtractionProvider, VoicemailExtractionResult } from "@/server/providers";
 
 import type { AuditEventRepository } from "./auditEvents";
 import type { CallRecordRepository } from "./callRecords";
@@ -57,12 +64,14 @@ export type RecordingResult = {
 
 export type VoiceIntakeDependencies = {
   businessRepository: BusinessRepository;
+  customerProfileRepository: CustomerProfileRepository;
   customerProfileService: CustomerProfileService;
   callRecordRepository: CallRecordRepository;
   messageRepository: MessageRepository;
   taskRepository: TaskRepository;
   auditEventRepository: AuditEventRepository;
   callProvider: CallProvider;
+  extractionProvider: ExtractionProvider;
   smsProvider: {
     sendMessage(input: {
       businessId: string;
@@ -72,6 +81,7 @@ export type VoiceIntakeDependencies = {
     }): Promise<{ status: string }>;
   };
   isSmsSendingEnabled: () => boolean;
+  isAiExtractionEnabled: () => boolean;
 };
 
 export class VoiceIntakeService {
@@ -328,16 +338,102 @@ export class VoiceIntakeService {
       return { status: "call_not_found" };
     }
 
+    const transcript = payload.transcript?.trim() || null;
     const updated = await this.dependencies.callRecordRepository.update(callRecord.id, {
       call_type: "voicemail",
       recording_url: payload.recordingUrl ?? callRecord.recording_url,
-      transcript: payload.transcript ?? callRecord.transcript,
+      transcript: transcript ?? callRecord.transcript,
       needs_review: true
     });
+    const enriched = transcript ? await this.extractVoicemailSuggestions(updated, transcript) : updated;
 
     return {
       status: "updated",
-      callRecord: updated
+      callRecord: enriched
     };
   }
+
+  private async extractVoicemailSuggestions(
+    callRecord: CallRecordRow,
+    transcript: string
+  ): Promise<CallRecordRow> {
+    if (!this.dependencies.isAiExtractionEnabled()) {
+      return callRecord;
+    }
+
+    try {
+      const business = await this.dependencies.businessRepository.findById(callRecord.business_id);
+      const extraction = await this.dependencies.extractionProvider.extractVoicemailDetails({
+        businessId: callRecord.business_id,
+        callRecordId: callRecord.id,
+        customerProfileId: callRecord.customer_profile_id,
+        transcript,
+        timezone: business?.timezone ?? null
+      });
+
+      if (!extraction) {
+        return callRecord;
+      }
+
+      const extractedJson = buildExtractedJson(extraction);
+      const enrichedCallRecord = await this.dependencies.callRecordRepository.update(callRecord.id, {
+        ai_summary: extraction.summary,
+        extracted_json: extractedJson,
+        needs_review: true
+      });
+
+      await this.applyExtractedCallerName(callRecord, extraction);
+      await this.dependencies.auditEventRepository.create({
+        business_id: callRecord.business_id,
+        customer_profile_id: callRecord.customer_profile_id,
+        actor: "system",
+        event_type: "voicemail.ai_extracted",
+        event_json: {
+          callRecordId: callRecord.id,
+          provider: this.dependencies.extractionProvider.providerName,
+          extracted: extractedJson
+        }
+      });
+
+      return enrichedCallRecord;
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          event: "voicemail.ai_extraction_failed",
+          business_id: callRecord.business_id,
+          call_record_id: callRecord.id,
+          error: error instanceof Error ? error.message : "unknown"
+        })
+      );
+      return callRecord;
+    }
+  }
+
+  private async applyExtractedCallerName(
+    callRecord: CallRecordRow,
+    extraction: VoicemailExtractionResult
+  ): Promise<void> {
+    if (!callRecord.customer_profile_id || !extraction.caller_name) {
+      return;
+    }
+
+    const profiles = await this.dependencies.customerProfileRepository.list();
+    const profile = profiles.find((candidate) => candidate.id === callRecord.customer_profile_id);
+    if (!profile || profile.display_name?.trim()) {
+      return;
+    }
+
+    await this.dependencies.customerProfileRepository.update(profile.id, {
+      display_name: extraction.caller_name
+    });
+  }
+}
+
+function buildExtractedJson(extraction: VoicemailExtractionResult): JsonValue {
+  return {
+    caller_name: extraction.caller_name,
+    requested_datetime: extraction.requested_datetime,
+    service_requested: extraction.service_requested,
+    summary: extraction.summary
+  };
 }
