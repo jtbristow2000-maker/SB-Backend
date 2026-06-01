@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner GUI: AI quick-summary card + "Transcribing…" state
+
+### Added
+- `web/src/app/owner/[id]/page.tsx`: a "✨ Quick summary" card at the top of the lead that
+  surfaces the AI-extracted **name / wants / when** + one-line summary (from the most recent
+  call's `ai_summary` + `extracted_json`), labeled "AI · double-check". Sourced from the full
+  call rows since the read-API timeline projects a smaller shape.
+- "⏳ Transcribing voicemail…" state in the timeline for a voicemail that has a recording but
+  no transcript yet — so the brief gap before the transcript lands reads as intentional
+  instead of looking empty.
+
+### Notes
+- Frontend only; no backend/contract changes. The AI-extracted caller name already shows in
+  the Callbacks/Today lists via `display_name`. Pairs with the pending fast-transcription
+  backend change (once that lands, the "Transcribing…" gap shrinks to a couple seconds).
+
 ## [2026-06-01] - BACKEND-23 AI voicemail understanding
 
 ### Added

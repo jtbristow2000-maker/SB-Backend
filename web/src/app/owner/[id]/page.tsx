@@ -11,12 +11,26 @@ export const runtime = "nodejs";
 // ---------------------------------------------------------------------------
 // Owner screen 2 — Lead detail, per web/OWNER_UX.md.
 // Server component reusing Codex's buildProfileDetail (GET /api/profiles/{id}).
-// Shows the merged call + voicemail + SMS timeline and the open callback task.
-// Times render in the business timezone; the timeline is oldest→newest (newest
-// at the bottom, like a text thread).
+// Shows an AI "quick summary" (name / wants / when), the open callback task,
+// and the merged call + voicemail + SMS timeline (oldest→newest, like a text
+// thread). Times render in the business timezone.
 // ---------------------------------------------------------------------------
 
 const FALLBACK_TZ = "America/New_York";
+
+type Extracted = {
+  caller_name?: string | null;
+  requested_datetime?: string | null;
+  service_requested?: string | null;
+  summary?: string | null;
+};
+
+function readExtracted(value: unknown): Extracted {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Extracted;
+  }
+  return {};
+}
 
 function fmtPhone(p: string | null): string {
   if (!p) return "Unknown number";
@@ -35,9 +49,9 @@ function fmtTime(iso: string | null, tz: string): string {
   });
 }
 
-function callLabel(callType: string, hasTranscript: boolean): string {
+function callLabel(callType: string, hasTranscript: boolean, hasRecording: boolean): string {
   if (callType === "answered") return "You answered";
-  if (callType === "voicemail" || hasTranscript) return "Voicemail";
+  if (callType === "voicemail" || hasTranscript || hasRecording) return "Voicemail";
   return "Missed · no voicemail";
 }
 
@@ -81,6 +95,28 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     return at < bt ? -1 : at > bt ? 1 : 0;
   });
 
+  // Most recent of THIS lead's calls that has AI-extracted details, for the
+  // quick-summary card. Sourced from the full call rows (the read-API timeline
+  // intentionally projects a smaller shape that omits ai_summary/extracted_json).
+  const profileCalls = calls
+    .filter((c) => c.customer_profile_id === profile.id)
+    .sort((a, b) => {
+      const at = a.started_at ?? a.created_at ?? "";
+      const bt = b.started_at ?? b.created_at ?? "";
+      return at < bt ? 1 : at > bt ? -1 : 0; // newest first
+    });
+  let aiX: Extracted = {};
+  let aiSummaryText: string | null = null;
+  for (const c of profileCalls) {
+    const e = readExtracted(c.extracted_json);
+    if (c.ai_summary || e.caller_name || e.requested_datetime || e.service_requested || e.summary) {
+      aiX = e;
+      aiSummaryText = c.ai_summary || e.summary || null;
+      break;
+    }
+  }
+  const showAi = Boolean(aiSummaryText || aiX.caller_name || aiX.service_requested || aiX.requested_datetime);
+
   return (
     <main style={S.shell}>
       <Link href="/owner" style={S.back}>← Callbacks</Link>
@@ -95,6 +131,23 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           {profile.last_contact_at ? ` · last heard ${fmtTime(profile.last_contact_at, tz)}` : ""}
         </div>
       </header>
+
+      {showAi && (
+        <div style={S.aiCard}>
+          <div style={S.aiHead}>
+            <span>✨ Quick summary</span>
+            <span style={S.aiBadge}>AI · double-check</span>
+          </div>
+          {aiSummaryText && <div style={S.aiSummary}>{aiSummaryText}</div>}
+          {(aiX.caller_name || aiX.service_requested || aiX.requested_datetime) && (
+            <div style={S.aiFields}>
+              {aiX.caller_name && <span><strong>Name:</strong> {aiX.caller_name}</span>}
+              {aiX.service_requested && <span><strong>Wants:</strong> {aiX.service_requested}</span>}
+              {aiX.requested_datetime && <span><strong>When:</strong> {aiX.requested_datetime}</span>}
+            </div>
+          )}
+        </div>
+      )}
 
       {open_task && (
         <div style={S.taskBar}>
@@ -131,15 +184,17 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         item.kind === "call" ? (
           <div key={item.call.id} style={S.callItem}>
             <div style={S.callHead}>
-              📞 {callLabel(item.call.call_type, Boolean(item.call.transcript))} · {fmtTime(item.at, tz)}
+              📞 {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} · {fmtTime(item.at, tz)}
               {item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
             </div>
-            {item.call.transcript && (
+            {item.call.transcript ? (
               <div style={S.transcript}>
                 “{item.call.transcript}”
                 {item.call.needs_review && <span style={S.review}> · auto-transcribed, may contain errors</span>}
               </div>
-            )}
+            ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
+              <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
+            ) : null}
           </div>
         ) : (
           <div key={item.message.id} style={bubbleWrap(item.message.direction === "outbound")}>
@@ -176,12 +231,18 @@ const S: Record<string, CSSProperties> = {
   h1: { margin: "6px 0 2px", fontSize: 22 },
   sub: { color: "#8a909c", fontSize: 13 },
   replied: { fontSize: 11, fontWeight: 700, color: "#1f9d6b", background: "rgba(31,157,107,0.12)", padding: "3px 9px", borderRadius: 999 },
+  aiCard: { marginTop: 14, padding: "12px 14px", borderRadius: 12, background: "linear-gradient(135deg, rgba(91,91,214,0.09), rgba(124,58,237,0.05))", border: "1px solid rgba(91,91,214,0.18)" },
+  aiHead: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontWeight: 700, color: "#4a3fb3", marginBottom: 6 },
+  aiBadge: { fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "rgba(124,58,237,0.12)", padding: "2px 8px", borderRadius: 999 },
+  aiSummary: { fontSize: 14, color: "#1e2026", lineHeight: 1.45 },
+  aiFields: { display: "flex", flexWrap: "wrap", gap: "4px 16px", marginTop: 8, fontSize: 13, color: "#3c414b" },
   taskBar: { padding: "9px 13px", borderRadius: 10, background: "rgba(91,91,214,0.08)", color: "#3a3a9a", fontSize: 13, margin: "12px 0 6px" },
   paneTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "14px 0 8px" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#8a909c" },
   callItem: { padding: "9px 0", borderBottom: "1px solid #f1f2f5" },
   callHead: { fontSize: 13, fontWeight: 600 },
   transcript: { marginTop: 4, fontSize: 13, color: "#3c414b" },
+  transcribing: { marginTop: 4, fontSize: 13, color: "#8a909c", fontStyle: "italic" },
   review: { color: "#9a6210", fontSize: 11 },
   bubbleMeta: { marginTop: 3, fontSize: 11, color: "#8a909c" },
   footer: { marginTop: 18, color: "#8a909c", fontSize: 12 },
