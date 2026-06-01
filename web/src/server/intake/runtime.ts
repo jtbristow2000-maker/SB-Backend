@@ -164,7 +164,7 @@ export function selectSmsProvider(
     return new TwilioSmsProvider({
       accountSid: env.TWILIO_ACCOUNT_SID,
       authToken: env.TWILIO_AUTH_TOKEN,
-      fromNumber: env.TWILIO_PHONE_NUMBER
+      fromNumber: env.TWILIO_PHONE_NUMBER ?? env.BUSINESS_PHONE
     });
   }
   return sandboxProvider;

@@ -68,10 +68,12 @@ export function getAppConfig(): AppConfig {
         process.env.SUPABASE_ANON_KEY ??
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     ),
+    // Credentials + a "from" number. The from can come from TWILIO_PHONE_NUMBER or the
+    // existing BUSINESS_PHONE (which already seeds the business's number).
     twilioConfigured: Boolean(
       process.env.TWILIO_ACCOUNT_SID &&
         process.env.TWILIO_AUTH_TOKEN &&
-        process.env.TWILIO_PHONE_NUMBER
+        (process.env.TWILIO_PHONE_NUMBER || process.env.BUSINESS_PHONE)
     ),
     openAiConfigured: Boolean(readString("OPENAI_API_KEY")),
     anthropicConfigured: Boolean(readString("ANTHROPIC_API_KEY")),
