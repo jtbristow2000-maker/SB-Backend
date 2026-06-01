@@ -48,6 +48,14 @@ export default async function CalendarPage() {
         <div style={S.bookTitle}>+ Book an appointment</div>
         <input name="title" placeholder="What & who (e.g. Full detail — Sarah's SUV)" style={S.input} autoComplete="off" />
         <input name="start" type="datetime-local" required style={S.input} />
+        <select name="duration" defaultValue="60" style={S.input} aria-label="Duration">
+          <option value="30">30 minutes</option>
+          <option value="60">1 hour</option>
+          <option value="90">1.5 hours</option>
+          <option value="120">2 hours</option>
+          <option value="180">3 hours</option>
+          <option value="240">4 hours</option>
+        </select>
         <button type="submit" style={S.btnPrimary}>Add to schedule</button>
       </form>
 

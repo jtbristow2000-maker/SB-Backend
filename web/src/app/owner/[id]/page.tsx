@@ -190,6 +190,14 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         <input type="hidden" name="service" value={aiX.service_requested ?? ""} />
         <span style={S.bookLabel}>📅 Book:</span>
         <input name="start" type="datetime-local" required style={S.bookInput} aria-label="Appointment time" />
+        <select name="duration" defaultValue="60" style={S.bookSelect} aria-label="Duration">
+          <option value="30">30m</option>
+          <option value="60">1h</option>
+          <option value="90">1.5h</option>
+          <option value="120">2h</option>
+          <option value="180">3h</option>
+          <option value="240">4h</option>
+        </select>
         <button type="submit" style={S.btnGhost}>Add</button>
       </form>
 
@@ -272,7 +280,8 @@ const S: Record<string, CSSProperties> = {
   btnGhost: { padding: "9px 12px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#1e2026", fontWeight: 600, fontSize: 13, cursor: "pointer" },
   bookRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "2px 0 4px" },
   bookLabel: { fontSize: 13, fontWeight: 600, color: "#3c414b" },
-  bookInput: { flex: 1, minWidth: 170, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
+  bookInput: { flex: 1, minWidth: 150, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
+  bookSelect: { padding: "8px 8px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
   compose: { display: "flex", gap: 8, marginTop: 16 },
   textInput: { flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 }
 };

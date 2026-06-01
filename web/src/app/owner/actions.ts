@@ -106,6 +106,7 @@ export async function createAppointment(formData: FormData): Promise<void> {
   const startLocal = String(formData.get("start") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const service = String(formData.get("service") ?? "").trim() || null;
+  const durationMinutes = Number(formData.get("duration") ?? "") || 60;
   if (!startLocal) return;
 
   const rt = await getIntakeRuntime();
@@ -113,12 +114,16 @@ export async function createAppointment(formData: FormData): Promise<void> {
   if (!business) return;
   const tz = business.timezone || "America/New_York";
 
+  const startIso = zonedWallTimeToUtcIso(startLocal, tz);
+  const endIso = new Date(new Date(startIso).getTime() + durationMinutes * 60_000).toISOString();
+
   await rt.appointmentRepository.create({
     business_id: business.id,
     customer_profile_id: profileId,
     title: title || service || "Appointment",
     service_requested: service,
-    scheduled_start_at: zonedWallTimeToUtcIso(startLocal, tz),
+    scheduled_start_at: startIso,
+    scheduled_end_at: endIso,
     timezone: tz,
     status: "scheduled"
   });

@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Appointments: duration dropdown
+
+### Added
+- A **Duration** dropdown (30 min / 1 / 1.5 / 2 / 3 / 4 hours) on both booking forms — the Schedule
+  page and the lead's "📅 Book". `createAppointment` now computes `scheduled_end_at` from the chosen
+  duration, so week-view blocks size correctly and the agenda shows the time range.
+
+### Notes
+- Frontend + the existing `createAppointment` action; default duration 1 hour. `tsc --noEmit` clean.
+
 ## [2026-06-01] - Schedule: full Week / Month / Agenda calendar
 
 ### Added

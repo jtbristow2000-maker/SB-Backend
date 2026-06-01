@@ -283,7 +283,10 @@ function AgendaView({ evs }: { evs: Ev[] }) {
           <div style={S.agendaDay}>{g.label}</div>
           {g.items.map((e) => (
             <div key={e.id} style={S.agendaItem}>
-              <div style={S.agendaTime}>{timeLabel(e.startDate)}</div>
+              <div style={S.agendaTime}>
+                {timeLabel(e.startDate)}
+                {e.endDate ? <div style={S.agendaEnd}>–{timeLabel(e.endDate)}</div> : null}
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600 }}>{e.title}</div>
                 {e.who && <div style={S.agendaWho}>{e.who}</div>}
@@ -368,6 +371,7 @@ const S: Record<string, CSSProperties> = {
   agendaDay: { fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: "#8a909c", textTransform: "uppercase", margin: "6px 0 8px" },
   agendaItem: { display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", marginBottom: 8, borderRadius: 12, background: "#fff", border: "1px solid #eceef2" },
   agendaTime: { fontSize: 13, fontWeight: 700, color: "#15171b", minWidth: 62 },
+  agendaEnd: { fontSize: 11, fontWeight: 400, color: "#8a909c" },
   agendaWho: { fontSize: 13, color: "#3c414b", marginTop: 2 },
   miniSelect: { padding: "4px 6px", borderRadius: 7, border: "1px solid #d8dce3", fontSize: 11, background: "#fff" },
   miniBtn: { padding: "4px 8px", borderRadius: 7, border: "none", background: "#eceef2", color: "#1e2026", fontWeight: 600, fontSize: 11, cursor: "pointer" }
