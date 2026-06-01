@@ -13,42 +13,55 @@ export async function GET() {
     return NextResponse.json({ error: "dev console disabled outside sandbox" }, { status: 404 });
   }
 
-  const intake = await getIntakeRuntime();
+  try {
+    const intake = await getIntakeRuntime();
 
-  // Convenience: in sandbox the seeded business often has no phone (env not set).
-  // Give it sandbox defaults so the console can drive the voice/SMS webhooks zero-config.
-  const businesses = await intake.businessRepository.list();
-  let business = businesses[0] ?? null;
-  if (business && (!business.business_phone_e164 || !business.owner_phone_e164)) {
-    business = await intake.businessRepository.update(business.id, {
-      name: business.name,
-      ownerName: business.owner_name,
-      ownerPhone: business.owner_phone_e164 ?? "+15559990000",
-      businessPhone: business.business_phone_e164 ?? "+15557654321",
-      timezone: business.timezone
-    });
-  }
-
-  const [profiles, calls, messages, tasks] = await Promise.all([
-    intake.customerProfileRepository.list(),
-    intake.callRecordRepository.list(),
-    intake.messageRepository.list(),
-    intake.taskRepository.list()
-  ]);
-
-  return NextResponse.json({
-    business: business
-      ? {
-          id: business.id,
+    // Convenience: in sandbox the seeded business often has no phone (env not set).
+    // Give it sandbox defaults so the console can drive the voice/SMS webhooks zero-config.
+    // NOTE: these MUST be valid NANP numbers — phone normalization rejects 555 numbers.
+    const businesses = await intake.businessRepository.list();
+    let business = businesses[0] ?? null;
+    if (business && (!business.business_phone_e164 || !business.owner_phone_e164)) {
+      try {
+        business = await intake.businessRepository.update(business.id, {
           name: business.name,
-          businessPhone: business.business_phone_e164,
-          ownerPhone: business.owner_phone_e164
-        }
-      : null,
-    smsSendingEnabled: getAppConfig().smsSendingEnabled,
-    profiles,
-    calls,
-    messages,
-    tasks
-  });
+          ownerName: business.owner_name,
+          ownerPhone: business.owner_phone_e164 ?? "+13104567890",
+          businessPhone: business.business_phone_e164 ?? "+14157654321",
+          timezone: business.timezone
+        });
+      } catch {
+        // If a default fails normalization for any reason, keep the business as-is.
+      }
+    }
+
+    const [profiles, calls, messages, tasks] = await Promise.all([
+      intake.customerProfileRepository.list(),
+      intake.callRecordRepository.list(),
+      intake.messageRepository.list(),
+      intake.taskRepository.list()
+    ]);
+
+    return NextResponse.json({
+      business: business
+        ? {
+            id: business.id,
+            name: business.name,
+            businessPhone: business.business_phone_e164,
+            ownerPhone: business.owner_phone_e164
+          }
+        : null,
+      smsSendingEnabled: getAppConfig().smsSendingEnabled,
+      profiles,
+      calls,
+      messages,
+      tasks
+    });
+  } catch (e) {
+    // Surface the real reason so the console can show it instead of a blank 500.
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "dev state failed" },
+      { status: 500 }
+    );
+  }
 }

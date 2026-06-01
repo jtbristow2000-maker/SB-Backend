@@ -1,5 +1,23 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Fix: Sandbox Console 500 (invalid 555 demo phone numbers)
+
+### Fixed
+- The Sandbox Console showed "state 500" and created no leads because every demo phone number used
+  a `555` prefix, which `normalizePhoneNumber` rejects as invalid (it throws `PhoneNormalizationError`).
+  Setting the business phone to a 555 number threw inside `GET /api/dev/state`, and 555 caller
+  numbers would have failed the webhooks too.
+- `web/src/app/api/dev/state/route.ts`: use valid NANP defaults (business `+14157654321`,
+  owner `+13104567890`); wrap the phone-ensure and whole handler in try/catch so it returns the
+  real error message instead of a blank 500.
+- `web/src/app/page.tsx`: default caller is now a valid number (`+12128675309`); `postForm` now
+  throws with the response body on a non-OK webhook so failures surface in the console banner
+  instead of silently doing nothing.
+- `web/BACKEND_README.md`: replaced the invalid `+1555…` example numbers with valid ones.
+
+### Notes
+- Sandbox-only; no intake logic, schema, real SMS/calls, or `dashboard/` changes.
+
 ## [2026-05-31] - Owner screens (web/) built on the read API
 
 ### Added

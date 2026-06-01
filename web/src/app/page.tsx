@@ -40,16 +40,20 @@ function fmtTime(iso: string | null): string {
 }
 
 async function postForm(path: string, fields: Record<string, string>): Promise<void> {
-  await fetch(path, {
+  const res = await fetch(path, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(fields).toString()
   });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${path} → ${res.status}${text ? `: ${text.slice(0, 140)}` : ""}`);
+  }
 }
 
 export default function SandboxConsole() {
   const [state, setState] = useState<DevState | null>(null);
-  const [caller, setCaller] = useState("+15551234567");
+  const [caller, setCaller] = useState("+12128675309");
   const [body, setBody] = useState("Hi, it's Sarah — I want a full detail this Saturday, how much?");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
