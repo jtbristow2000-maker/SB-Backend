@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Reply acknowledges out-of-hours requests
+
+### Added
+- `describeOutsideHours()` in the composer: when the caller asked for a day/time outside business
+  hours (e.g. "Sunday or after six"), the suggested reply now names it gracefully — "We don't
+  usually do Sundays or evenings, but I'd love to make it work — here's what I have open: …" — instead
+  of silently offering weekday slots. A matching ⚠ note appears by the time chips so the owner sees
+  the clash and can make an exception.
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - AI-driven service matching in the reply composer
 
 ### Added

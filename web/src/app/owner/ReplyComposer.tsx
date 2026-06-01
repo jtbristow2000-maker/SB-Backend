@@ -83,6 +83,43 @@ function computeSlots(busy: Busy[], hours: BusinessHoursSettings, requested: str
   return out;
 }
 
+const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+// If the caller asked for a day/time the business doesn't normally work, return a
+// short human label ("Sundays", "evenings", "weekends", "Sundays or evenings") so the
+// reply can acknowledge it instead of silently offering different times. null = no clash.
+function describeOutsideHours(requested: string, hours: BusinessHoursSettings): string | null {
+  const t = requested.toLowerCase();
+  if (!t) return null;
+  const workDays = hours.days && hours.days.length ? hours.days : [0, 1, 2, 3, 4, 5, 6];
+  const labels: string[] = [];
+
+  if (/\bweekend/.test(t) && !workDays.includes(0) && !workDays.includes(6)) {
+    labels.push("weekends");
+  } else {
+    const outsideDays = DAY_NAMES.map((d, i) => ({ d, i })).filter(
+      ({ d, i }) => new RegExp(`\\b${d}\\b`).test(t) && !workDays.includes(i)
+    );
+    if (outsideDays.length) {
+      labels.push(outsideDays.map(({ d }) => `${d[0].toUpperCase()}${d.slice(1)}s`).join(" or "));
+    }
+  }
+
+  const closeH = parseHour(hours.close, 17);
+  let timeOutside = /\b(evening|night|after hours)\b/.test(t);
+  const after = /\bafter\s+(noon|six|seven|eight|nine|ten|\d{1,2})\b/.exec(t);
+  if (after) {
+    const word = after[1];
+    const numMap: Record<string, number> = { noon: 12, six: 18, seven: 19, eight: 20, nine: 21, ten: 22 };
+    let hr = numMap[word] ?? Number(word);
+    if (hr <= 12 && /\b(evening|night|pm)\b/.test(t)) hr += 12;
+    if (Number.isFinite(hr) && hr >= closeH) timeOutside = true;
+  }
+  if (timeOutside) labels.push("evenings");
+
+  return labels.length ? labels.join(" or ") : null;
+}
+
 // ------------------------------------------------------- service auto-matching
 const FILLER = new Set(["the", "a", "and", "removal", "service", "package", "detail", "cleaning", "car", "of"]);
 const VEHICLE_PATTERNS: [string, RegExp][] = [
@@ -151,8 +188,9 @@ function buildDraft(args: {
   includeMenu: boolean;
   allRanges: QuoteRangeSettings[];
   pricingInquiry: boolean;
+  outsideLabel: string | null;
 }): string {
-  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry } = args;
+  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry, outsideLabel } = args;
   const hi = customerName ? `Hi ${customerName}!` : "Hi there!";
 
   let intro: string;
@@ -182,8 +220,17 @@ function buildDraft(args: {
     menu = ` Here's a quick rundown: ${allRanges.map((r) => `${r.service} ${priceText(r)}`).join(", ")}.`;
   }
 
-  const times = slots.length ? ` I have a few openings: ${slots.join("; ")}.` : "";
-  const closing = slots.length ? " Which works best for you?" : " When works best for you?";
+  let times: string;
+  if (slots.length) {
+    times = outsideLabel
+      ? ` We don't usually do ${outsideLabel}, but I'd love to make it work — here's what I have open: ${slots.join("; ")}.`
+      : ` I have a few openings: ${slots.join("; ")}.`;
+  } else {
+    times = outsideLabel
+      ? ` We don't usually do ${outsideLabel} — let me know a weekday that works and I'll get you in.`
+      : "";
+  }
+  const closing = slots.length ? " Which works best for you?" : outsideLabel ? "" : " When works best for you?";
   return `${hi}${intro}${quote}${menu}${times}${closing} — ${businessName}`;
 }
 
@@ -215,6 +262,7 @@ export function ReplyComposer({
 }) {
   const allSlots = useMemo(() => computeSlots(busy, businessHours, requestedWhen), [busy, businessHours, requestedWhen]);
   const initialPicks = useMemo(() => suggestServiceIdxs(contextText, quoteRanges), [contextText, quoteRanges]);
+  const outsideLabel = useMemo(() => describeOutsideHours(requestedWhen, businessHours), [requestedWhen, businessHours]);
 
   const [selectedIdxs, setSelectedIdxs] = useState<Set<number>>(() => new Set(initialPicks));
   const [selectedSlots, setSelectedSlots] = useState<string[]>(() => allSlots.slice(0, PRESELECT_SLOTS));
@@ -267,9 +315,10 @@ export function ReplyComposer({
         slots: selectedSlots,
         includeMenu,
         allRanges: quoteRanges,
-        pricingInquiry
+        pricingInquiry,
+        outsideLabel
       }),
-    [customerName, businessName, selected, selectedSlots, includeMenu, quoteRanges, pricingInquiry]
+    [customerName, businessName, selected, selectedSlots, includeMenu, quoteRanges, pricingInquiry, outsideLabel]
   );
 
   const text = edited ?? draft;
@@ -349,6 +398,11 @@ export function ReplyComposer({
       {allSlots.length > 0 && (
         <>
           <div style={S.sectionLabel}>Offer these times</div>
+          {outsideLabel && (
+            <div style={S.outsideNote}>
+              ⚠ They asked for {outsideLabel.toLowerCase()} — outside your hours. The reply offers your next open times instead (tweak it if you can make an exception).
+            </div>
+          )}
           <div style={S.chips}>
             {allSlots.map((slot) => {
               const on = selectedSlots.includes(slot);
@@ -408,6 +462,7 @@ const S: Record<string, CSSProperties> = {
   chips: { display: "flex", flexWrap: "wrap", gap: 6 },
   chipPrice: { fontWeight: 700, opacity: 0.85 },
   quoteLine: { marginTop: 8, fontSize: 13, fontWeight: 700, color: "#15171b" },
+  outsideNote: { marginBottom: 8, fontSize: 12, lineHeight: 1.45, color: "#8a5a0c", background: "rgba(199,125,20,0.1)", padding: "7px 10px", borderRadius: 9 },
   noRanges: { fontSize: 13, color: "#8a909c", padding: "6px 0" },
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
   actions: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" },
