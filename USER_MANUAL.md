@@ -42,7 +42,7 @@ Think of the product as a house being built:
   permanently.** (Not hooked up yet — see §4.)
 - **The owner app (the future web screens)** = the rooms you actually live in. The phone screens
   the detailer taps every day.
-- **The Windows dashboard (`dashboard/` folder)** = a **show home / model unit.** It looks great
+- **The Windows dashboard (`archive/dashboard-winforms/` folder)** = a **show home / model unit.** It looks great
   and proved what the rooms should feel like, but it's a demo — it isn't wired to the plumbing.
   It's "frozen" (we're not changing it anymore).
 
@@ -138,8 +138,7 @@ When I say "give Codex this prompt," you're handing the engineer its next work o
 ## 8. What's in your repo (the folders)
 
 - `web/` — **the real product backend** (and the clickable demo). This is where active work happens.
-- `dashboard/` — the **frozen Windows demo app** (the "show home"). Not part of the live product.
-- `legacy/backend-python/` — an **old version** of the backend we set aside. Ignore it.
+- `archive/` — **old versions, tucked away** (see `archive/README.md`). The frozen Windows demo (`archive/dashboard-winforms/`) and the retired Python backend (`archive/legacy/backend-python/`). Not part of the live product.
 - `AI_RULES.md` — the rules the AI helpers must follow.
 - `SPEC.md` — the detailed product specification.
 - `TASKS.md` — the master to-do list (the `BACKEND-xx` tasks Codex works through).

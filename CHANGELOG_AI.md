@@ -1,5 +1,25 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Repo cleanup: archive retired prototypes into archive/
+
+### Changed
+- Moved retired prototypes/old versions out of the active tree into a single `archive/` folder.
+  Nothing was deleted — all files remain in git history and on disk:
+  - `dashboard/` → `archive/dashboard-winforms/` (frozen C# WinForms owner-dashboard prototype)
+  - `legacy/` → `archive/legacy/` (retired Python/FastAPI backend scaffold)
+  - root `.env.example` → `archive/env.example.python` (sqlite/`APP_ENV`-era template; the live one
+    is `web/.env.example`)
+  - local-only `dist/` (the 118 MB `BusinessDashboard.exe` build) → `archive/dashboard-dist/`
+    (git-ignored; never committed)
+- `.gitignore`: repointed the .NET / Python build-artifact ignore rules to the new `archive/` paths.
+- Added `archive/README.md` documenting that the folder is reference-only and how to recover a file.
+- Updated forward-looking path references in `AI_RULES.md`, `TASKS.md`, and `USER_MANUAL.md`
+  (historical changelog and completed-task entries left unchanged).
+
+### Notes
+- Top level is now `web/` (the live product) + `archive/` + the active docs. No `web/` source or
+  runtime behavior changed; no app rebuild required.
+
 ## [2026-06-01] - BACKEND-22 observability and deployment readiness
 
 ### Added

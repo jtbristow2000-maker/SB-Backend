@@ -14,7 +14,7 @@ The business owner should have a simple dashboard for leads, customers, calls, m
 ## Agent Roles
 - Claude owns GUI, dashboard UX, customer-facing copy, workflow design, product planning, and visual review.
 - Codex owns backend implementation, debugging, call/message integrations, data models, migrations, tests, deployment setup, and code cleanup.
-- Codex should not edit `dashboard/` GUI source unless the user explicitly asks, or unless a backend contract change requires a tiny compatibility fix.
+- The WinForms dashboard prototype is archived at `archive/dashboard-winforms/` (frozen, not in use). Nothing under `archive/` should be edited.
 
 ## Product Guardrails
 1. Keep the customer workflow simple.
