@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Lead detail: calendar-aware Suggested Reply
+
+### Added
+- `web/src/app/owner/SuggestedReply.tsx`: a "✨ Suggested reply" card on each lead that drafts a
+  friendly response offering **real open time slots computed from the calendar** (skips slots that
+  conflict with existing appointments). Editable textarea + one-tap **Send as text** (`sms:` with the
+  body) and **Copy**. Turns a missed call into a near-instant, calendar-aware reply.
+- Lead detail now fetches appointments and passes the busy list to the card.
+
+### Notes
+- Frontend only (computes slots browser-side = business tz; no backend/AI call). Quote ranges are
+  deferred until a pricing setting exists (no fabricated prices). Fully-automatic send is deferred
+  until live texting (Twilio sending) is enabled. `npm run verify` + `next build` pass.
+
 ## [2026-06-01] - Appointments: duration dropdown
 
 ### Added

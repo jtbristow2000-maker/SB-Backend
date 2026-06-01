@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { getIntakeRuntime } from "@/server/intake/runtime";
 import { buildProfileDetail } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
+import { SuggestedReply } from "@/app/owner/SuggestedReply";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -63,12 +64,13 @@ function autoReplyText(status: string): string {
 export default async function OwnerLead({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const rt = await getIntakeRuntime();
-  const [businesses, profiles, calls, messages, tasks] = await Promise.all([
+  const [businesses, profiles, calls, messages, tasks, appointments] = await Promise.all([
     rt.businessRepository.list(),
     rt.customerProfileRepository.list(),
     rt.callRecordRepository.list(),
     rt.messageRepository.list(),
-    rt.taskRepository.list()
+    rt.taskRepository.list(),
+    rt.appointmentRepository.list()
   ]);
   const business = businesses[0] ?? null;
   const tz = business?.timezone || FALLBACK_TZ;
@@ -112,6 +114,9 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     }
   }
   const showAi = Boolean(aiSummaryText || aiX.caller_name || aiX.service_requested || aiX.requested_datetime);
+  const busy = appointments
+    .filter((a) => !business || a.business_id === business.id)
+    .map((a) => ({ start: a.scheduled_start_at, end: a.scheduled_end_at }));
 
   return (
     <main style={S.shell}>
@@ -143,6 +148,16 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
             </div>
           )}
         </div>
+      )}
+
+      {profile.phone_e164 && (
+        <SuggestedReply
+          customerName={profile.display_name || ""}
+          service={aiX.service_requested ?? ""}
+          phone={profile.phone_e164}
+          businessName={business?.name || "us"}
+          busy={busy}
+        />
       )}
 
       {profile.phone_e164 && (
