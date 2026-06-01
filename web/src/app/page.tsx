@@ -147,8 +147,16 @@ export default function SandboxConsole() {
             Business number {fmtPhone(bizPhone || null)} · owner {fmtPhone(state?.business?.ownerPhone ?? null)}
           </div>
         </div>
-        <div style={flagStyle(state?.smsSendingEnabled ?? false)}>
-          {state?.smsSendingEnabled ? "SMS sending ON" : "SMS sending OFF — auto-texts are queued, not delivered"}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+          <a
+            href="/owner"
+            style={{ padding: "8px 12px", borderRadius: 10, background: "#5b5bd6", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
+          >
+            Open owner view →
+          </a>
+          <div style={flagStyle(state?.smsSendingEnabled ?? false)}>
+            {state?.smsSendingEnabled ? "SMS sending ON" : "SMS sending OFF — auto-texts are queued, not delivered"}
+          </div>
         </div>
       </header>
 

@@ -1,5 +1,26 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Owner screens (web/) built on the read API
+
+### Added
+- `web/src/app/owner/page.tsx`: the **Callbacks** screen (OWNER_UX screen 1). Lists leads with an
+  open callback task — name/phone, call outcome / voicemail snippet, auto-reply state, and a
+  "Replied — waiting on you" badge (replied float to top). Each row links to the lead detail.
+- `web/src/app/owner/[id]/page.tsx`: the **Lead detail** screen (OWNER_UX screen 2). Profile header,
+  open callback task, and a merged reverse-chronological call + voicemail + SMS timeline (voicemail
+  transcript with "may contain errors" when needs_review; auto-reply shown with true sent/queued state).
+
+### Changed
+- `web/src/app/page.tsx`: Sandbox Console header gained an "Open owner view →" link to `/owner`.
+
+### Notes
+- Server components reuse Codex's read-API builders (`buildCallbackProfileList`, `buildProfileDetail`)
+  directly against the in-memory sandbox runtime, so the screens match `GET /api/profiles` and
+  `GET /api/profiles/{id}` exactly with no API-key friction in local preview.
+- Sandbox/in-memory; additive; no intake logic, schema, real SMS/calls, or `dashboard/` changes.
+- These are the real owner UI (per web/OWNER_UX.md); when Supabase + auth land they switch to the
+  HTTP read API with persistent data.
+
 ## [2026-05-31] - BACKEND-15 profile detail read API
 
 ### Added
