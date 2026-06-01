@@ -80,11 +80,19 @@ function callLabel(callType: string, hasTranscript: boolean, hasRecording: boole
   return "Missed · no voicemail";
 }
 
-function autoReplyText(status: string): string {
+function deliveryText(status: string): string {
   if (status === "sent") return "sent";
-  if (status === "failed") return "FAILED";
+  if (status === "failed") return "failed to send";
   if (status === "queued") return "not sent yet";
+  if (status === "received") return "received";
   return status;
+}
+
+// Label an outbound message: the missed-call auto-text vs. one the owner sent.
+function messageLabel(m: { direction: string; status: string; provider_message_id?: string | null }): string {
+  if (m.direction === "inbound") return "Customer";
+  const isAuto = (m.provider_message_id ?? "").startsWith("missed-call-auto-text");
+  return `${isAuto ? "Auto-reply" : "You"} · ${deliveryText(m.status)}`;
 }
 
 export default async function OwnerLead({ params }: { params: Promise<{ id: string }> }) {
@@ -114,13 +122,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const { profile, timeline, open_task, customer_replied } = detail;
-  // Oldest first, so the newest call/message sits at the bottom (text-thread style).
-  const orderedTimeline = [...timeline].sort((a, b) => {
-    const at = a.at ?? "";
-    const bt = b.at ?? "";
-    return at < bt ? -1 : at > bt ? 1 : 0;
-  });
+  const { profile, open_task, customer_replied } = detail;
 
   // Most recent of THIS lead's calls that has AI-extracted details, for the quick-summary card.
   const profileCalls = calls
@@ -146,20 +148,34 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     .filter((a) => !business || a.business_id === business.id)
     .map((a) => ({ start: a.scheduled_start_at, end: a.scheduled_end_at }));
 
-  // The voicemail itself is the centerpiece — surface the latest one up top, and
-  // keep the rest of the thread (older calls + texts) as "earlier activity" below.
+  // Latest voicemail with a transcript — feeds the AI composer + booking notes.
   const heroCall =
     profileCalls.find((c) => c.transcript) ??
     profileCalls.find((c) => c.call_type === "voicemail" || c.recording_url) ??
     null;
-  const restTimeline = orderedTimeline.filter(
-    (item) => !(item.kind === "call" && heroCall !== null && item.call.id === heroCall.id)
-  );
+
+  // One unified conversation: every voicemail + every text for this lead, oldest → newest.
+  type ConvoItem =
+    | { kind: "call"; at: string; call: (typeof calls)[number] }
+    | { kind: "msg"; at: string; msg: (typeof messages)[number] };
+  const convo: ConvoItem[] = [
+    ...profileCalls.map((c) => ({ kind: "call" as const, at: c.started_at ?? c.created_at ?? "", call: c })),
+    ...messages
+      .filter((m) => (!business || m.business_id === business.id) && m.customer_profile_id === profile.id)
+      .map((m) => ({ kind: "msg" as const, at: m.created_at ?? "", msg: m }))
+  ].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 
   // Context the reply composer uses to pre-pick services + detect a price question.
   const contextText = [aiX.service_requested, aiSummaryText, aiTranscript].filter(Boolean).join(" ");
   const pricingInquiry = /\b(price|pricing|cost|how much|quote|charge|rate|rates)\b/i.test(contextText);
-  const aiEnabled = hasConfiguredExtractionProvider(getAppConfig());
+  const cfg = getAppConfig();
+  const aiEnabled = hasConfiguredExtractionProvider(cfg);
+  const textingLive = cfg.smsSendingEnabled && cfg.realMessageSendingEnabled && cfg.twilioConfigured;
+  const textingMissing = [
+    cfg.twilioConfigured ? null : "Twilio keys",
+    cfg.realMessageSendingEnabled ? null : "REAL_MESSAGE_SENDING_ENABLED",
+    cfg.smsSendingEnabled ? null : "SMS_SENDING_ENABLED"
+  ].filter((x): x is string => Boolean(x));
   // Pre-fill booking notes from the voicemail (condition / vehicle / details) plus a
   // "Quote:" header from the saved price ranges, so the appointment carries the price
   // and context onto the calendar instead of starting blank.
@@ -185,33 +201,11 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </div>
       </header>
 
-      {heroCall && (
-        <section style={S.hero}>
-          <div style={S.heroHead}>
-            <span>🎙️ Voicemail</span>
-            <span style={S.heroMeta}>
-              {fmtTime(heroCall.started_at, tz)}{heroCall.duration_seconds ? ` · ${heroCall.duration_seconds}s` : ""}
-            </span>
-          </div>
-          {heroCall.transcript ? (
-            <>
-              <div style={S.heroQuote}>“{heroCall.transcript}”</div>
-              <div style={S.heroFoot}>
-                {heroCall.needs_review && <span style={S.heroNote}>auto-transcribed · double-check the details</span>}
-                {aiX.requested_datetime && <span style={S.heroWhen}>📅 asked for {aiX.requested_datetime}</span>}
-              </div>
-            </>
-          ) : (
-            <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
-          )}
-        </section>
-      )}
-
       {profile.phone_e164 && (
         <ReplyComposer
           customerName={profile.display_name || ""}
           businessName={business?.name || "us"}
-          phone={profile.phone_e164}
+          profileId={profile.id}
           quoteRanges={settings.quote_ranges}
           businessHours={settings.business_hours}
           busy={busy}
@@ -269,51 +263,61 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         <button type="submit" style={S.btnGhost}>Add</button>
       </form>
 
-      {restTimeline.length > 0 && (
-        <>
-          <div style={S.paneTitle}>EARLIER ACTIVITY</div>
-          {restTimeline.map((item) =>
+      <div style={S.paneTitle}>CONVERSATION</div>
+      {convo.length === 0 ? (
+        <div style={S.empty}>No messages yet.</div>
+      ) : (
+        <div style={{ marginTop: 2 }}>
+          {convo.map((item) =>
             item.kind === "call" ? (
-              <div key={item.call.id} style={S.callItem}>
-                <div style={S.callHead}>
-                  📞 {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} · {fmtTime(item.at, tz)}
-                  {item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
-                </div>
-                {item.call.transcript ? (
-                  <div style={S.transcript}>
-                    “{item.call.transcript}”
-                    {item.call.needs_review && <span style={S.review}> · auto-transcribed, may contain errors</span>}
+              <div key={item.call.id} style={bubbleWrap(false)}>
+                <div style={S.vmBubble}>
+                  <div style={S.vmHead}>
+                    🎙️ {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} ·{" "}
+                    {fmtTime(item.at, tz)}{item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
                   </div>
-                ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
-                  <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
-                ) : null}
+                  {item.call.transcript ? (
+                    <div style={S.vmBody}>
+                      “{item.call.transcript}”
+                      {item.call.needs_review && <span style={S.review}> · auto-transcribed</span>}
+                    </div>
+                  ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
+                    <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
+                  ) : null}
+                </div>
               </div>
             ) : (
-              <div key={item.message.id} style={bubbleWrap(item.message.direction === "outbound")}>
-                <div style={bubble(item.message.direction === "outbound")}>
-                  <div>{item.message.body}</div>
-                  <div style={S.bubbleMeta}>
-                    {item.message.direction === "outbound"
-                      ? `Auto-reply · ${autoReplyText(item.message.status)}`
-                      : "Customer"}{" "}
-                    · {fmtTime(item.at, tz)}
-                  </div>
+              <div key={item.msg.id} style={bubbleWrap(item.msg.direction === "outbound")}>
+                <div style={bubble(item.msg.direction === "outbound")}>
+                  <div>{item.msg.body}</div>
+                  <div style={S.bubbleMeta}>{messageLabel(item.msg)} · {fmtTime(item.at, tz)}</div>
                 </div>
               </div>
             )
           )}
-        </>
+        </div>
       )}
+
+      <div style={textingLive ? S.textOk : S.textWarn}>
+        {textingLive
+          ? "✓ Texting is live — replies send from your business number."
+          : `⚠ Texting is off — replies are saved here but not sent yet. Still needed: ${textingMissing.join(", ")} (set in Vercel), plus Twilio number verification.`}
+      </div>
 
       <form action={sendOwnerText} style={S.compose}>
         <input type="hidden" name="profileId" value={profile.id} />
-        <input name="body" placeholder="Log a reply…" style={S.textInput} autoComplete="off" />
+        <input
+          name="body"
+          placeholder={`Reply to ${profile.display_name || "this lead"}…`}
+          style={S.textInput}
+          autoComplete="off"
+        />
         <button type="submit" style={S.btnPrimary}>Send</button>
       </form>
 
       <footer style={S.footer}>
-        Replies sent here go out from your business number once texting is switched on. To reply right
-        now, tap <strong>Call back</strong> or <strong>Text</strong> above (from your phone).
+        Messages here send from your business number once texting is on. Right now you can also tap{" "}
+        <strong>Call back</strong> or <strong>Text</strong> above to use your phone directly.
       </footer>
     </main>
   );
@@ -343,6 +347,11 @@ const S: Record<string, CSSProperties> = {
   transcript: { marginTop: 4, fontSize: 13, color: "#3c414b" },
   transcribing: { marginTop: 4, fontSize: 13, color: "#8a909c", fontStyle: "italic" },
   review: { color: "#9a6210", fontSize: 11 },
+  vmBubble: { maxWidth: "88%", padding: "9px 12px", borderRadius: 12, background: "#f4f5f8", borderLeft: "3px solid var(--brand)", fontSize: 13, boxSizing: "border-box" },
+  vmHead: { fontSize: 12, fontWeight: 700, color: "#3c414b", marginBottom: 3 },
+  vmBody: { color: "#1e2026", lineHeight: 1.4 },
+  textOk: { marginTop: 14, padding: "8px 12px", borderRadius: 10, background: "rgba(var(--positive-rgb),0.12)", color: "#1d6b4f", fontSize: 12, fontWeight: 600 },
+  textWarn: { marginTop: 14, padding: "9px 12px", borderRadius: 10, background: "rgba(199,125,20,0.12)", color: "#8a5a0c", fontSize: 12, fontWeight: 600, lineHeight: 1.5 },
   bubbleMeta: { marginTop: 3, fontSize: 11, color: "#8a909c" },
   footer: { marginTop: 18, color: "#8a909c", fontSize: 12, lineHeight: 1.5 },
   actionsRow: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "8px 0 4px" },

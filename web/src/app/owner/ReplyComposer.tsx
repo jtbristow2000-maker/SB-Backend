@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
 
-import { suggestServicesWithAI } from "@/app/owner/actions";
+import { sendOwnerText, suggestServicesWithAI } from "@/app/owner/actions";
 import type { BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
 
 // Interactive reply builder for a missed-call lead. Shows the whole flow in one place:
@@ -238,7 +238,7 @@ function buildDraft(args: {
 export function ReplyComposer({
   customerName,
   businessName,
-  phone,
+  profileId,
   quoteRanges,
   businessHours,
   busy,
@@ -250,7 +250,7 @@ export function ReplyComposer({
 }: {
   customerName: string;
   businessName: string;
-  phone: string | null;
+  profileId: string;
   quoteRanges: QuoteRangeSettings[];
   businessHours: BusinessHoursSettings;
   busy: Busy[];
@@ -322,7 +322,19 @@ export function ReplyComposer({
   );
 
   const text = edited ?? draft;
-  const smsHref = phone ? `sms:${phone}?&body=${encodeURIComponent(text)}` : undefined;
+  const [sendState, setSendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [, startSendTransition] = useTransition();
+  const send = () => {
+    const fd = new FormData();
+    fd.set("profileId", profileId);
+    fd.set("body", text);
+    setSendState("sending");
+    startSendTransition(async () => {
+      await sendOwnerText(fd);
+      setSendState("sent");
+      setTimeout(() => setSendState("idle"), 2500);
+    });
+  };
 
   const toggleService = (i: number) => {
     setSelectedIdxs((prev) => {
@@ -420,7 +432,9 @@ export function ReplyComposer({
       <div style={S.sectionLabel}>Message</div>
       <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={5} style={S.textarea} />
       <div style={S.actions}>
-        {smsHref && <a href={smsHref} style={S.sendBtn}>💬 Send as text</a>}
+        <button type="button" onClick={send} disabled={sendState === "sending"} style={S.sendBtn}>
+          {sendState === "sending" ? "Sending…" : sendState === "sent" ? "✓ Sent" : "💬 Send text"}
+        </button>
         <button type="button" onClick={copy} style={S.copyBtn}>{copied ? "✓ Copied" : "📋 Copy"}</button>
       </div>
     </div>
@@ -466,6 +480,6 @@ const S: Record<string, CSSProperties> = {
   noRanges: { fontSize: 13, color: "#8a909c", padding: "6px 0" },
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
   actions: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" },
-  sendBtn: { padding: "10px 14px", borderRadius: 10, background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" },
+  sendBtn: { padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
   copyBtn: { padding: "10px 14px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 14, cursor: "pointer" }
 };

@@ -1,5 +1,24 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Unified conversation thread + in-app sending + texting status
+
+### Changed
+- The lead page is now **one conversation thread**: every voicemail (with transcript) and every text
+  interleaved oldest→newest, messaging-style. Dropped the separate hero + "Earlier activity" split.
+- **Sending now goes through the app/server**, not the phone's SMS app. The composer's button is now
+  **"Send text"** (calls `sendOwnerText` → records + delivers via Twilio when enabled) instead of an
+  `sms:` link that did nothing on desktop. The bottom reply box already sent server-side.
+- Outbound messages are now labeled **"You"** vs **"Auto-reply"** (by provider id) with delivery
+  status (sent / not sent yet / failed).
+
+### Added
+- A **texting-status banner** on each lead derived from live config: shows "Texting is live" or
+  lists exactly what's missing (`Twilio keys` / `REAL_MESSAGE_SENDING_ENABLED` / `SMS_SENDING_ENABLED`)
+  so the env config is visible in-app.
+
+### Verified
+- `npm run verify` (24 files, 87 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Snappy delete + Quote header in calendar notes
 
 ### Fixed
