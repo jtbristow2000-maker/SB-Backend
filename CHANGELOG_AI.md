@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner GUI: Today metric cards are now clickable
+
+### Changed
+- `web/src/app/owner/today/page.tsx`: the four Today metric cards are now links —
+  Callbacks waiting + Replied → `/owner` (Callbacks list), Voicemails + Calls today →
+  `/owner/leads` (Leads directory). Card styled as a link (no underline) so it reads the same.
+
+### Notes
+- Frontend only. Routes to the two existing list screens; dedicated voicemails-only / calls-today
+  filtered views can come as a follow-up.
+
 ## [2026-06-01] - Owner GUI: one-tap Call/Text + copy cleanup
 
 ### Added

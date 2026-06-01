@@ -51,10 +51,10 @@ export default async function Today() {
   const callsToday = calls.filter((c) => c.started_at && dayKey(new Date(c.started_at)) === todayKey).length;
 
   const metrics = [
-    { label: "Callbacks waiting", value: callbacks.length, accent: "#5b5bd6", icon: "📞" },
-    { label: "Replied — waiting on you", value: replied, accent: "#1f9d6b", icon: "💬" },
-    { label: "Voicemails", value: voicemails, accent: "#c77d14", icon: "🎙️" },
-    { label: "Calls today", value: callsToday, accent: "#3a7bd0", icon: "📆" }
+    { label: "Callbacks waiting", value: callbacks.length, accent: "#5b5bd6", icon: "📞", href: "/owner" },
+    { label: "Replied — waiting on you", value: replied, accent: "#1f9d6b", icon: "💬", href: "/owner" },
+    { label: "Voicemails", value: voicemails, accent: "#c77d14", icon: "🎙️", href: "/owner/leads" },
+    { label: "Calls today", value: callsToday, accent: "#3a7bd0", icon: "📆", href: "/owner/leads" }
   ];
 
   return (
@@ -66,11 +66,11 @@ export default async function Today() {
 
       <div style={S.metricRow}>
         {metrics.map((m) => (
-          <div key={m.label} style={S.metricCard}>
+          <Link key={m.label} href={m.href} style={S.metricCard}>
             <div style={metricChip(m.accent)}>{m.icon}</div>
             <div style={S.metricValue}>{m.value}</div>
             <div style={S.metricLabel}>{m.label}</div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -112,7 +112,7 @@ const S = {
   greeting: { fontSize: 26, fontWeight: 700, color: "#15171b" } as CSSProperties,
   date: { color: "#8a909c", fontSize: 13, marginTop: 2 } as CSSProperties,
   metricRow: { display: "flex", gap: 14, flexWrap: "wrap", marginTop: 20 } as CSSProperties,
-  metricCard: { flex: "1 1 170px", minWidth: 160, background: "#fff", border: "1px solid #eceef2", borderRadius: 14, padding: "16px 16px 14px", boxShadow: "0 1px 3px rgba(17,21,28,0.05)", position: "relative" } as CSSProperties,
+  metricCard: { flex: "1 1 170px", minWidth: 160, background: "#fff", border: "1px solid #eceef2", borderRadius: 14, padding: "16px 16px 14px", boxShadow: "0 1px 3px rgba(17,21,28,0.05)", position: "relative", textDecoration: "none", color: "inherit" } as CSSProperties,
   metricValue: { fontSize: 30, fontWeight: 700, color: "#15171b", lineHeight: 1.1 } as CSSProperties,
   metricLabel: { fontSize: 12, color: "#8a909c", marginTop: 4 } as CSSProperties,
   sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "26px 0 10px" } as CSSProperties,
