@@ -404,7 +404,20 @@ export class SupabaseAuditEventRepository implements AuditEventRepository {
   }
 }
 
-export function createSupabaseRepositories(client: SupabaseClient<Database>) {
+export type IntakeRepositories = {
+  businessRepository: BusinessRepository;
+  customerProfileRepository: CustomerProfileRepository;
+  callRecordRepository: CallRecordRepository;
+  messageRepository: MessageRepository;
+  taskRepository: TaskRepository;
+  auditEventRepository: AuditEventRepository;
+};
+
+// Return the repositories typed as their interfaces (not the concrete classes) so
+// callers — and tests — see the full interface surface, e.g. the 2-arg
+// findByProviderCallId/findByProviderMessageId overloads that the concrete classes
+// only expose via their implementation signature.
+export function createSupabaseRepositories(client: SupabaseClient<Database>): IntakeRepositories {
   return {
     businessRepository: new SupabaseBusinessRepository(client),
     customerProfileRepository: new SupabaseCustomerProfileRepository(client),

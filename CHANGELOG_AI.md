@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Fix: type Supabase repo factory by interface (strict typecheck)
+
+### Fixed
+- `web/src/server/db/supabaseRepositories.ts`: `createSupabaseRepositories()` returned the concrete
+  Supabase classes, which only expose the 1-arg `findByProviderCallId` / `findByProviderMessageId`
+  overloads publicly. The new contract test calls the 2-arg form (valid on the repository
+  *interface*), so `tsc --noEmit` failed with TS2554. Annotated the factory's return as the
+  repository interfaces (`IntakeRepositories`) so callers see the full overload surface.
+
+### Notes
+- `vitest` and `next build` both passed already because esbuild/SWC strip types and `next build`
+  doesn't type-check `*.test.ts`. Only the strict `tsc --noEmit` caught it — same gap as the earlier
+  `bootstrap.test.ts` fix. `tsc --noEmit` now clean; 64 tests pass, 1 Supabase contract test skipped
+  without DB env.
+
 ## [2026-05-31] - BACKEND-19 Supabase persistence mode
 
 ### Added
