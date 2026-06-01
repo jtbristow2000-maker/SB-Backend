@@ -61,6 +61,19 @@ npm install
 npm run dev
 ```
 
+> **Demo config:** create a `web/.env.local` (git-ignored) with at least a valid business phone so
+> the webhook routes can resolve the business from startup (the dev console's runtime is not shared
+> across route handlers in dev, so configure it via env, not at request time):
+>
+> ```text
+> SANDBOX_MODE=true
+> API_KEY=devkey
+> BUSINESS_PHONE=+14157654321
+> OWNER_PHONE=+13104567890
+> ```
+>
+> Use valid (non-555) numbers — phone normalization rejects 555. Restart `npm run dev` after editing.
+
 Then open:
 
 ```text

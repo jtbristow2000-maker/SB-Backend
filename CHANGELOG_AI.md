@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Fix: configure business phone via env (webhook "not configured" 404)
+
+### Fixed
+- The voice webhook returned 404 "This business number is not configured" because the business
+  phone was only set at request time by the dev console's data loader — and Next.js dev does not
+  reliably share that in-memory runtime singleton across separate route handlers, so the webhook
+  routes booted with no business phone.
+- Documented the fix in `web/BACKEND_README.md`: create a git-ignored `web/.env.local` with a valid
+  `BUSINESS_PHONE` (and `OWNER_PHONE`) so `bootstrapSingleTenantBusiness` configures the business
+  consistently in every route's runtime from startup. (A matching local `.env.local` was created on
+  the dev machine.)
+
+### Notes
+- Sandbox-only/config; no application code or `dashboard/` changes. `.env.local` is git-ignored.
+
 ## [2026-05-31] - Sandbox Console: validate caller number before simulating
 
 ### Changed
