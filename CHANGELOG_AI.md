@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-16 owner profile edits
+
+### Added
+- `PATCH /api/profiles/[id]`: API-key guarded owner edit endpoint for `display_name`, `status`, `notes`, `email`, and address fields.
+- `web/src/server/profiles/update.ts`: validation/update helper that rejects unknown fields, scopes edits to the seeded business, and writes owner audit events with before/after diffs.
+- Tests covering auth rejection, unknown profile 404, unknown field rejection, persisted edits, and `profile.update` audit logging.
+
+### Notes
+- Edits are sandbox/in-memory for now; Supabase persistence is still a later task.
+- No task API work, real SMS/calls, Twilio REST calls, AI, payments, dashboard changes, or production secrets were implemented.
+
 ## [2026-05-31] - Fix: configure business phone via env (webhook "not configured" 404)
 
 ### Fixed

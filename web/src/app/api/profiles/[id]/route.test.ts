@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { getIntakeRuntime, resetIntakeRuntimeForTests } from "@/server/intake/runtime";
 import type { ProfileDetailResponse } from "@/server/profiles/detail";
 
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
 const originalEnv = {
   API_KEY: process.env.API_KEY,
@@ -27,6 +27,21 @@ function configureEnv(): void {
 function detailRequest(profileId: string, apiKey?: string): NextRequest {
   return new NextRequest(`http://localhost:3000/api/profiles/${profileId}`, {
     headers: apiKey ? { "x-api-key": apiKey } : undefined
+  });
+}
+
+function patchRequest(
+  profileId: string,
+  body: Record<string, unknown>,
+  apiKey?: string
+): NextRequest {
+  return new NextRequest(`http://localhost:3000/api/profiles/${profileId}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      ...(apiKey ? { "x-api-key": apiKey } : {})
+    },
+    body: JSON.stringify(body)
   });
 }
 
@@ -212,5 +227,131 @@ describe("BACKEND-15 GET /api/profiles/[id]", () => {
         }
       }
     ]);
+  });
+});
+
+describe("BACKEND-16 PATCH /api/profiles/[id]", () => {
+  it("requires the configured API key", async () => {
+    configureEnv();
+    resetIntakeRuntimeForTests();
+
+    const response = await PATCH(
+      patchRequest("profile-1", { status: "contacted" }),
+      routeContext("profile-1")
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 404 for an unknown profile id", async () => {
+    configureEnv();
+    resetIntakeRuntimeForTests();
+
+    const response = await PATCH(
+      patchRequest("missing-profile", { status: "contacted" }, "profile-detail-test-key"),
+      routeContext("missing-profile")
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("rejects unknown profile fields", async () => {
+    configureEnv();
+    resetIntakeRuntimeForTests();
+    const runtime = await getIntakeRuntime();
+    const business = (await runtime.businessRepository.list())[0];
+    const profile = (
+      await runtime.customerProfileService.upsertByBusinessAndPhone({
+        businessId: business.id,
+        phone: "+19495550100",
+        source: "incoming_call"
+      })
+    ).profile;
+
+    const response = await PATCH(
+      patchRequest(
+        profile.id,
+        { status: "contacted", provider_call_id: "nope" },
+        "profile-detail-test-key"
+      ),
+      routeContext(profile.id)
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toMatchObject({
+      error: "unknown_profile_update_fields",
+      fields: ["provider_call_id"]
+    });
+    expect(await runtime.auditEventRepository.list()).toHaveLength(0);
+  });
+
+  it("persists owner edits and writes a profile.update audit event", async () => {
+    configureEnv();
+    resetIntakeRuntimeForTests();
+    const runtime = await getIntakeRuntime();
+    const business = (await runtime.businessRepository.list())[0];
+    const profile = (
+      await runtime.customerProfileService.upsertByBusinessAndPhone({
+        businessId: business.id,
+        phone: "+19495550100",
+        displayName: "Original Name",
+        source: "incoming_call",
+        status: "new",
+        notes: "Initial note"
+      })
+    ).profile;
+
+    const response = await PATCH(
+      patchRequest(
+        profile.id,
+        {
+          display_name: "Sarah Detail",
+          status: "contacted",
+          notes: "Owner called back.",
+          email: "sarah@example.test",
+          address_line1: "123 Main St",
+          city: "Los Angeles",
+          state: "CA",
+          postal_code: "90001"
+        },
+        "profile-detail-test-key"
+      ),
+      routeContext(profile.id)
+    );
+    const body = await response.json();
+    const profiles = await runtime.customerProfileRepository.list();
+    const auditEvents = await runtime.auditEventRepository.list();
+
+    expect(response.status).toBe(200);
+    expect(body.profile).toMatchObject({
+      id: profile.id,
+      display_name: "Sarah Detail",
+      status: "contacted",
+      notes: "Owner called back.",
+      email: "sarah@example.test",
+      address_line1: "123 Main St",
+      city: "Los Angeles",
+      state: "CA",
+      postal_code: "90001"
+    });
+    expect(profiles[0]).toMatchObject(body.profile);
+    expect(auditEvents).toHaveLength(1);
+    expect(auditEvents[0]).toMatchObject({
+      actor: "owner",
+      event_type: "profile.update",
+      business_id: business.id,
+      customer_profile_id: profile.id
+    });
+    expect(auditEvents[0].event_json).toMatchObject({
+      profileId: profile.id,
+      changes: {
+        display_name: { from: "Original Name", to: "Sarah Detail" },
+        status: { from: "new", to: "contacted" },
+        notes: { from: "Initial note", to: "Owner called back." },
+        email: { from: null, to: "sarah@example.test" },
+        address_line1: { from: null, to: "123 Main St" }
+      }
+    });
   });
 });
