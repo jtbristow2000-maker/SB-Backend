@@ -4,7 +4,7 @@ import { getAppConfig } from "@/server/config";
 import { withRequestLogging } from "@/server/observability/requestLogging";
 import { readVerifiedTwilioPayload } from "@/server/webhooks/twilioForm";
 
-export type TwilioWebhookKind = "incoming_call" | "incoming_sms" | "recording_callback";
+export type TwilioWebhookKind = "incoming_call" | "incoming_sms";
 
 function placeholderResponse(kind: TwilioWebhookKind, payload: Record<string, string>) {
   const config = getAppConfig();
@@ -51,21 +51,5 @@ export async function handleIncomingSmsWebhook(request: NextRequest) {
       outcome: "placeholder_only"
     });
     return placeholderResponse("incoming_sms", verified.payload);
-  });
-}
-
-export async function handleRecordingCallbackWebhook(request: NextRequest) {
-  return withRequestLogging(request, "/api/webhooks/twilio/recording-callback", async (logger) => {
-    const verified = await readVerifiedTwilioPayload(request);
-    if (!verified.ok) {
-      logger.setContext({ outcome: "twilio_signature_failed" });
-      return verified.response;
-    }
-
-    logger.setContext({
-      providerCallId: verified.payload.CallSid ?? null,
-      outcome: "placeholder_only"
-    });
-    return placeholderResponse("recording_callback", verified.payload);
   });
 }

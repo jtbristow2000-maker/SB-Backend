@@ -130,6 +130,8 @@ describe("BACKEND-07 voice intake service", () => {
     expect(result.status).toBe("voicemail");
     expect(result.twiml).toContain("<Record");
     expect(result.twiml).toContain('transcribe="true"');
+    expect(result.twiml).toContain('recordingStatusCallback="/api/webhooks/twilio/recording"');
+    expect(result.twiml).toContain('recordingStatusCallbackEvent="completed"');
     expect(result.twiml).toContain('transcribeCallback="/api/webhooks/twilio/recording"');
     expect(calls[0].call_type).toBe("missed");
     expect(calls[0].needs_review).toBe(true);
@@ -205,7 +207,7 @@ describe("BACKEND-07 voice intake service", () => {
     expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.failed");
   });
 
-  it("attaches recording and transcript idempotently to the existing call", async () => {
+  it("attaches recording first and transcript later to the existing call", async () => {
     const { callRecordRepository, service } = await setupService();
     await service.handleIncomingVoice({
       from: "(949) 555-0100",
@@ -215,17 +217,24 @@ describe("BACKEND-07 voice intake service", () => {
 
     const first = await service.handleRecording({
       callSid: "CA_RECORDING",
-      recordingUrl: "https://api.twilio.test/recording.wav",
-      transcript: "Hi, I need a detail this week."
+      recordingUrl: "https://api.twilio.test/recording.wav"
     });
+    const callsAfterRecording = await callRecordRepository.list();
+    expect(first.status).toBe("updated");
+    expect(callsAfterRecording).toHaveLength(1);
+    expect(callsAfterRecording[0]).toMatchObject({
+      call_type: "voicemail",
+      recording_url: "https://api.twilio.test/recording.wav",
+      transcript: null,
+      needs_review: true
+    });
+
     const second = await service.handleRecording({
       callSid: "CA_RECORDING",
-      recordingUrl: "https://api.twilio.test/recording.wav",
       transcript: "Hi, I need a detail this week. Updated transcript."
     });
 
     const calls = await callRecordRepository.list();
-    expect(first.status).toBe("updated");
     expect(second.status).toBe("updated");
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({

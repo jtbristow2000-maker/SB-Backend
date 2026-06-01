@@ -60,6 +60,7 @@ export type DialTwimlInput = {
 
 export type RecordVoicemailTwimlInput = {
   greeting: string;
+  recordingStatusCallbackUrl: string;
   transcribeCallbackUrl: string;
   maxLengthSeconds: number;
 };

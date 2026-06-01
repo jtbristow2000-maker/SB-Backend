@@ -69,12 +69,15 @@ describe("BACKEND-04 sandbox providers", () => {
 
     const twiml = providers.calls.buildRecordVoicemailTwiml({
       greeting: "Please leave a message.",
+      recordingStatusCallbackUrl: "/api/webhooks/twilio/recording",
       transcribeCallbackUrl: "/api/webhooks/twilio/recording",
       maxLengthSeconds: 120
     });
 
     expect(twiml).toContain("<Say>Please leave a message.</Say>");
     expect(twiml).toContain('transcribe="true"');
+    expect(twiml).toContain('recordingStatusCallback="/api/webhooks/twilio/recording"');
+    expect(twiml).toContain('recordingStatusCallbackEvent="completed"');
     expect(twiml).toContain('transcribeCallback="/api/webhooks/twilio/recording"');
     expect(twiml).toContain('maxLength="120"');
   });

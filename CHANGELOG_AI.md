@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Backend: show voicemail recording before transcript callback
+
+### Changed
+- `web/src/server/providers/sandbox.ts`: voicemail `<Record>` TwiML now includes a `recordingStatusCallback` for the `completed` event in addition to the transcription callback.
+- `web/src/app/api/webhooks/twilio/recording`: now handles both callback phases idempotently: recording-ready updates `call_type=voicemail`, `recording_url`, and review state; transcription-ready fills `transcript` later while preserving the recording.
+- `web/src/app/api/webhooks/twilio/recording-callback`: converted the older route into a legacy alias for the real recording handler so old Twilio/tunnel configs still work without keeping a placeholder endpoint.
+
+### Verified
+- Added tests for recording-ready then transcription-ready callback ordering, signed recording callbacks, unsigned callback rejection, and TwiML callback attributes.
+
 ## [2026-06-01] - Owner GUI: timezone (ET) + timeline order (newest at bottom)
 
 ### Changed

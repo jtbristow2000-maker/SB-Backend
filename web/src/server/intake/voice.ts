@@ -10,7 +10,8 @@ import type { MessageRepository } from "./messages";
 import type { TaskRepository } from "./tasks";
 
 export const VOICE_STATUS_ACTION_URL = "/api/webhooks/twilio/voice/status";
-export const RECORDING_CALLBACK_URL = "/api/webhooks/twilio/recording";
+export const RECORDING_WEBHOOK_URL = "/api/webhooks/twilio/recording";
+export const TRANSCRIPTION_CALLBACK_URL = RECORDING_WEBHOOK_URL;
 export const OWNER_DIAL_TIMEOUT_SECONDS = 18;
 export const VOICEMAIL_MAX_LENGTH_SECONDS = 120;
 const MISSED_CALL_AUTO_TEXT_MESSAGE_PREFIX = "missed-call-auto-text";
@@ -290,7 +291,8 @@ export class VoiceIntakeService {
       auditEvent,
       twiml: this.dependencies.callProvider.buildRecordVoicemailTwiml({
         greeting: "Sorry we missed your call. Please leave a message after the beep.",
-        transcribeCallbackUrl: RECORDING_CALLBACK_URL,
+        recordingStatusCallbackUrl: RECORDING_WEBHOOK_URL,
+        transcribeCallbackUrl: TRANSCRIPTION_CALLBACK_URL,
         maxLengthSeconds: VOICEMAIL_MAX_LENGTH_SECONDS
       })
     };
