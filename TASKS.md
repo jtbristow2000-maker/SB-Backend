@@ -510,7 +510,7 @@ produces a lead + voicemail transcript + auto-text, and the owner is notified an
 **Stack:** Next.js App Router API routes · Supabase Postgres · Vitest · Twilio for comms.
 **Conventions (established in `web/`):** server logic in `web/src/server/<domain>/`; routes in `web/src/app/api/.../route.ts`; SQL in `web/supabase/migrations/NNNN_*.sql`; tests colocated `*.test.ts`.
 **Guardrails:** sandbox-first; real SMS/calls behind `SMS_SENDING_ENABLED` / `CALL_FORWARDING_ENABLED` (default false); no hardcoded secrets; update `CHANGELOG_AI.md`; do not touch `dashboard/`.
-**Status:** BACKEND-00→05 are **DONE in `web/`** (track consolidation, foundation, schema, appointments, sandbox providers, phone-normalize + profile upsert). **Start at BACKEND-06.**
+**Status:** BACKEND-00→18 are **DONE in `web/`** (track consolidation, capture pipeline, read APIs, owner profile/task edits, and owner-approved outbound SMS). **Start at BACKEND-19.**
 
 Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
@@ -713,48 +713,58 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ---
 
-### BACKEND-19 — Appointments API (list / create / update)   (M)
+### BACKEND-19 — Supabase persistence for web runtime   (L)
+
+**Goal:** Make missed-call and owner-action data survive server restarts while keeping the in-memory sandbox as the default.
+**Files:** `web/src/server/db/*`, `web/src/server/intake/runtime.ts`, `web/supabase/migrations/*.sql`, `web/PERSISTENCE.md`, `web/.env.example`, tests.
+**Requirements:**
+- Add a `PERSISTENCE=memory|supabase` switch inside `getIntakeRuntime()`; default remains `memory`.
+- Add a server-only Supabase client using `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` only.
+- Add Supabase-backed repositories behind the same business/profile/call/message/task/audit interfaces used by the current services.
+- Add an idempotent Supabase schema for businesses, customer profiles, call records, messages, tasks, appointments, quote drafts, and audit events.
+- Keep default tests and the click demo offline; Supabase contract tests skip unless Supabase env is configured.
+**Acceptance:** default app/tests need no DB; with `PERSISTENCE=supabase`, missed calls, voicemail transcript, tasks, messages, profile edits, task completion, and owner text records persist after restart.
+**Test:** default Vitest suite stays green; skipped Supabase contract test creates a profile + call + task through Supabase repos and reads them back when env is present.
+
+---
+
+### BACKEND-20 — Appointments API (list / create / update)   (M)
 
 **Goal:** Back the agenda/calendar in the owner UI.
-**Files:** `backend/app/api/appointments.py`, schemas, tests.
+**Files:** `web/src/app/api/appointments/...`, `web/src/server/appointments/...`, tests.
 **Requirements:**
-- `GET /api/appointments?from=&to=` (range, ordered by `scheduled_at`); `POST` (create, optionally from a profile); `PATCH /{id}` (reschedule/status/notes). Audit create/update.
-**Acceptance:** range query returns ordered items; create links to a profile; patch updates.
-**Test:** create two appointments in/out of range; assert filtering + ordering.
+- `GET /api/appointments?from=&to=` returns seeded-business appointments in range, ordered by `scheduled_start_at`.
+- `POST /api/appointments` creates an appointment, optionally linked to a customer profile.
+- `PATCH /api/appointments/{id}` reschedules or updates status/notes and audits owner changes.
+**Acceptance:** range query returns ordered items; create links to a profile; patch persists in the active repository mode.
+**Test:** create two appointments in/out of range; assert filtering, ordering, profile linking, and audit events.
 
 ---
 
-### BACKEND-20 — Follow-up sweep job   (M)
+### BACKEND-21 — Follow-up sweep job   (M)
 
 **Goal:** Surface stale leads so none are forgotten.
-**Files:** `backend/app/api/internal.py` (or `app/jobs/`), `backend/tests/test_followups.py`.
+**Files:** `web/src/app/api/internal/...` or `web/src/server/jobs/...`, tests.
 **Requirements:**
-- `POST /internal/jobs/sweep-followups` (protected by an internal token; meant to be hit by cron): find profiles in `new`/`contacted` with no owner action in N hours (config) → create one `Task(follow_up)` per stale profile (idempotent per day) and optionally a reminder SMS **to the owner** (never the customer).
-**Acceptance:** stale profile gets exactly one follow-up task; fresh profile gets none; running twice in a day doesn't duplicate.
-**Test:** seed a stale + a fresh profile; run sweep twice; assert one task on the stale one.
+- `POST /api/internal/jobs/sweep-followups` protected by an internal token for cron use.
+- Find profiles in stale owner-action states and create one `follow_up` task per stale profile, idempotent per day.
+- Optional owner reminder notification stays sandbox/flag-gated and never messages the customer automatically.
+**Acceptance:** stale profile gets exactly one follow-up task; fresh profile gets none; running twice in a day does not duplicate.
+**Test:** seed a stale + fresh profile; run sweep twice; assert one task on the stale one.
 
 ---
 
-### BACKEND-21 — Deploy + live Twilio wiring   (M)
+### BACKEND-22 — Observability + deployment readiness   (M)
 
-**Goal:** A public, always-on service the real Twilio number can call.
-**Files:** `backend/Dockerfile` or host config, `backend/README.md`, `.env.example`.
+**Goal:** Make the web backend deployable and observable before live Twilio wiring.
+**Files:** `web/src/server/...`, `web/src/app/api/health/...`, deploy docs/config.
 **Requirements:**
-- Deploy FastAPI to Render/Railway/Fly with a public HTTPS URL; connect to Supabase Postgres; run Alembic on deploy; document setting Twilio Voice + Messaging webhooks to the deployed URLs; document the local tunnel (cloudflared/ngrok) for dev.
-- No secrets committed; everything via env.
-**Acceptance:** `/health` reachable over HTTPS; a real call to the Twilio number hits the deployed voice webhook.
-**Test:** manual — place a call to the number; confirm logs show the webhook and a CallRecord is created.
-
----
-
-### BACKEND-22 — Observability: logging + error capture + deep health   (S)
-
-**Goal:** See what happened on every call/text; get alerted when something breaks.
-**Files:** `backend/app/core/logging.py`, `backend/app/api/health.py`, host env.
-**Requirements:**
-- Structured request + webhook logging (include provider ids, business id; never log full secrets). Wire Sentry (or equivalent) via `SENTRY_DSN` (optional/off if unset). Extend `/health` to a deep check (DB connectivity + which providers/flags are active).
-**Acceptance:** webhook handling emits a structured log line; deep `/health` reports DB + provider/flag state; errors surface in Sentry when DSN set.
-**Test:** hit a webhook, assert a structured log entry; hit deep `/health`, assert DB + flags reported.
+- Add structured webhook/request logging with provider ids and business id, never full secrets.
+- Add optional error capture (`SENTRY_DSN` or equivalent) disabled when unset.
+- Extend health/deep-health to report persistence mode, DB connectivity, provider mode, and safety flags.
+- Document Vercel/Supabase/Twilio webhook deployment steps and local tunnel flow.
+**Acceptance:** health confirms Supabase connectivity when enabled; webhook handling emits useful logs; deployment docs avoid secrets.
+**Test:** hit a webhook and health endpoint; assert structured log/deep health fields where practical.
 
 ---
 

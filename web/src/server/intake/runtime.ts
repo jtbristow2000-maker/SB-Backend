@@ -1,27 +1,33 @@
 import {
+  type BusinessRepository,
   bootstrapSingleTenantBusiness,
   InMemoryBusinessRepository
 } from "@/server/business/bootstrap";
-import { InMemoryCustomerProfileRepository } from "@/server/customerProfiles/repository";
+import {
+  type CustomerProfileRepository,
+  InMemoryCustomerProfileRepository
+} from "@/server/customerProfiles/repository";
 import { CustomerProfileService } from "@/server/customerProfiles/service";
+import { createSupabaseRepositories } from "@/server/db/supabaseRepositories";
+import { getSupabaseServerClient } from "@/server/db/supabaseClient";
 import { createSandboxProviders } from "@/server/providers";
 import { getAppConfig } from "@/server/config";
 
-import { InMemoryAuditEventRepository } from "./auditEvents";
-import { InMemoryCallRecordRepository } from "./callRecords";
-import { InMemoryMessageRepository } from "./messages";
+import { type AuditEventRepository, InMemoryAuditEventRepository } from "./auditEvents";
+import { type CallRecordRepository, InMemoryCallRecordRepository } from "./callRecords";
+import { type MessageRepository, InMemoryMessageRepository } from "./messages";
 import { SmsIntakeService } from "./sms";
-import { InMemoryTaskRepository } from "./tasks";
+import { type TaskRepository, InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
 
 type IntakeRuntime = {
-  businessRepository: InMemoryBusinessRepository;
-  customerProfileRepository: InMemoryCustomerProfileRepository;
+  businessRepository: BusinessRepository;
+  customerProfileRepository: CustomerProfileRepository;
   customerProfileService: CustomerProfileService;
-  callRecordRepository: InMemoryCallRecordRepository;
-  messageRepository: InMemoryMessageRepository;
-  taskRepository: InMemoryTaskRepository;
-  auditEventRepository: InMemoryAuditEventRepository;
+  callRecordRepository: CallRecordRepository;
+  messageRepository: MessageRepository;
+  taskRepository: TaskRepository;
+  auditEventRepository: AuditEventRepository;
   providers: ReturnType<typeof createSandboxProviders>;
   voiceIntakeService: VoiceIntakeService;
   smsIntakeService: SmsIntakeService;
@@ -41,14 +47,29 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     return globalForIntake.__intakeRuntime;
   }
 
-  const businessRepository = new InMemoryBusinessRepository();
+  const config = getAppConfig();
+  const repositories =
+    config.persistence === "supabase"
+      ? createSupabaseRepositories(getSupabaseServerClient())
+      : {
+          businessRepository: new InMemoryBusinessRepository(),
+          customerProfileRepository: new InMemoryCustomerProfileRepository(),
+          callRecordRepository: new InMemoryCallRecordRepository(),
+          messageRepository: new InMemoryMessageRepository(),
+          taskRepository: new InMemoryTaskRepository(),
+          auditEventRepository: new InMemoryAuditEventRepository()
+        };
+  const {
+    businessRepository,
+    customerProfileRepository,
+    callRecordRepository,
+    messageRepository,
+    taskRepository,
+    auditEventRepository
+  } = repositories;
+
   await bootstrapSingleTenantBusiness(businessRepository);
-  const customerProfileRepository = new InMemoryCustomerProfileRepository();
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
-  const callRecordRepository = new InMemoryCallRecordRepository();
-  const messageRepository = new InMemoryMessageRepository();
-  const taskRepository = new InMemoryTaskRepository();
-  const auditEventRepository = new InMemoryAuditEventRepository();
   const providers = createSandboxProviders();
   const voiceIntakeService = new VoiceIntakeService({
     businessRepository,

@@ -11,6 +11,7 @@ export type AppConfig = {
   appBaseUrl: string;
   apiKeyConfigured: boolean;
   environment: string;
+  persistence: "memory" | "supabase";
   sandboxMode: boolean;
   webhookSignatureRequired: boolean;
   smsSendingEnabled: boolean;
@@ -23,6 +24,8 @@ export type AppConfig = {
 };
 
 export function getAppConfig(): AppConfig {
+  const persistence = process.env.PERSISTENCE === "supabase" ? "supabase" : "memory";
+
   return {
     appBaseUrl:
       process.env.APP_BASE_URL ??
@@ -30,6 +33,7 @@ export function getAppConfig(): AppConfig {
       "http://localhost:3000",
     apiKeyConfigured: Boolean(process.env.API_KEY),
     environment: process.env.NODE_ENV ?? "development",
+    persistence,
     sandboxMode: readBoolean("SANDBOX_MODE", true),
     webhookSignatureRequired: readBoolean("WEBHOOK_SIGNATURE_REQUIRED", false),
     smsSendingEnabled: readBoolean("SMS_SENDING_ENABLED", false),

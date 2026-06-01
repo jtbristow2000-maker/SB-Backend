@@ -11,6 +11,7 @@ export type CallType = "missed" | "answered" | "voicemail" | "live" | "manual";
 export type MessageChannel = "sms" | "mms" | "email" | "web";
 export type TaskStatus = "open" | "done" | "completed" | "dismissed";
 export type AppointmentStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
+export type QuoteDraftStatus = "draft" | "reviewed" | "sent" | "accepted" | "declined";
 
 export const BACKEND_02_TABLES = [
   "businesses",
@@ -122,6 +123,20 @@ export type AppointmentRow = TimestampColumns & {
   notes: string | null;
 };
 
+export type QuoteDraftRow = TimestampColumns & {
+  id: string;
+  business_id: string;
+  customer_profile_id: string | null;
+  source_call_record_id: string | null;
+  service_requested: string | null;
+  job_address: string | null;
+  scope_notes: string | null;
+  timeline: string | null;
+  budget_hint: string | null;
+  estimated_amount: number | null;
+  status: QuoteDraftStatus;
+};
+
 export type AuditActor = "system" | "owner" | "provider";
 
 export type AuditEventRow = {
@@ -139,45 +154,56 @@ export type Database = {
     Tables: {
       businesses: {
         Row: BusinessRow;
-        Insert: Omit<Partial<BusinessRow>, "id" | "created_at" | "updated_at"> & Pick<BusinessRow, "name">;
-        Update: Partial<Omit<BusinessRow, "id" | "created_at">>;
+        Insert: Partial<BusinessRow> & Pick<BusinessRow, "name">;
+        Update: Partial<BusinessRow>;
+        Relationships: [];
       };
       customer_profiles: {
         Row: CustomerProfileRow;
-        Insert: Omit<Partial<CustomerProfileRow>, "id" | "created_at" | "updated_at"> &
-          Pick<CustomerProfileRow, "business_id">;
-        Update: Partial<Omit<CustomerProfileRow, "id" | "business_id" | "created_at">>;
+        Insert: Partial<CustomerProfileRow> & Pick<CustomerProfileRow, "business_id">;
+        Update: Partial<CustomerProfileRow>;
+        Relationships: [];
       };
       call_records: {
         Row: CallRecordRow;
-        Insert: Omit<Partial<CallRecordRow>, "id" | "created_at" | "updated_at"> &
-          Pick<CallRecordRow, "business_id" | "direction" | "call_type">;
-        Update: Partial<Omit<CallRecordRow, "id" | "business_id" | "created_at">>;
+        Insert: Partial<CallRecordRow> & Pick<CallRecordRow, "business_id" | "direction" | "call_type">;
+        Update: Partial<CallRecordRow>;
+        Relationships: [];
       };
       messages: {
         Row: MessageRow;
-        Insert: Omit<Partial<MessageRow>, "id" | "created_at"> &
-          Pick<MessageRow, "business_id" | "direction" | "channel">;
-        Update: Partial<Omit<MessageRow, "id" | "business_id" | "created_at">>;
+        Insert: Partial<MessageRow> & Pick<MessageRow, "business_id" | "direction" | "channel">;
+        Update: Partial<MessageRow>;
+        Relationships: [];
       };
       tasks: {
         Row: TaskRow;
-        Insert: Omit<Partial<TaskRow>, "id" | "created_at" | "updated_at"> &
-          Pick<TaskRow, "business_id" | "task_type" | "title">;
-        Update: Partial<Omit<TaskRow, "id" | "business_id" | "created_at">>;
+        Insert: Partial<TaskRow> & Pick<TaskRow, "business_id" | "task_type" | "title">;
+        Update: Partial<TaskRow>;
+        Relationships: [];
       };
       appointments: {
         Row: AppointmentRow;
-        Insert: Omit<Partial<AppointmentRow>, "id" | "created_at" | "updated_at"> &
-          Pick<AppointmentRow, "business_id" | "title" | "scheduled_start_at">;
-        Update: Partial<Omit<AppointmentRow, "id" | "business_id" | "created_at">>;
+        Insert: Partial<AppointmentRow> & Pick<AppointmentRow, "business_id" | "title" | "scheduled_start_at">;
+        Update: Partial<AppointmentRow>;
+        Relationships: [];
+      };
+      quote_drafts: {
+        Row: QuoteDraftRow;
+        Insert: Partial<QuoteDraftRow> & Pick<QuoteDraftRow, "business_id">;
+        Update: Partial<QuoteDraftRow>;
+        Relationships: [];
       };
       audit_events: {
         Row: AuditEventRow;
-        Insert: Omit<Partial<AuditEventRow>, "id" | "created_at"> &
-          Pick<AuditEventRow, "business_id" | "actor" | "event_type">;
+        Insert: Partial<AuditEventRow> & Pick<AuditEventRow, "business_id" | "actor" | "event_type">;
         Update: never;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };

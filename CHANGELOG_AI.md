@@ -1,5 +1,22 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-19 Supabase persistence mode
+
+### Added
+- `PERSISTENCE=memory|supabase` runtime switch inside `getIntakeRuntime()`, with `memory` still the default for local demo and offline tests.
+- Server-only Supabase client setup using `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, plus Supabase-backed business, customer profile, call record, message, task, and audit repositories behind the existing interfaces.
+- `web/supabase/migrations/0001_init.sql`: idempotent schema for businesses, customer profiles, call records, messages, tasks, appointments, quote drafts, and audit events.
+- `web/PERSISTENCE.md` and `web/.env.example` documentation for enabling Supabase persistence safely.
+- Supabase repository contract test that is skipped unless Supabase env vars are configured, plus an always-on test confirming the in-memory path remains DB-free and resettable.
+
+### Changed
+- `TASKS.md`: replaced stale Python-era BACKEND-19→22 entries with the current web-track persistence, appointments, follow-up, and observability roadmap.
+- `web/src/server/db/schema.ts`: extended typed Supabase table metadata and added `QuoteDraftRow`/`quote_drafts`.
+
+### Notes
+- Default behavior remains in-memory and sandbox-only. Supabase mode fails fast if service-role env is missing.
+- No real SMS/calls, Twilio REST calls, AI, payments, dashboard changes, legacy backend changes, or secrets were implemented.
+
 ## [2026-05-31] - Fix: share intake runtime via globalThis (cross-route mutations)
 
 ### Fixed
