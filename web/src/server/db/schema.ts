@@ -9,7 +9,7 @@ export type JsonValue =
 export type Direction = "inbound" | "outbound";
 export type CallType = "missed" | "answered" | "voicemail" | "live" | "manual";
 export type MessageChannel = "sms" | "mms" | "email" | "web";
-export type TaskStatus = "open" | "completed" | "dismissed";
+export type TaskStatus = "open" | "done" | "completed" | "dismissed";
 export type AppointmentStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
 
 export const BACKEND_02_TABLES = [

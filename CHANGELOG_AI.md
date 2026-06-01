@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - BACKEND-17 owner tasks API
+
+### Added
+- `GET /api/tasks`: API-key guarded task list endpoint for the seeded business, defaulting to open tasks and sorting by due date then creation date.
+- `PATCH /api/tasks/[id]`: API-key guarded owner update endpoint for marking tasks `done`/`dismissed` or rescheduling `due_at`.
+- `web/src/server/tasks/api.ts`: task read/update helper with payload validation, business scoping, and `task.update` owner audit events.
+- Tests covering auth rejection, open-list ordering, unknown task 404s, invalid fields/values, task completion leaving the open queue, and audit logging.
+
+### Notes
+- Existing `completed` task status remains typed for compatibility; BACKEND-17 owner completion stores the requested `done` status.
+- No real SMS/calls, Twilio REST calls, AI, payments, dashboard changes, legacy backend changes, or production secrets were implemented.
+
 ## [2026-05-31] - BACKEND-16 owner profile edits
 
 ### Added
