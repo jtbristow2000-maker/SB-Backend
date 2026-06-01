@@ -111,6 +111,18 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
   };
 
+  // Delete is owned here (not in the modal) so the modal can close instantly for a
+  // snappy paint while the server action + revalidation run in the background.
+  const [, startDeleteTransition] = useTransition();
+  const handleDelete = (ev: Ev) => {
+    setSelected(null);
+    const fd = new FormData();
+    fd.set("appointmentId", ev.id);
+    startDeleteTransition(async () => {
+      await deleteAppointment(fd);
+    });
+  };
+
   const evs: Ev[] = useMemo(
     () => events.map((e) => ({ ...e, startDate: new Date(e.start), endDate: e.end ? new Date(e.end) : null })),
     [events]
@@ -172,10 +184,12 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
 
       {selected && (
         <AppointmentModal
+          key={selected.ev.id}
           ev={selected.ev}
           mode={selected.mode}
           onClose={() => setSelected(null)}
           onEdit={() => setSelected((s) => (s ? { ...s, mode: "edit" } : s))}
+          onDelete={handleDelete}
         />
       )}
 
@@ -453,7 +467,7 @@ function HoverCard({
           {mapsHref && <> · <a href={mapsHref} target="_blank" rel="noreferrer" style={S.mapLink}>Maps ↗</a></>}
         </div>
       )}
-      {ev.notes && <div style={S.hoverRow}>📝 {ev.notes}</div>}
+      {ev.notes && <div style={{ ...S.hoverRow, whiteSpace: "pre-line" }}>📝 {ev.notes}</div>}
       {ev.who && <div style={S.hoverRow}>👤 {ev.who}</div>}
       <div style={S.hoverHint}>Click for full details · double-click to edit</div>
     </div>
@@ -467,14 +481,17 @@ function AppointmentModal({
   ev,
   mode,
   onClose,
-  onEdit
+  onEdit,
+  onDelete
 }: {
   ev: Ev;
   mode: "view" | "edit";
   onClose: () => void;
   onEdit: () => void;
+  onDelete: (ev: Ev) => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [confirmDel, setConfirmDel] = useState(false);
   const color = statusColor(ev.status);
   const dateLabel = ev.startDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
   const timeRange = `${timeLabel(ev.startDate)}${ev.endDate ? ` – ${timeLabel(ev.endDate)}` : ""}`;
@@ -485,16 +502,6 @@ function AppointmentModal({
   const save = (formData: FormData) => {
     startTransition(async () => {
       await updateAppointment(formData);
-      onClose();
-    });
-  };
-
-  const del = () => {
-    if (typeof window !== "undefined" && !window.confirm("Delete this appointment? This can't be undone.")) return;
-    const fd = new FormData();
-    fd.set("appointmentId", ev.id);
-    startTransition(async () => {
-      await deleteAppointment(fd);
       onClose();
     });
   };
@@ -533,7 +540,7 @@ function AppointmentModal({
             </div>
             <div style={S.detailRow}>
               <span style={S.detailIcon}>📝</span>
-              {ev.notes ? <span>{ev.notes}</span> : <span style={S.muted}>No notes</span>}
+              {ev.notes ? <span style={{ whiteSpace: "pre-line" }}>{ev.notes}</span> : <span style={S.muted}>No notes</span>}
             </div>
             {ev.who && <div style={S.detailRow}><span style={S.detailIcon}>👤</span><span>{ev.who}</span></div>}
 
@@ -541,7 +548,13 @@ function AppointmentModal({
               <button type="button" onClick={onEdit} style={S.btnPrimary}>✎ Edit</button>
               {ev.customerProfileId && <Link href={`/owner/${ev.customerProfileId}`} style={S.btnGhost}>Open lead</Link>}
               {ev.phone && <a href={`tel:${ev.phone}`} style={S.btnGhost}>📞 Call</a>}
-              <button type="button" onClick={del} disabled={pending} style={S.btnDanger}>🗑 Delete</button>
+              <button
+                type="button"
+                onClick={() => (confirmDel ? onDelete(ev) : setConfirmDel(true))}
+                style={S.btnDanger}
+              >
+                {confirmDel ? "Tap again to confirm" : "🗑 Delete"}
+              </button>
             </div>
           </div>
         ) : (

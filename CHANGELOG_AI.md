@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Snappy delete + Quote header in calendar notes
+
+### Fixed
+- **Deleting an appointment froze the UI (~1.8s INP)**: replaced the blocking `window.confirm` with
+  an inline two-tap confirm, and moved delete ownership to `CalendarViews` so the popup closes
+  instantly while the server action + revalidation run in the background.
+
+### Added
+- Booking from a lead now prepends a **"Quote: $X–$Y" header** to the appointment notes (derived
+  from the service + saved quote ranges), so the price rides onto the calendar. Notes render with
+  line breaks in the popup + hover card so the Quote sits on its own line.
+
+### Verified
+- `npm run verify` (24 files, 87 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Real outbound SMS (Twilio) wired in
 
 ### Added

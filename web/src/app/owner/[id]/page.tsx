@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 
 import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
-import { getBusinessSettings } from "@/server/business/settings";
+import { getBusinessSettings, type QuoteRangeSettings } from "@/server/business/settings";
 import { buildProfileDetail } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
@@ -50,6 +50,28 @@ function fmtTime(iso: string | null, tz: string): string {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function fmtUsd(n: number): string {
+  return `$${Math.round(n).toLocaleString("en-US")}`;
+}
+
+// Best-effort quote for a service from the saved ranges (exact match, else substring).
+function priceForService(service: string | null, ranges: QuoteRangeSettings[]): string | null {
+  const s = (service ?? "").trim().toLowerCase();
+  if (!s || ranges.length === 0) return null;
+  let best: QuoteRangeSettings | null = null;
+  for (const r of ranges) {
+    const rs = r.service.trim().toLowerCase();
+    if (!rs) continue;
+    if (s === rs) {
+      best = r;
+      break;
+    }
+    if ((s.includes(rs) || rs.includes(s)) && !best) best = r;
+  }
+  if (!best) return null;
+  return best.low === best.high ? fmtUsd(best.low) : `${fmtUsd(best.low)}–${fmtUsd(best.high)}`;
 }
 
 function callLabel(callType: string, hasTranscript: boolean, hasRecording: boolean): string {
@@ -138,9 +160,14 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   const contextText = [aiX.service_requested, aiSummaryText, aiTranscript].filter(Boolean).join(" ");
   const pricingInquiry = /\b(price|pricing|cost|how much|quote|charge|rate|rates)\b/i.test(contextText);
   const aiEnabled = hasConfiguredExtractionProvider(getAppConfig());
-  // Pre-fill booking notes from the voicemail (condition / vehicle / details) so the
-  // appointment carries context onto the calendar instead of starting blank.
-  const bookingNotes = aiSummaryText ?? (aiTranscript ? aiTranscript.slice(0, 200) : "");
+  // Pre-fill booking notes from the voicemail (condition / vehicle / details) plus a
+  // "Quote:" header from the saved price ranges, so the appointment carries the price
+  // and context onto the calendar instead of starting blank.
+  const bookingPrice = priceForService(aiX.service_requested ?? null, settings.quote_ranges);
+  const bookingSummary = aiSummaryText ?? (aiTranscript ? aiTranscript.slice(0, 200) : "");
+  const bookingNotes = [bookingPrice ? `Quote: ${bookingPrice}` : null, bookingSummary || null]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <main style={S.shell}>
