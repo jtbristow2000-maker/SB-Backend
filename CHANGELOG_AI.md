@@ -1,5 +1,22 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Schedule: full Week / Month / Agenda calendar
+
+### Added
+- `web/src/app/owner/CalendarViews.tsx`: a client calendar with **Week**, **Month**, and **Agenda**
+  views + prev/next/Today navigation.
+  - **Week**: hourly time axis on the Y (7 AM–9 PM); appointment blocks positioned by start time and
+    sized by duration, in the correct day column; horizontally scrollable on mobile; today highlighted.
+  - **Month**: standard 6-week grid with event chips per day; tapping a day jumps to that week.
+  - **Agenda**: upcoming list grouped by day with inline status updates.
+  - Events colored by status; clicking an event with a customer opens that lead.
+- `web/src/app/owner/calendar/page.tsx` now builds the event list and renders `<CalendarViews>` above
+  the existing booking form.
+
+### Notes
+- Calendar date math runs in the browser's local timezone (which equals the business timezone for the
+  owner). Frontend only. `npm run verify` + `next build` both pass.
+
 ## [2026-06-01] - Appointments + Schedule calendar (full feature, solo)
 
 Built the whole appointments feature end-to-end while Codex was unavailable (repository + UI),
