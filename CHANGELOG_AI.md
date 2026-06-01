@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Backend: OpenAI voicemail extraction provider
+
+### Added
+- `OpenAIExtractionProvider` for voicemail interpretation through OpenAI chat completions, defaulting to `gpt-4o-mini` and returning the existing caller/date/service/summary shape.
+- Runtime extraction-provider selection via `EXTRACTION_PROVIDER=openai|anthropic`, with Anthropic still preferred when no provider is specified and both keys are present.
+- Tests for OpenAI JSON parsing/request shape and runtime provider selection, including the AI-disabled sandbox fallback.
+
+### Changed
+- `web/.env.example` documents `EXTRACTION_PROVIDER` and `OPENAI_EXTRACTION_MODEL` so transcription and voicemail interpretation can both run on OpenAI.
+
+### Verified
+- `npm run verify` passes: 80 tests passing, 1 Supabase contract test skipped.
+
 ## [2026-06-01] - Backend: fast voicemail transcription from recording-ready callback
 
 ### Added

@@ -13,9 +13,11 @@ import { getSupabaseServerClient } from "@/server/db/supabaseClient";
 import {
   AnthropicExtractionProvider,
   createSandboxProviders,
+  type ExtractionProvider,
+  OpenAIExtractionProvider,
   OpenAITranscriptionProvider
 } from "@/server/providers";
-import { getAppConfig } from "@/server/config";
+import { type AppConfig, getAppConfig } from "@/server/config";
 
 import { type AuditEventRepository, InMemoryAuditEventRepository } from "./auditEvents";
 import { type CallRecordRepository, InMemoryCallRecordRepository } from "./callRecords";
@@ -36,6 +38,11 @@ type IntakeRuntime = {
   voiceIntakeService: VoiceIntakeService;
   smsIntakeService: SmsIntakeService;
 };
+
+type ExtractionRuntimeConfig = Pick<
+  AppConfig,
+  "aiExtractionEnabled" | "anthropicConfigured" | "openAiConfigured"
+>;
 
 // Cache the runtime on globalThis, not a plain module `let`. Next.js dev (and
 // route handlers / server actions) can evaluate this module in more than one
@@ -83,12 +90,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
           twilioAuthToken: process.env.TWILIO_AUTH_TOKEN
         })
       : providers.transcription;
-  const extractionProvider =
-    config.aiExtractionEnabled && config.anthropicConfigured && process.env.ANTHROPIC_API_KEY
-      ? new AnthropicExtractionProvider({
-          apiKey: process.env.ANTHROPIC_API_KEY
-        })
-      : providers.extraction;
+  const extractionProvider = selectExtractionProvider(config, providers.extraction);
   const voiceIntakeService = new VoiceIntakeService({
     businessRepository,
     customerProfileRepository,
@@ -103,8 +105,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     smsProvider: providers.sms,
     isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled,
     isAiExtractionEnabled: () => {
-      const currentConfig = getAppConfig();
-      return currentConfig.aiExtractionEnabled && currentConfig.anthropicConfigured;
+      return hasConfiguredExtractionProvider(getAppConfig());
     },
     isFastTranscriptionEnabled: () => {
       const currentConfig = getAppConfig();
@@ -137,4 +138,65 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
 
 export function resetIntakeRuntimeForTests(): void {
   globalForIntake.__intakeRuntime = null;
+}
+
+export function selectExtractionProvider(
+  config: ExtractionRuntimeConfig,
+  sandboxProvider: ExtractionProvider,
+  env: NodeJS.ProcessEnv = process.env
+): ExtractionProvider {
+  if (!config.aiExtractionEnabled) {
+    return sandboxProvider;
+  }
+
+  const requestedProvider = parseExtractionProvider(env.EXTRACTION_PROVIDER);
+  if (requestedProvider === "openai") {
+    return config.openAiConfigured && env.OPENAI_API_KEY
+      ? new OpenAIExtractionProvider({ apiKey: env.OPENAI_API_KEY })
+      : sandboxProvider;
+  }
+
+  if (requestedProvider === "anthropic") {
+    return config.anthropicConfigured && env.ANTHROPIC_API_KEY
+      ? new AnthropicExtractionProvider({ apiKey: env.ANTHROPIC_API_KEY })
+      : sandboxProvider;
+  }
+
+  if (config.anthropicConfigured && env.ANTHROPIC_API_KEY) {
+    return new AnthropicExtractionProvider({ apiKey: env.ANTHROPIC_API_KEY });
+  }
+
+  if (config.openAiConfigured && env.OPENAI_API_KEY) {
+    return new OpenAIExtractionProvider({ apiKey: env.OPENAI_API_KEY });
+  }
+
+  return sandboxProvider;
+}
+
+export function hasConfiguredExtractionProvider(
+  config: ExtractionRuntimeConfig,
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  if (!config.aiExtractionEnabled) {
+    return false;
+  }
+
+  const requestedProvider = parseExtractionProvider(env.EXTRACTION_PROVIDER);
+  if (requestedProvider === "openai") {
+    return Boolean(config.openAiConfigured && env.OPENAI_API_KEY);
+  }
+
+  if (requestedProvider === "anthropic") {
+    return Boolean(config.anthropicConfigured && env.ANTHROPIC_API_KEY);
+  }
+
+  return Boolean(
+    (config.anthropicConfigured && env.ANTHROPIC_API_KEY) ||
+      (config.openAiConfigured && env.OPENAI_API_KEY)
+  );
+}
+
+function parseExtractionProvider(value?: string): "openai" | "anthropic" | null {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "openai" || normalized === "anthropic" ? normalized : null;
 }

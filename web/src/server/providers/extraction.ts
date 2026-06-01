@@ -5,12 +5,22 @@ import type {
 } from "./types";
 
 const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
+const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 const ANTHROPIC_VERSION = "2023-06-01";
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const DEFAULT_TIMEOUT_MS = 8000;
 
 type AnthropicMessageResponse = {
   content?: Array<{ type?: string; text?: string }>;
+};
+
+type OpenAIChatCompletionResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+    };
+  }>;
 };
 
 export class AnthropicExtractionProvider implements ExtractionProvider {
@@ -43,7 +53,7 @@ export class AnthropicExtractionProvider implements ExtractionProvider {
           "anthropic-version": ANTHROPIC_VERSION
         },
         body: JSON.stringify({
-          model: this.input.model ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
+          model: this.input.model ?? process.env.ANTHROPIC_MODEL ?? DEFAULT_ANTHROPIC_MODEL,
           max_tokens: 400,
           temperature: 0,
           system:
@@ -71,7 +81,67 @@ export class AnthropicExtractionProvider implements ExtractionProvider {
   }
 }
 
-function buildExtractionPrompt(input: VoicemailExtractionInput): string {
+export class OpenAIExtractionProvider implements ExtractionProvider {
+  readonly providerName = "openai";
+
+  constructor(
+    private readonly input: {
+      apiKey: string;
+      model?: string;
+      timeoutMs?: number;
+      fetchImpl?: typeof fetch;
+    }
+  ) {}
+
+  async extractVoicemailDetails(
+    input: VoicemailExtractionInput
+  ): Promise<VoicemailExtractionResult | null> {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.input.timeoutMs ?? DEFAULT_TIMEOUT_MS
+    );
+
+    try {
+      const response = await (this.input.fetchImpl ?? fetch)(OPENAI_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.input.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.input.model ?? process.env.OPENAI_EXTRACTION_MODEL ?? DEFAULT_OPENAI_MODEL,
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "Extract voicemail details for a small local service business. Return only strict JSON."
+            },
+            {
+              role: "user",
+              content: buildExtractionPrompt(input)
+            }
+          ]
+        }),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI extraction failed with HTTP ${response.status}`);
+      }
+
+      const body = (await response.json()) as OpenAIChatCompletionResponse;
+      const text = body.choices?.[0]?.message?.content ?? "";
+      return parseExtractionJson(text);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+export function buildExtractionPrompt(input: VoicemailExtractionInput): string {
   return [
     "Return JSON with exactly these keys:",
     '{ "caller_name": string|null, "requested_datetime": string|null, "service_requested": string|null, "summary": string|null }',
