@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner-facing hover rundown on the callback lists
+
+### Added
+- Hovering a lead row (Callbacks + Today) shows an **owner-facing rundown** card: the AI summary,
+  what they want, the quote (from saved ranges), and when they asked — the same facts the suggested
+  reply uses, framed for the owner. Falls back to the voicemail snippet when there's no AI data.
+- `buildLeadRundown` helper builds the rundown from the lead's most recent AI-extracted call.
+
+### Verified
+- `npm run verify` (24 files, 87 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Keep the quote/time chips visible in the bottom composer
 
 ### Changed

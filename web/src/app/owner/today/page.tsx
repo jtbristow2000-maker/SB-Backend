@@ -2,8 +2,10 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
+import { buildLeadRundown } from "@/app/owner/leadRundown";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -68,13 +70,15 @@ export default async function Today() {
     { label: "Calls today", value: callsToday, accent: "#3a7bd0", icon: "📆", href: "/owner/leads" }
   ];
 
+  const settings = getBusinessSettings(business);
   const attentionItems: LeadListItem[] = callbacks.slice(0, 5).map((c) => ({
     id: c.id,
     name: c.display_name || fmtPhone(c.phone_e164),
     snippet: outcomeSnippet(c),
     customerReplied: c.customer_replied,
     responded: RESPONDED_STATUSES.has(c.status),
-    lastActivity: c.last_contact_at
+    lastActivity: c.last_contact_at,
+    rundown: buildLeadRundown(c.id, calls, settings.quote_ranges)
   }));
 
   return (

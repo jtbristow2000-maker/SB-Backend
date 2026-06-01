@@ -2,8 +2,10 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
+import { buildLeadRundown } from "@/app/owner/leadRundown";
 
 // Always read current in-memory state (the sandbox runtime), never statically cache.
 export const dynamic = "force-dynamic";
@@ -43,6 +45,7 @@ export default async function OwnerCallbacks() {
     rt.taskRepository.list()
   ]);
   const business = businesses[0] ?? null;
+  const settings = getBusinessSettings(business);
   const items = business
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })
     : [];
@@ -52,7 +55,8 @@ export default async function OwnerCallbacks() {
     snippet: outcomeSnippet(it),
     customerReplied: it.customer_replied,
     responded: RESPONDED_STATUSES.has(it.status),
-    lastActivity: it.last_contact_at
+    lastActivity: it.last_contact_at,
+    rundown: buildLeadRundown(it.id, calls, settings.quote_ranges)
   }));
 
   return (
