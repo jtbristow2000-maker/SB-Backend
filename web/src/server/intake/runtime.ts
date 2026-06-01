@@ -27,11 +27,18 @@ type IntakeRuntime = {
   smsIntakeService: SmsIntakeService;
 };
 
-let runtime: IntakeRuntime | null = null;
+// Cache the runtime on globalThis, not a plain module `let`. Next.js dev (and
+// route handlers / server actions) can evaluate this module in more than one
+// bundle, so a module-scoped singleton gets duplicated — which made one route's
+// mutations invisible to another (and would break owner action buttons). A
+// process-global handle guarantees every caller shares ONE in-memory runtime.
+const globalForIntake = globalThis as unknown as {
+  __intakeRuntime?: IntakeRuntime | null;
+};
 
 export async function getIntakeRuntime(): Promise<IntakeRuntime> {
-  if (runtime) {
-    return runtime;
+  if (globalForIntake.__intakeRuntime) {
+    return globalForIntake.__intakeRuntime;
   }
 
   const businessRepository = new InMemoryBusinessRepository();
@@ -61,7 +68,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     taskRepository
   });
 
-  runtime = {
+  const runtime: IntakeRuntime = {
     businessRepository,
     customerProfileRepository,
     customerProfileService,
@@ -74,9 +81,10 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     smsIntakeService
   };
 
+  globalForIntake.__intakeRuntime = runtime;
   return runtime;
 }
 
 export function resetIntakeRuntimeForTests(): void {
-  runtime = null;
+  globalForIntake.__intakeRuntime = null;
 }

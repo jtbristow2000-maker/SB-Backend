@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Fix: share intake runtime via globalThis (cross-route mutations)
+
+### Fixed
+- `web/src/server/intake/runtime.ts`: the in-memory runtime was cached in a module-scoped `let`,
+  which Next.js dev duplicates per bundle — so a mutation made by one route (a webhook, or an owner
+  action button) could be invisible to another route's read. Cached it on `globalThis` instead, so
+  every route handler, server component, and server action shares ONE instance per process. Same
+  exports and behavior; `resetIntakeRuntimeForTests()` clears the global.
+
+### Verified
+- Booted the dev server and replayed the real flow over HTTP: seeded a missed-call-with-voicemail
+  through `/api/webhooks/twilio/*`, then read it back on `/owner` and `/api/dev/state` (different
+  bundles) — the lead, call, and task all appeared. Then exercised the three owner server actions:
+  status `new`→`booked`, task `open`→`done`, and an outbound text recorded as `queued`
+  (`SMS_SENDING_ENABLED=false`). All reflected on re-read.
+
 ## [2026-05-31] - Web owner dashboard: action buttons (status, mark done, text back)
 
 ### Added
