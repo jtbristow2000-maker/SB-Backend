@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // ---------------------------------------------------------------------------
-// Owner screen — Lead detail. AI quick-summary, one-tap Call/Text, the open
-// callback task, status controls, and the merged call + voicemail + SMS
-// timeline (oldest→newest). Times render in the business timezone.
+// Owner screen — Lead detail. The voicemail transcript is the centerpiece up top,
+// then the interactive reply composer, one-tap Call/Text, status + booking, and
+// any earlier activity (older calls + texts). Times render in the business timezone.
 // ---------------------------------------------------------------------------
 
 const FALLBACK_TZ = "America/New_York";
@@ -119,10 +119,19 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       break;
     }
   }
-  const showAi = Boolean(aiSummaryText || aiX.caller_name || aiX.service_requested || aiX.requested_datetime);
   const busy = appointments
     .filter((a) => !business || a.business_id === business.id)
     .map((a) => ({ start: a.scheduled_start_at, end: a.scheduled_end_at }));
+
+  // The voicemail itself is the centerpiece — surface the latest one up top, and
+  // keep the rest of the thread (older calls + texts) as "earlier activity" below.
+  const heroCall =
+    profileCalls.find((c) => c.transcript) ??
+    profileCalls.find((c) => c.call_type === "voicemail" || c.recording_url) ??
+    null;
+  const restTimeline = orderedTimeline.filter(
+    (item) => !(item.kind === "call" && heroCall !== null && item.call.id === heroCall.id)
+  );
 
   // Context the reply composer uses to pre-pick services + detect a price question.
   const contextText = [aiX.service_requested, aiSummaryText, aiTranscript].filter(Boolean).join(" ");
@@ -144,21 +153,26 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </div>
       </header>
 
-      {showAi && (
-        <div style={S.aiCard}>
-          <div style={S.aiHead}>
-            <span>✨ Quick summary</span>
-            <span style={S.aiBadge}>AI · double-check</span>
+      {heroCall && (
+        <section style={S.hero}>
+          <div style={S.heroHead}>
+            <span>🎙️ Voicemail</span>
+            <span style={S.heroMeta}>
+              {fmtTime(heroCall.started_at, tz)}{heroCall.duration_seconds ? ` · ${heroCall.duration_seconds}s` : ""}
+            </span>
           </div>
-          {aiSummaryText && <div style={S.aiSummary}>{aiSummaryText}</div>}
-          {(aiX.caller_name || aiX.service_requested || aiX.requested_datetime) && (
-            <div style={S.aiFields}>
-              {aiX.caller_name && <span><strong>Name:</strong> {aiX.caller_name}</span>}
-              {aiX.service_requested && <span><strong>Wants:</strong> {aiX.service_requested}</span>}
-              {aiX.requested_datetime && <span><strong>When:</strong> {aiX.requested_datetime}</span>}
-            </div>
+          {heroCall.transcript ? (
+            <>
+              <div style={S.heroQuote}>“{heroCall.transcript}”</div>
+              <div style={S.heroFoot}>
+                {heroCall.needs_review && <span style={S.heroNote}>auto-transcribed · double-check the details</span>}
+                {aiX.requested_datetime && <span style={S.heroWhen}>📅 asked for {aiX.requested_datetime}</span>}
+              </div>
+            </>
+          ) : (
+            <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
           )}
-        </div>
+        </section>
       )}
 
       {profile.phone_e164 && (
@@ -176,12 +190,6 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       )}
 
       {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
-
-      {open_task && (
-        <div style={S.taskBar}>
-          ☎ Callback task — <strong>{open_task.status}</strong>
-        </div>
-      )}
 
       <div style={S.actionsRow}>
         <form action={setProfileStatus} style={S.inlineForm}>
@@ -226,38 +234,40 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         <button type="submit" style={S.btnGhost}>Add</button>
       </form>
 
-      <div style={S.paneTitle}>TIMELINE</div>
-      {orderedTimeline.length === 0 && <div style={S.empty}>Nothing yet.</div>}
-
-      {orderedTimeline.map((item) =>
-        item.kind === "call" ? (
-          <div key={item.call.id} style={S.callItem}>
-            <div style={S.callHead}>
-              📞 {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} · {fmtTime(item.at, tz)}
-              {item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
-            </div>
-            {item.call.transcript ? (
-              <div style={S.transcript}>
-                “{item.call.transcript}”
-                {item.call.needs_review && <span style={S.review}> · auto-transcribed, may contain errors</span>}
+      {restTimeline.length > 0 && (
+        <>
+          <div style={S.paneTitle}>EARLIER ACTIVITY</div>
+          {restTimeline.map((item) =>
+            item.kind === "call" ? (
+              <div key={item.call.id} style={S.callItem}>
+                <div style={S.callHead}>
+                  📞 {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} · {fmtTime(item.at, tz)}
+                  {item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
+                </div>
+                {item.call.transcript ? (
+                  <div style={S.transcript}>
+                    “{item.call.transcript}”
+                    {item.call.needs_review && <span style={S.review}> · auto-transcribed, may contain errors</span>}
+                  </div>
+                ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
+                  <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
+                ) : null}
               </div>
-            ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
-              <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
-            ) : null}
-          </div>
-        ) : (
-          <div key={item.message.id} style={bubbleWrap(item.message.direction === "outbound")}>
-            <div style={bubble(item.message.direction === "outbound")}>
-              <div>{item.message.body}</div>
-              <div style={S.bubbleMeta}>
-                {item.message.direction === "outbound"
-                  ? `Auto-reply · ${autoReplyText(item.message.status)}`
-                  : "Customer"}{" "}
-                · {fmtTime(item.at, tz)}
+            ) : (
+              <div key={item.message.id} style={bubbleWrap(item.message.direction === "outbound")}>
+                <div style={bubble(item.message.direction === "outbound")}>
+                  <div>{item.message.body}</div>
+                  <div style={S.bubbleMeta}>
+                    {item.message.direction === "outbound"
+                      ? `Auto-reply · ${autoReplyText(item.message.status)}`
+                      : "Customer"}{" "}
+                    · {fmtTime(item.at, tz)}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )
+            )
+          )}
+        </>
       )}
 
       <form action={sendOwnerText} style={S.compose}>
@@ -280,11 +290,13 @@ const S: Record<string, CSSProperties> = {
   h1: { margin: "6px 0 2px", fontSize: 22 },
   sub: { color: "#8a909c", fontSize: 13 },
   replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 9px", borderRadius: 999 },
-  aiCard: { marginTop: 14, padding: "12px 14px", borderRadius: 12, background: "linear-gradient(135deg, rgba(var(--brand-rgb),0.09), rgba(var(--brand-strong-rgb),0.05))", border: "1px solid rgba(var(--brand-rgb),0.18)" },
-  aiHead: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontWeight: 700, color: "#4a3fb3", marginBottom: 6 },
-  aiBadge: { fontSize: 10, fontWeight: 700, color: "var(--brand-strong)", background: "rgba(var(--brand-strong-rgb),0.12)", padding: "2px 8px", borderRadius: 999 },
-  aiSummary: { fontSize: 14, color: "#1e2026", lineHeight: 1.45 },
-  aiFields: { display: "flex", flexWrap: "wrap", gap: "4px 16px", marginTop: 8, fontSize: 13, color: "#3c414b" },
+  hero: { marginTop: 14, padding: "16px 18px", borderRadius: 14, background: "#fff", border: "1px solid #e3e6ec", borderLeft: "4px solid var(--brand)", boxShadow: "0 1px 3px rgba(17,21,28,0.05)" },
+  heroHead: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: "var(--brand)", textTransform: "uppercase" },
+  heroMeta: { fontSize: 12, fontWeight: 600, color: "#8a909c", textTransform: "none", letterSpacing: 0 },
+  heroQuote: { margin: "8px 0 0", fontSize: 17, lineHeight: 1.5, color: "#15171b", fontWeight: 500 },
+  heroFoot: { display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 10, alignItems: "center" },
+  heroNote: { fontSize: 11, color: "#9a6210" },
+  heroWhen: { fontSize: 12, fontWeight: 700, color: "#2a2a8a", background: "rgba(var(--brand-rgb),0.1)", padding: "2px 9px", borderRadius: 999 },
   quickActions: { display: "flex", gap: 10, margin: "12px 0 4px" },
   callBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" },
   textBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 15, textDecoration: "none" },

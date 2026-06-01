@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Lead page: voicemail transcript as the centerpiece
+
+### Changed
+- The actual voicemail transcript is now the hero element near the top of the lead page (large,
+  quoted), since the caller's real words matter most. The "When" the caller asked for rides along as
+  a small pill.
+- Removed the redundant "Quick summary" card (name duplicated the header, "wants" duplicated the
+  composer chips, the sentence duplicated the transcript) and the standalone callback-task bar (the
+  "Mark callback done" button already conveys it).
+- The bottom "Timeline" is now "Earlier activity" and excludes the hero voicemail, so a single-
+  voicemail lead no longer shows the same words twice; the section hides entirely when empty.
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Interactive reply composer (services + quote + times)
 
 ### Added
