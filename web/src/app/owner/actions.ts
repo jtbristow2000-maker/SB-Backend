@@ -63,7 +63,7 @@ export async function sendOwnerText(formData: FormData): Promise<void> {
   const sending = getAppConfig().smsSendingEnabled;
   const now = new Date().toISOString();
 
-  await rt.messageRepository.create({
+  const created = await rt.messageRepository.create({
     business_id: business.id,
     customer_profile_id: profile.id,
     direction: "outbound",
@@ -74,6 +74,24 @@ export async function sendOwnerText(formData: FormData): Promise<void> {
     status: sending ? "sent" : "queued",
     sent_at: sending ? now : null
   });
+  // Actually deliver it when texting is switched on (real Twilio provider once
+  // configured; sandbox is a no-op). On failure, flag the message so it's visible.
+  if (sending && profile.phone_e164) {
+    try {
+      await rt.smsProvider.sendMessage({
+        businessId: business.id,
+        to: profile.phone_e164,
+        from: business.business_phone_e164 ?? undefined,
+        body
+      });
+    } catch {
+      try {
+        await rt.messageRepository.update(created.id, { status: "failed" });
+      } catch {
+        /* ignore */
+      }
+    }
+  }
   try {
     await rt.customerProfileRepository.update(profileId, {
       last_contact_at: now,

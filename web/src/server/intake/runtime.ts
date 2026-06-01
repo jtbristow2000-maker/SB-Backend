@@ -15,7 +15,9 @@ import {
   createSandboxProviders,
   type ExtractionProvider,
   OpenAIExtractionProvider,
-  OpenAITranscriptionProvider
+  OpenAITranscriptionProvider,
+  type SmsProvider,
+  TwilioSmsProvider
 } from "@/server/providers";
 import { type AppConfig, getAppConfig } from "@/server/config";
 
@@ -37,6 +39,7 @@ type IntakeRuntime = {
   auditEventRepository: AuditEventRepository;
   appointmentRepository: AppointmentRepository;
   providers: ReturnType<typeof createSandboxProviders>;
+  smsProvider: SmsProvider;
   voiceIntakeService: VoiceIntakeService;
   smsIntakeService: SmsIntakeService;
 };
@@ -86,6 +89,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
   await bootstrapSingleTenantBusiness(businessRepository);
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
   const providers = createSandboxProviders();
+  const smsProvider = selectSmsProvider(config, providers.sms);
   const transcriptionProvider =
     config.fastTranscriptionEnabled && config.openAiConfigured && process.env.OPENAI_API_KEY
       ? new OpenAITranscriptionProvider({
@@ -106,7 +110,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     callProvider: providers.calls,
     extractionProvider,
     transcriptionProvider,
-    smsProvider: providers.sms,
+    smsProvider,
     isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled,
     isAiExtractionEnabled: () => {
       return hasConfiguredExtractionProvider(getAppConfig());
@@ -133,6 +137,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     auditEventRepository,
     appointmentRepository,
     providers,
+    smsProvider,
     voiceIntakeService,
     smsIntakeService
   };
@@ -143,6 +148,26 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
 
 export function resetIntakeRuntimeForTests(): void {
   globalForIntake.__intakeRuntime = null;
+}
+
+export function selectSmsProvider(
+  config: Pick<AppConfig, "twilioConfigured" | "realMessageSendingEnabled">,
+  sandboxProvider: SmsProvider,
+  env: NodeJS.ProcessEnv = process.env
+): SmsProvider {
+  if (
+    config.twilioConfigured &&
+    config.realMessageSendingEnabled &&
+    env.TWILIO_ACCOUNT_SID &&
+    env.TWILIO_AUTH_TOKEN
+  ) {
+    return new TwilioSmsProvider({
+      accountSid: env.TWILIO_ACCOUNT_SID,
+      authToken: env.TWILIO_AUTH_TOKEN,
+      fromNumber: env.TWILIO_PHONE_NUMBER
+    });
+  }
+  return sandboxProvider;
 }
 
 export function selectExtractionProvider(

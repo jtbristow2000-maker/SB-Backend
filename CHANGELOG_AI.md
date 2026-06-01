@@ -1,5 +1,25 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Real outbound SMS (Twilio) wired in
+
+### Added
+- `TwilioSmsProvider` (real outbound SMS via Twilio's Messages API) + unit tests.
+- `selectSmsProvider()` in the runtime: uses Twilio when `twilioConfigured` + `REAL_MESSAGE_SENDING_ENABLED`
+  and creds are present, otherwise the sandbox (logged-only) provider. Exposed on the runtime as
+  `smsProvider` and passed to the voice-intake auto-text path.
+- "Log a reply" (`sendOwnerText`) now actually delivers via the provider when `SMS_SENDING_ENABLED`
+  is on, and flags the message as failed if Twilio rejects it.
+
+### Notes
+- Inbound replies were already handled (`/api/webhooks/twilio/sms` → `SmsIntakeService`).
+- Going live needs (operator): an SMS-capable Twilio number, A2P 10DLC or toll-free verification,
+  the number's Messaging webhook pointed at `/api/webhooks/twilio/sms`, and env
+  `SMS_SENDING_ENABLED=true` + `REAL_MESSAGE_SENDING_ENABLED=true`. On a trial account, sending works
+  to verified numbers (with a trial prefix) for testing.
+
+### Verified
+- `npm run verify` (24 files, 87 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Calendar hover preview + delete; booking notes from the voicemail
 
 ### Added
