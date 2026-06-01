@@ -97,6 +97,32 @@ export function mergeBusinessSettingsJson(
   return merged;
 }
 
+export function quotePriceLabel(
+  service: string | null,
+  ranges: QuoteRangeSettings[]
+): string | null {
+  const normalizedService = normalizeServiceName(service);
+  if (!normalizedService || ranges.length === 0) {
+    return null;
+  }
+
+  const exactMatch = ranges.find(
+    (range) => normalizeServiceName(range.service) === normalizedService
+  );
+  const substringMatch =
+    exactMatch ??
+    ranges.find((range) => {
+      const normalizedRangeService = normalizeServiceName(range.service);
+      return (
+        normalizedRangeService !== null &&
+        (normalizedService.includes(normalizedRangeService) ||
+          normalizedRangeService.includes(normalizedService))
+      );
+    });
+
+  return substringMatch ? quoteRangePriceLabel(substringMatch) : null;
+}
+
 function asJsonObject(value: JsonValue | undefined): JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value
@@ -145,4 +171,19 @@ function readQuoteRanges(value: JsonValue | undefined): QuoteRangeSettings[] {
       ? [{ service, low: raw.low, high: raw.high }]
       : [];
   });
+}
+
+function normalizeServiceName(service: string | null | undefined): string | null {
+  const normalized = service?.trim().toLowerCase();
+  return normalized ? normalized : null;
+}
+
+function quoteRangePriceLabel(range: QuoteRangeSettings): string {
+  return range.low === range.high
+    ? formatUsd(range.low)
+    : `${formatUsd(range.low)}\u2013${formatUsd(range.high)}`;
+}
+
+function formatUsd(amount: number): string {
+  return `$${Math.round(amount).toLocaleString("en-US")}`;
 }

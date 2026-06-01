@@ -781,6 +781,12 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 > `BACKEND-24` AI quote-draft extraction (draft only). These are deliberately excluded from the
 > first-customer path.
 
+---
+
+## Backend Maintenance / Contract Notes
+
+- 2026-06-01: Added shared `quotePriceLabel()` backend helper for quote range matching/formatting; owner UI duplicate quote helpers can switch to it later.
+
 ## Codex Tasks (legacy — superseded by Backend Build Tasks above)
 
 > BACKEND-01 (scaffold + `/health` + config) and BACKEND-02 (schema + Alembic + tests) are

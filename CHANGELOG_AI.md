@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Shared quote price helper
+
+### Added
+- Added `quotePriceLabel()` in business settings so saved quote ranges can be formatted from one backend helper instead of duplicate owner-side matching code.
+- Covered exact match, substring fallback, flat pricing, range pricing, thousands separators, and no-match behavior with unit tests.
+
+### Verified
+- `npm run verify` (25 files, 92 tests, 1 skipped) passes.
+
 ## [2026-06-01] - Truthful missed-call auto-text status
 
 ### Fixed
