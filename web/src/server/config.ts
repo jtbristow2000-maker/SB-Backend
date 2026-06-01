@@ -1,5 +1,7 @@
 function readBoolean(name: string, fallback: boolean): boolean {
-  const raw = process.env[name];
+  // Trim so a stray space/newline pasted into a hosting env var (e.g. "true ")
+  // doesn't silently read as false.
+  const raw = process.env[name]?.trim();
   if (raw === undefined || raw === "") {
     return fallback;
   }

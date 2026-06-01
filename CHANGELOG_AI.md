@@ -1,5 +1,12 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Trim env booleans
+
+### Fixed
+- `readBoolean` now trims the env value, so a pasted `"true "` / `"true\n"` (e.g. from a hosting
+  dashboard) no longer silently reads as false. Affects all boolean flags incl.
+  `SMS_SENDING_ENABLED` / `REAL_MESSAGE_SENDING_ENABLED`.
+
 ## [2026-06-01] - Unified conversation thread + in-app sending + texting status
 
 ### Changed
