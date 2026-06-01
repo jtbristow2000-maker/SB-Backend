@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getAppConfig } from "@/server/config";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
 import type { AppointmentStatus } from "@/server/db/schema";
+import type { AppointmentUpdateInput } from "@/server/intake/appointments";
 import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { recommendServicesFromTranscript } from "@/server/providers";
 
@@ -132,6 +133,8 @@ export async function createAppointment(formData: FormData): Promise<void> {
   const startLocal = String(formData.get("start") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const service = String(formData.get("service") ?? "").trim() || null;
+  const location = String(formData.get("location") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
   const durationMinutes = Number(formData.get("duration") ?? "") || 60;
   if (!startLocal) return;
 
@@ -151,7 +154,9 @@ export async function createAppointment(formData: FormData): Promise<void> {
     scheduled_start_at: startIso,
     scheduled_end_at: endIso,
     timezone: tz,
-    status: "scheduled"
+    status: "scheduled",
+    location,
+    notes
   });
 
   revalidatePath("/owner/calendar");
@@ -174,6 +179,51 @@ export async function setAppointmentStatus(formData: FormData): Promise<void> {
     /* appointment may have been reset */
   }
   revalidatePath("/owner/calendar");
+}
+
+// Edit an appointment's attributes from the calendar detail modal.
+export async function updateAppointment(formData: FormData): Promise<void> {
+  const appointmentId = String(formData.get("appointmentId") ?? "").trim();
+  if (!appointmentId) return;
+
+  const rt = await getIntakeRuntime();
+  const existing = await rt.appointmentRepository.findById(appointmentId);
+  if (!existing) return;
+  const business = (await rt.businessRepository.list())[0] ?? null;
+  const tz = business?.timezone || existing.timezone || "America/New_York";
+
+  const title = String(formData.get("title") ?? "").trim();
+  const service = String(formData.get("service") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+  const startLocal = String(formData.get("start") ?? "").trim();
+  const durationMinutes = Number(formData.get("duration") ?? "") || 60;
+  const status = String(formData.get("status") ?? "").trim();
+
+  const update: AppointmentUpdateInput = {
+    title: title || existing.title,
+    service_requested: service || null,
+    location: location || null,
+    notes: notes || null
+  };
+  if (APPOINTMENT_STATUSES.includes(status as AppointmentStatus)) {
+    update.status = status as AppointmentStatus;
+  }
+  if (startLocal) {
+    const startIso = zonedWallTimeToUtcIso(startLocal, tz);
+    update.scheduled_start_at = startIso;
+    update.scheduled_end_at = new Date(new Date(startIso).getTime() + durationMinutes * 60_000).toISOString();
+  }
+
+  try {
+    await rt.appointmentRepository.update(appointmentId, update);
+  } catch {
+    /* appointment may have been reset */
+  }
+
+  revalidatePath("/owner/calendar");
+  revalidatePath("/owner/today");
+  if (existing.customer_profile_id) revalidatePath(`/owner/${existing.customer_profile_id}`);
 }
 
 export async function saveSettings(formData: FormData): Promise<void> {

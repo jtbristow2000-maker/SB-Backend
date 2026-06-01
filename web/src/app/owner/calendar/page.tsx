@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 import { createAppointment } from "@/app/owner/actions";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
+import { getBusinessSettings, type QuoteRangeSettings } from "@/server/business/settings";
 import { getIntakeRuntime } from "@/server/intake/runtime";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,29 @@ function fmtPhone(p: string | null): string {
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
 }
 
+function fmtUsd(n: number): string {
+  return `$${Math.round(n).toLocaleString("en-US")}`;
+}
+
+// Best-effort price for an appointment from the saved quote ranges (exact match,
+// else substring either way). Shown read-only in the calendar detail popup.
+function priceForService(service: string | null, ranges: QuoteRangeSettings[]): string | null {
+  const s = (service ?? "").trim().toLowerCase();
+  if (!s || ranges.length === 0) return null;
+  let best: QuoteRangeSettings | null = null;
+  for (const r of ranges) {
+    const rs = r.service.trim().toLowerCase();
+    if (!rs) continue;
+    if (s === rs) {
+      best = r;
+      break;
+    }
+    if ((s.includes(rs) || rs.includes(s)) && !best) best = r;
+  }
+  if (!best) return null;
+  return best.low === best.high ? fmtUsd(best.low) : `${fmtUsd(best.low)}–${fmtUsd(best.high)}`;
+}
+
 export default async function CalendarPage() {
   const rt = await getIntakeRuntime();
   const [businesses, appointments, profiles] = await Promise.all([
@@ -25,7 +49,9 @@ export default async function CalendarPage() {
     rt.customerProfileRepository.list()
   ]);
   const business = businesses[0] ?? null;
+  const settings = getBusinessSettings(business);
   const nameById = new Map(profiles.map((p) => [p.id, p.display_name || fmtPhone(p.phone_e164)]));
+  const phoneById = new Map(profiles.map((p) => [p.id, p.phone_e164]));
 
   const events: CalendarEvent[] = appointments
     .filter((a) => !business || a.business_id === business.id)
@@ -36,7 +62,12 @@ export default async function CalendarPage() {
       end: a.scheduled_end_at,
       status: a.status,
       who: (a.customer_profile_id ? nameById.get(a.customer_profile_id) : null) || a.service_requested || "",
-      customerProfileId: a.customer_profile_id
+      customerProfileId: a.customer_profile_id,
+      service: a.service_requested,
+      location: a.location,
+      notes: a.notes,
+      phone: a.customer_profile_id ? phoneById.get(a.customer_profile_id) ?? null : null,
+      priceLabel: priceForService(a.service_requested, settings.quote_ranges)
     }));
 
   return (
@@ -47,6 +78,7 @@ export default async function CalendarPage() {
       <form action={createAppointment} style={S.bookForm}>
         <div style={S.bookTitle}>+ Book an appointment</div>
         <input name="title" placeholder="What & who (e.g. Full detail — Sarah's SUV)" style={S.input} autoComplete="off" />
+        <input name="service" placeholder="Service for the quote (e.g. Full Detail SUV)" style={S.input} autoComplete="off" />
         <input name="start" type="datetime-local" required style={S.input} />
         <select name="duration" defaultValue="60" style={S.input} aria-label="Duration">
           <option value="30">30 minutes</option>
@@ -56,6 +88,8 @@ export default async function CalendarPage() {
           <option value="180">3 hours</option>
           <option value="240">4 hours</option>
         </select>
+        <input name="location" placeholder="Address (optional — for directions)" style={S.input} autoComplete="off" />
+        <input name="notes" placeholder="Notes (optional — gate code, etc.)" style={S.input} autoComplete="off" />
         <button type="submit" style={S.btnPrimary}>Add to schedule</button>
       </form>
 

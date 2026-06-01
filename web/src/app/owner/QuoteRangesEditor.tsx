@@ -22,11 +22,23 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
   const add = () => setRows((prev) => [...prev, { service: "", low: "", high: "" }]);
   const remove = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i));
+  const move = (i: number, dir: -1 | 1) =>
+    setRows((prev) => {
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
 
   return (
     <div>
       {rows.map((r, i) => (
         <div key={i} style={S.row}>
+          <div style={S.reorder}>
+            <button type="button" onClick={() => move(i, -1)} disabled={i === 0} style={S.moveBtn} aria-label="Move up">↑</button>
+            <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1} style={S.moveBtn} aria-label="Move down">↓</button>
+          </div>
           <input
             name="quote_service"
             value={r.service}
@@ -64,6 +76,8 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
 
 const S: Record<string, CSSProperties> = {
   row: { display: "flex", alignItems: "center", gap: 6, marginBottom: 8 },
+  reorder: { display: "flex", flexDirection: "column", gap: 2 },
+  moveBtn: { width: 22, height: 18, padding: 0, lineHeight: 1, borderRadius: 6, border: "1px solid #d8dce3", background: "#fff", color: "#3c414b", fontSize: 11, cursor: "pointer" },
   service: { flex: 1, minWidth: 120, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
   dollar: { color: "#8a909c", fontSize: 13 },
   dash: { color: "#8a909c" },

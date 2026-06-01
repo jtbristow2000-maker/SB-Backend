@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
 
-import { setAppointmentStatus } from "@/app/owner/actions";
+import { setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
 
 // Calendar with Week (hourly time axis + positioned blocks), Month (grid), and
 // Agenda views. Date math is in the browser's local timezone — for a single
@@ -18,10 +18,17 @@ export type CalendarEvent = {
   status: string;
   who: string;
   customerProfileId: string | null;
+  service: string | null;
+  location: string | null;
+  notes: string | null;
+  phone: string | null;
+  priceLabel: string | null;
 };
 
 type View = "week" | "month" | "agenda";
 type Ev = CalendarEvent & { startDate: Date; endDate: Date | null };
+type Selection = { ev: Ev; mode: "view" | "edit" };
+const DURATION_OPTIONS = [30, 60, 90, 120, 180, 240];
 
 const AXIS_START = 7; // 7 AM
 const AXIS_END = 21; // 9 PM
@@ -85,6 +92,8 @@ function weekLabel(weekStart: Date): string {
 export function CalendarViews({ events }: { events: CalendarEvent[] }) {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
+  const [selected, setSelected] = useState<Selection | null>(null);
+  const openEvent = (ev: Ev, mode: "view" | "edit") => setSelected({ ev, mode });
 
   const evs: Ev[] = useMemo(
     () => events.map((e) => ({ ...e, startDate: new Date(e.start), endDate: e.end ? new Date(e.end) : null })),
@@ -130,7 +139,7 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
       </div>
       <div style={S.periodLabel}>{periodLabel}</div>
 
-      {view === "week" && <WeekView anchor={anchor} evs={evs} />}
+      {view === "week" && <WeekView anchor={anchor} evs={evs} onOpen={openEvent} />}
       {view === "month" && (
         <MonthView
           anchor={anchor}
@@ -141,12 +150,21 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
           }}
         />
       )}
-      {view === "agenda" && <AgendaView evs={evs} />}
+      {view === "agenda" && <AgendaView evs={evs} onOpen={openEvent} />}
+
+      {selected && (
+        <AppointmentModal
+          ev={selected.ev}
+          mode={selected.mode}
+          onClose={() => setSelected(null)}
+          onEdit={() => setSelected((s) => (s ? { ...s, mode: "edit" } : s))}
+        />
+      )}
     </div>
   );
 }
 
-function WeekView({ anchor, evs }: { anchor: Date; evs: Ev[] }) {
+function WeekView({ anchor, evs, onOpen }: { anchor: Date; evs: Ev[]; onOpen: (ev: Ev, mode: "view" | "edit") => void }) {
   const weekStart = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
@@ -179,7 +197,7 @@ function WeekView({ anchor, evs }: { anchor: Date; evs: Ev[] }) {
                 ))}
                 {dayEvents.map((e) => {
                   const g = blockGeom(e.startDate, e.endDate);
-                  return <EventBlock key={e.id} ev={e} top={g.top} height={g.height} />;
+                  return <EventBlock key={e.id} ev={e} top={g.top} height={g.height} onOpen={onOpen} />;
                 })}
               </div>
             );
@@ -190,37 +208,55 @@ function WeekView({ anchor, evs }: { anchor: Date; evs: Ev[] }) {
   );
 }
 
-function EventBlock({ ev, top, height }: { ev: Ev; top: number; height: number }) {
+function EventBlock({
+  ev,
+  top,
+  height,
+  onOpen
+}: {
+  ev: Ev;
+  top: number;
+  height: number;
+  onOpen: (ev: Ev, mode: "view" | "edit") => void;
+}) {
   const color = statusColor(ev.status);
+  // Distinguish single click (view) from double click (edit) with a short timer.
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const handleClick = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onOpen(ev, "view"), 200);
+  };
+  const handleDouble = () => {
+    if (timer.current) clearTimeout(timer.current);
+    onOpen(ev, "edit");
+  };
   const style: CSSProperties = {
     position: "absolute",
     top,
     height,
     left: 3,
     right: 3,
+    boxSizing: "border-box",
     background: `${color}1f`,
+    border: "none",
     borderLeft: `3px solid ${color}`,
     borderRadius: 6,
-    padding: "2px 5px",
+    padding: "3px 6px",
     overflow: "hidden",
     fontSize: 11,
     lineHeight: 1.25,
     color: "#1e2026",
-    textDecoration: "none",
-    display: "block"
+    textAlign: "left",
+    cursor: "pointer",
+    fontFamily: "inherit"
   };
-  const inner = (
-    <>
+  return (
+    <button type="button" style={style} onClick={handleClick} onDoubleClick={handleDouble} title={ev.title}>
       <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {timeLabel(ev.startDate)}
       </div>
       <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title}</div>
-    </>
-  );
-  return ev.customerProfileId ? (
-    <Link href={`/owner/${ev.customerProfileId}`} style={style}>{inner}</Link>
-  ) : (
-    <div style={style}>{inner}</div>
+    </button>
   );
 }
 
@@ -260,7 +296,7 @@ function MonthView({ anchor, evs, onPickDay }: { anchor: Date; evs: Ev[]; onPick
   );
 }
 
-function AgendaView({ evs }: { evs: Ev[] }) {
+function AgendaView({ evs, onOpen }: { evs: Ev[]; onOpen: (ev: Ev, mode: "view" | "edit") => void }) {
   const today = startOfDay(new Date());
   const upcoming = evs.filter((e) => e.startDate >= today).sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
   if (upcoming.length === 0) {
@@ -287,9 +323,14 @@ function AgendaView({ evs }: { evs: Ev[] }) {
                 {timeLabel(e.startDate)}
                 {e.endDate ? <div style={S.agendaEnd}>–{timeLabel(e.endDate)}</div> : null}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
+                onClick={() => onOpen(e, "view")}
+                onDoubleClick={() => onOpen(e, "edit")}
+              >
                 <div style={{ fontWeight: 600 }}>{e.title}</div>
-                {e.who && <div style={S.agendaWho}>{e.who}</div>}
+                {e.who ? <div style={S.agendaWho}>{e.who}</div> : null}
+                {e.priceLabel ? <div style={S.agendaWho}>{e.priceLabel}{e.location ? " · 📍" : ""}</div> : null}
               </div>
               <form action={setAppointmentStatus} style={{ display: "flex", gap: 4, alignItems: "center" }}>
                 <input type="hidden" name="appointmentId" value={e.id} />
@@ -304,6 +345,130 @@ function AgendaView({ evs }: { evs: Ev[] }) {
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+function toLocalInput(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+function nearestDuration(ev: Ev): number {
+  if (!ev.endDate) return 60;
+  const mins = Math.round((ev.endDate.getTime() - ev.startDate.getTime()) / 60000);
+  if (mins <= 0) return 60;
+  return DURATION_OPTIONS.reduce((best, d) => (Math.abs(d - mins) < Math.abs(best - mins) ? d : best), 60);
+}
+
+// Detail / edit popup for one appointment. Single click on an event opens "view"
+// (details, price, address → maps, notes); double click (or the Edit button) opens
+// the edit form, which saves via the updateAppointment server action.
+function AppointmentModal({
+  ev,
+  mode,
+  onClose,
+  onEdit
+}: {
+  ev: Ev;
+  mode: "view" | "edit";
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const color = statusColor(ev.status);
+  const dateLabel = ev.startDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  const timeRange = `${timeLabel(ev.startDate)}${ev.endDate ? ` – ${timeLabel(ev.endDate)}` : ""}`;
+  const mapsHref = ev.location
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`
+    : null;
+
+  const save = (formData: FormData) => {
+    startTransition(async () => {
+      await updateAppointment(formData);
+      onClose();
+    });
+  };
+
+  return (
+    <div style={S.overlay} onClick={onClose} role="presentation">
+      <div style={S.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={S.modalHead}>
+          <strong style={{ fontSize: 16, paddingRight: 8 }}>{mode === "edit" ? "Edit appointment" : ev.title}</strong>
+          <button type="button" onClick={onClose} style={S.modalClose} aria-label="Close">✕</button>
+        </div>
+
+        {mode === "view" ? (
+          <div style={S.modalBody}>
+            <div style={S.detailRow}><span style={S.detailIcon}>🗓</span><span>{dateLabel} · {timeRange}</span></div>
+            <div style={S.detailRow}>
+              <span style={S.detailIcon}>🏷</span>
+              <span style={{ ...S.statusPill, background: `${color}1f`, color }}>{ev.status.replace("_", " ")}</span>
+            </div>
+            {ev.priceLabel && (
+              <div style={S.detailRow}>
+                <span style={S.detailIcon}>💰</span>
+                <span><strong>{ev.priceLabel}</strong>{ev.service ? ` · ${ev.service}` : ""}</span>
+              </div>
+            )}
+            <div style={S.detailRow}>
+              <span style={S.detailIcon}>📍</span>
+              {ev.location ? (
+                <span>
+                  {ev.location}
+                  {mapsHref && <> · <a href={mapsHref} target="_blank" rel="noreferrer" style={S.mapLink}>Open in Maps ↗</a></>}
+                </span>
+              ) : (
+                <span style={S.muted}>No address yet — tap Edit to add one.</span>
+              )}
+            </div>
+            <div style={S.detailRow}>
+              <span style={S.detailIcon}>📝</span>
+              {ev.notes ? <span>{ev.notes}</span> : <span style={S.muted}>No notes</span>}
+            </div>
+            {ev.who && <div style={S.detailRow}><span style={S.detailIcon}>👤</span><span>{ev.who}</span></div>}
+
+            <div style={S.modalActions}>
+              <button type="button" onClick={onEdit} style={S.btnPrimary}>✎ Edit</button>
+              {ev.customerProfileId && <Link href={`/owner/${ev.customerProfileId}`} style={S.btnGhost}>Open lead</Link>}
+              {ev.phone && <a href={`tel:${ev.phone}`} style={S.btnGhost}>📞 Call</a>}
+            </div>
+          </div>
+        ) : (
+          <form action={save} style={S.modalBody}>
+            <input type="hidden" name="appointmentId" value={ev.id} />
+            <label style={S.formLabel}>Title<input name="title" defaultValue={ev.title} style={S.input} /></label>
+            <label style={S.formLabel}>Service<input name="service" defaultValue={ev.service ?? ""} placeholder="e.g. Full Detail SUV" style={S.input} /></label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <label style={{ ...S.formLabel, flex: 1 }}>Start<input type="datetime-local" name="start" defaultValue={toLocalInput(ev.startDate)} style={S.input} /></label>
+              <label style={S.formLabel}>Length
+                <select name="duration" defaultValue={String(nearestDuration(ev))} style={S.input}>
+                  <option value="30">30m</option>
+                  <option value="60">1h</option>
+                  <option value="90">1.5h</option>
+                  <option value="120">2h</option>
+                  <option value="180">3h</option>
+                  <option value="240">4h</option>
+                </select>
+              </label>
+            </div>
+            <label style={S.formLabel}>Status
+              <select name="status" defaultValue={ev.status} style={S.input}>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>{s.replace("_", " ")}</option>
+                ))}
+              </select>
+            </label>
+            <label style={S.formLabel}>Address<input name="location" defaultValue={ev.location ?? ""} placeholder="123 Main St, City" style={S.input} /></label>
+            <label style={S.formLabel}>Notes<textarea name="notes" defaultValue={ev.notes ?? ""} rows={3} style={S.textarea} /></label>
+            <div style={S.modalActions}>
+              <button type="submit" disabled={pending} style={S.btnPrimary}>{pending ? "Saving…" : "Save"}</button>
+              <button type="button" onClick={onClose} style={S.btnGhost}>Cancel</button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
@@ -374,5 +539,21 @@ const S: Record<string, CSSProperties> = {
   agendaEnd: { fontSize: 11, fontWeight: 400, color: "#8a909c" },
   agendaWho: { fontSize: 13, color: "#3c414b", marginTop: 2 },
   miniSelect: { padding: "4px 6px", borderRadius: 7, border: "1px solid #d8dce3", fontSize: 11, background: "#fff" },
-  miniBtn: { padding: "4px 8px", borderRadius: 7, border: "none", background: "#eceef2", color: "#1e2026", fontWeight: 600, fontSize: 11, cursor: "pointer" }
+  miniBtn: { padding: "4px 8px", borderRadius: 7, border: "none", background: "#eceef2", color: "#1e2026", fontWeight: 600, fontSize: 11, cursor: "pointer" },
+  overlay: { position: "fixed", inset: 0, background: "rgba(17,21,28,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 1000 },
+  modal: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "86vh", overflowY: "auto", boxShadow: "0 12px 40px rgba(17,21,28,0.25)" },
+  modalHead: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "1px solid #eceef2", position: "sticky", top: 0, background: "#fff" },
+  modalClose: { border: "none", background: "transparent", fontSize: 16, cursor: "pointer", color: "#8a909c", lineHeight: 1 },
+  modalBody: { display: "flex", flexDirection: "column", gap: 12, padding: 16 },
+  detailRow: { display: "flex", gap: 10, fontSize: 14, color: "#1e2026", alignItems: "flex-start", lineHeight: 1.45 },
+  detailIcon: { width: 20, flexShrink: 0, textAlign: "center" },
+  statusPill: { fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 999, textTransform: "capitalize" },
+  mapLink: { color: "var(--brand)", fontWeight: 600, textDecoration: "none" },
+  muted: { color: "#8a909c" },
+  modalActions: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 },
+  btnPrimary: { display: "inline-block", padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", textDecoration: "none", textAlign: "center" },
+  btnGhost: { display: "inline-block", padding: "10px 14px", borderRadius: 10, border: "1px solid #d8dce3", background: "#fff", color: "#1e2026", fontWeight: 600, fontSize: 14, cursor: "pointer", textDecoration: "none", textAlign: "center" },
+  formLabel: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 700, color: "#3c414b" },
+  input: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit" },
+  textarea: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }
 };

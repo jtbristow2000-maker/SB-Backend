@@ -1,5 +1,22 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Calendar event details/edit + quote range reordering
+
+### Added
+- **Calendar event interaction**: clicking an event opens a detail popup (date/time, status, derived
+  price, address with an "Open in Maps ↗" link, notes, customer) with Edit / Open lead / Call
+  actions; double-clicking (or the Edit button) opens an inline edit form that saves via a new
+  `updateAppointment` server action (title, service, start, length, status, address, notes). Works in
+  Week and Agenda views.
+- Appointment **price** is derived from the saved quote ranges; **address** + **notes** use the
+  existing `location`/`notes` columns (no migration). The quick-book form now accepts service,
+  address, and notes too.
+- **Reorder quote ranges**: up/down controls on each row in Settings; the saved order is what shows
+  everywhere (composer chips, price list).
+
+### Verified
+- `npm run verify` (23 files, 84 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Reply acknowledges out-of-hours requests
 
 ### Added
