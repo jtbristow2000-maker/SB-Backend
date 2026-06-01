@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Streamline lead page to one compose box
+
+### Changed
+- Merged the two compose areas into **one**: the suggested-reply composer now lives at the bottom of
+  the conversation as the single reply box — the auto-drafted message sits right in the "type box",
+  editable, with one **Send**. Removed the separate plain reply form.
+- The quote/time chips are tucked behind a **"⚙ Quote & times"** toggle (collapsed by default), so the
+  default view is just the suggested message + Send/Copy. AI-reading status moved to the header.
+- The box clears after a successful send, ready for a fresh reply.
+
+### Verified
+- `npm run verify` (24 files, 87 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Trim env booleans
 
 ### Fixed

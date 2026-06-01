@@ -5,7 +5,7 @@ import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/inta
 import { getAppConfig } from "@/server/config";
 import { getBusinessSettings, type QuoteRangeSettings } from "@/server/business/settings";
 import { buildProfileDetail } from "@/server/profiles/detail";
-import { createAppointment, markCallbackDone, sendOwnerText, setProfileStatus } from "@/app/owner/actions";
+import { createAppointment, markCallbackDone, setProfileStatus } from "@/app/owner/actions";
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
 import { ContactButtons } from "@/app/owner/ContactButtons";
 import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
@@ -201,22 +201,6 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </div>
       </header>
 
-      {profile.phone_e164 && (
-        <ReplyComposer
-          customerName={profile.display_name || ""}
-          businessName={business?.name || "us"}
-          profileId={profile.id}
-          quoteRanges={settings.quote_ranges}
-          businessHours={settings.business_hours}
-          busy={busy}
-          requestedWhen={aiX.requested_datetime ?? ""}
-          contextText={contextText}
-          pricingInquiry={pricingInquiry}
-          transcript={heroCall?.transcript ?? ""}
-          aiEnabled={aiEnabled}
-        />
-      )}
-
       {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
 
       <div style={S.actionsRow}>
@@ -304,20 +288,25 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           : `⚠ Texting is off — replies are saved here but not sent yet. Still needed: ${textingMissing.join(", ")} (set in Vercel), plus Twilio number verification.`}
       </div>
 
-      <form action={sendOwnerText} style={S.compose}>
-        <input type="hidden" name="profileId" value={profile.id} />
-        <input
-          name="body"
-          placeholder={`Reply to ${profile.display_name || "this lead"}…`}
-          style={S.textInput}
-          autoComplete="off"
+      {profile.phone_e164 && (
+        <ReplyComposer
+          customerName={profile.display_name || ""}
+          businessName={business?.name || "us"}
+          profileId={profile.id}
+          quoteRanges={settings.quote_ranges}
+          businessHours={settings.business_hours}
+          busy={busy}
+          requestedWhen={aiX.requested_datetime ?? ""}
+          contextText={contextText}
+          pricingInquiry={pricingInquiry}
+          transcript={heroCall?.transcript ?? ""}
+          aiEnabled={aiEnabled}
         />
-        <button type="submit" style={S.btnPrimary}>Send</button>
-      </form>
+      )}
 
       <footer style={S.footer}>
-        Messages here send from your business number once texting is on. Right now you can also tap{" "}
-        <strong>Call back</strong> or <strong>Text</strong> above to use your phone directly.
+        Texts send from your business number. You can also tap <strong>Call back</strong> or{" "}
+        <strong>Text</strong> above to use your phone directly.
       </footer>
     </main>
   );
