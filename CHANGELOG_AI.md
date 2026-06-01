@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-05-31] - Sandbox Console: validate caller number before simulating
+
+### Changed
+- `web/src/app/page.tsx`: the caller field is now validated/normalized with `libphonenumber-js`
+  before any simulate action. A loosely-typed valid number ("404 642 3435") is normalized to E.164;
+  an invalid one (e.g. a number missing the country code) shows a friendly inline hint instead of
+  firing a webhook that 500s on phone normalization. Valid numbers are sent as E.164.
+
+### Notes
+- Fixes the "/api/webhooks/twilio/voice → 500" seen when typing an invalid number like `+4046423435`
+  (missing the `+1`). Sandbox-only UI change; no backend/intake logic or `dashboard/` changes.
+
 ## [2026-05-31] - Fix: Sandbox Console 500 (invalid 555 demo phone numbers)
 
 ### Fixed

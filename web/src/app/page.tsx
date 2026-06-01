@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import type { CallRecordRow, CustomerProfileRow, MessageRow, TaskRow } from "@/server/db/schema";
 
@@ -37,6 +38,13 @@ function fmtTime(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+// Accept loosely-typed numbers ("404 642 3435", "(404) 642-3435") and return E.164,
+// or null if not a valid US number. Prevents the webhook from 500-ing on a typo.
+function toE164(raw: string): string | null {
+  const parsed = parsePhoneNumberFromString(raw.trim(), "US");
+  return parsed?.isValid() ? parsed.number : null;
 }
 
 async function postForm(path: string, fields: Record<string, string>): Promise<void> {
@@ -94,17 +102,31 @@ export default function SandboxConsole() {
   const newCallSid = () => `CA${Date.now()}`;
   const newMsgSid = () => `SM${Date.now()}`;
 
-  const missedNoVm = () =>
-    run(async () => {
+  // Validate/normalize the caller box; show a friendly hint if it isn't a real number.
+  const callerE164 = (): string | null => {
+    const e164 = toE164(caller);
+    if (!e164) {
+      setError(`"${caller}" isn't a valid phone number. Use a US number like +14046423435 (the "+1" matters).`);
+    }
+    return e164;
+  };
+
+  const missedNoVm = () => {
+    const from = callerE164();
+    if (!from) return;
+    void run(async () => {
       const sid = newCallSid();
-      await postForm("/api/webhooks/twilio/voice", { From: caller, To: bizPhone, CallSid: sid });
+      await postForm("/api/webhooks/twilio/voice", { From: from, To: bizPhone, CallSid: sid });
       await postForm("/api/webhooks/twilio/voice/status", { CallSid: sid, DialCallStatus: "no-answer" });
     });
+  };
 
-  const missedWithVm = () =>
-    run(async () => {
+  const missedWithVm = () => {
+    const from = callerE164();
+    if (!from) return;
+    void run(async () => {
       const sid = newCallSid();
-      await postForm("/api/webhooks/twilio/voice", { From: caller, To: bizPhone, CallSid: sid });
+      await postForm("/api/webhooks/twilio/voice", { From: from, To: bizPhone, CallSid: sid });
       await postForm("/api/webhooks/twilio/voice/status", { CallSid: sid, DialCallStatus: "no-answer" });
       await postForm("/api/webhooks/twilio/recording", {
         CallSid: sid,
@@ -112,23 +134,30 @@ export default function SandboxConsole() {
         TranscriptionText: body || "Voicemail left by caller."
       });
     });
+  };
 
-  const answered = () =>
-    run(async () => {
+  const answered = () => {
+    const from = callerE164();
+    if (!from) return;
+    void run(async () => {
       const sid = newCallSid();
-      await postForm("/api/webhooks/twilio/voice", { From: caller, To: bizPhone, CallSid: sid });
+      await postForm("/api/webhooks/twilio/voice", { From: from, To: bizPhone, CallSid: sid });
       await postForm("/api/webhooks/twilio/voice/status", { CallSid: sid, DialCallStatus: "completed" });
     });
+  };
 
-  const inboundSms = () =>
-    run(async () => {
+  const inboundSms = () => {
+    const from = callerE164();
+    if (!from) return;
+    void run(async () => {
       await postForm("/api/webhooks/twilio/sms", {
-        From: caller,
+        From: from,
         To: bizPhone,
         Body: body || "Following up on my detail.",
         MessageSid: newMsgSid()
       });
     });
+  };
 
   const reset = () =>
     run(async () => {
