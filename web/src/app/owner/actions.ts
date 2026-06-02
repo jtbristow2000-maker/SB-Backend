@@ -3,19 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getAppConfig } from "@/server/config";
+import {
+  createBusinessAppointment,
+  deleteBusinessAppointment,
+  updateBusinessAppointment
+} from "@/server/appointments/api";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
+import { getAppConfig } from "@/server/config";
 import type { AppointmentStatus } from "@/server/db/schema";
 import type { AppointmentUpdateInput } from "@/server/intake/appointments";
 import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
+import { sendOwnerApprovedSms } from "@/server/messages/outbound";
+import { updateProfileForOwner } from "@/server/profiles/update";
 import { recommendServicesFromTranscript } from "@/server/providers";
-
-// ---------------------------------------------------------------------------
-// Owner screen server actions (sandbox). These mutate the same in-memory runtime
-// the owner screens read, then revalidate so the UI refreshes. No API key needed
-// in the browser. The real app will call the guarded /api/* endpoints once auth
-// + persistence (Supabase) land.
-// ---------------------------------------------------------------------------
+import { updateTaskForOwner } from "@/server/tasks/api";
 
 function revalidateOwner(profileId?: string): void {
   revalidatePath("/owner");
@@ -23,16 +24,36 @@ function revalidateOwner(profileId?: string): void {
   if (profileId) revalidatePath(`/owner/${profileId}`);
 }
 
+async function getRuntimeAndBusiness() {
+  const rt = await getIntakeRuntime();
+  const business = (await rt.businessRepository.list())[0] ?? null;
+  return { rt, business };
+}
+
 export async function markCallbackDone(formData: FormData): Promise<void> {
   const taskId = String(formData.get("taskId") ?? "");
   const profileId = String(formData.get("profileId") ?? "");
   if (!taskId) return;
-  const rt = await getIntakeRuntime();
+
+  const { rt, business } = await getRuntimeAndBusiness();
   try {
-    await rt.taskRepository.update(taskId, { status: "done" });
+    if (business) {
+      await updateTaskForOwner(
+        {
+          taskRepository: rt.taskRepository,
+          auditEventRepository: rt.auditEventRepository
+        },
+        {
+          businessId: business.id,
+          taskId,
+          updates: { status: "done" }
+        }
+      );
+    }
   } catch {
     /* task may have been reset */
   }
+
   revalidateOwner(profileId);
 }
 
@@ -40,12 +61,26 @@ export async function setProfileStatus(formData: FormData): Promise<void> {
   const profileId = String(formData.get("profileId") ?? "");
   const status = String(formData.get("status") ?? "").trim();
   if (!profileId || !status) return;
-  const rt = await getIntakeRuntime();
+
+  const { rt, business } = await getRuntimeAndBusiness();
   try {
-    await rt.customerProfileRepository.update(profileId, { status });
+    if (business) {
+      await updateProfileForOwner(
+        {
+          customerProfileRepository: rt.customerProfileRepository,
+          auditEventRepository: rt.auditEventRepository
+        },
+        {
+          businessId: business.id,
+          profileId,
+          updates: { status }
+        }
+      );
+    }
   } catch {
     /* profile may have been reset */
   }
+
   revalidateOwner(profileId);
 }
 
@@ -54,54 +89,40 @@ export async function sendOwnerText(formData: FormData): Promise<void> {
   const body = String(formData.get("body") ?? "").trim();
   if (!profileId || !body) return;
 
-  const rt = await getIntakeRuntime();
-  const businesses = await rt.businessRepository.list();
-  const business = businesses[0] ?? null;
-  const profile = (await rt.customerProfileRepository.list()).find((p) => p.id === profileId) ?? null;
-  if (!business || !profile) return;
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!business) return;
 
-  const sending = getAppConfig().smsSendingEnabled;
-  const now = new Date().toISOString();
-
-  // Record as queued; only mark "sent" if a real provider actually transmitted it
-  // (sandbox returns networkCallsMade=false). This keeps the status honest so it's
-  // obvious when texting isn't truly live.
-  const created = await rt.messageRepository.create({
-    business_id: business.id,
-    customer_profile_id: profile.id,
-    direction: "outbound",
-    channel: "sms",
-    from_phone_e164: business.business_phone_e164,
-    to_phone_e164: profile.phone_e164,
-    body,
-    status: "queued",
-    sent_at: null
-  });
-  if (sending && profile.phone_e164) {
-    try {
-      const result = await rt.smsProvider.sendMessage({
-        businessId: business.id,
-        to: profile.phone_e164,
-        from: business.business_phone_e164 ?? undefined,
-        body
-      });
-      if (result.networkCallsMade) {
-        await rt.messageRepository.update(created.id, { status: "sent", sent_at: now });
-      }
-    } catch {
-      try {
-        await rt.messageRepository.update(created.id, { status: "failed" });
-      } catch {
-        /* ignore */
-      }
-    }
-  }
   try {
-    await rt.customerProfileRepository.update(profileId, {
-      last_contact_at: now,
-      // Logging a reply counts as reaching out → show "Responded" (don't downgrade booked/won).
-      ...((profile.status || "new") === "new" ? { status: "contacted" } : {})
-    });
+    const result = await sendOwnerApprovedSms(
+      {
+        customerProfileRepository: rt.customerProfileRepository,
+        messageRepository: rt.messageRepository,
+        auditEventRepository: rt.auditEventRepository,
+        smsProvider: rt.smsProvider,
+        isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled
+      },
+      {
+        business,
+        payload: {
+          profile_id: profileId,
+          body
+        }
+      }
+    );
+
+    if (result.status === "created" && (result.profile.status || "new") === "new") {
+      await updateProfileForOwner(
+        {
+          customerProfileRepository: rt.customerProfileRepository,
+          auditEventRepository: rt.auditEventRepository
+        },
+        {
+          businessId: business.id,
+          profileId,
+          updates: { status: "contacted" }
+        }
+      );
+    }
   } catch {
     /* ignore */
   }
@@ -109,22 +130,32 @@ export async function sendOwnerText(formData: FormData): Promise<void> {
   revalidateOwner(profileId);
 }
 
-// Tapping Call back / Text on a lead records that the owner reached out, so the
-// lead shows "Responded" on the dashboards. Only promotes a brand-new lead to
-// "contacted" — never overrides a later stage (booked/won/lost).
 export async function markContacted(formData: FormData): Promise<void> {
   const profileId = String(formData.get("profileId") ?? "").trim();
   if (!profileId) return;
-  const rt = await getIntakeRuntime();
+
+  const { rt, business } = await getRuntimeAndBusiness();
   const profile = (await rt.customerProfileRepository.list()).find((p) => p.id === profileId) ?? null;
   if (!profile) return;
-  if ((profile.status || "new") === "new") {
+
+  if (business && (profile.status || "new") === "new") {
     try {
-      await rt.customerProfileRepository.update(profileId, { status: "contacted" });
+      await updateProfileForOwner(
+        {
+          customerProfileRepository: rt.customerProfileRepository,
+          auditEventRepository: rt.auditEventRepository
+        },
+        {
+          businessId: business.id,
+          profileId,
+          updates: { status: "contacted" }
+        }
+      );
     } catch {
       /* profile may have been reset */
     }
   }
+
   revalidateOwner(profileId);
 }
 
@@ -136,8 +167,6 @@ const APPOINTMENT_STATUSES: AppointmentStatus[] = [
   "no_show"
 ];
 
-// Convert a datetime-local wall-clock string ("YYYY-MM-DDTHH:mm", entered in the
-// business timezone) into a UTC ISO instant — DST-aware, no date library.
 function zonedWallTimeToUtcIso(wall: string, timeZone: string): string {
   const base = wall.length >= 19 ? wall.slice(0, 19) : `${wall}:00`;
   const guessUtc = new Date(`${base}Z`);
@@ -160,26 +189,33 @@ export async function createAppointment(formData: FormData): Promise<void> {
   const durationMinutes = Number(formData.get("duration") ?? "") || 60;
   if (!startLocal) return;
 
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
+  const { rt, business } = await getRuntimeAndBusiness();
   if (!business) return;
   const tz = business.timezone || "America/New_York";
 
   const startIso = zonedWallTimeToUtcIso(startLocal, tz);
   const endIso = new Date(new Date(startIso).getTime() + durationMinutes * 60_000).toISOString();
 
-  await rt.appointmentRepository.create({
-    business_id: business.id,
-    customer_profile_id: profileId,
-    title: title || service || "Appointment",
-    service_requested: service,
-    scheduled_start_at: startIso,
-    scheduled_end_at: endIso,
-    timezone: tz,
-    status: "scheduled",
-    location,
-    notes
-  });
+  await createBusinessAppointment(
+    {
+      appointmentRepository: rt.appointmentRepository,
+      customerProfileRepository: rt.customerProfileRepository,
+      auditEventRepository: rt.auditEventRepository
+    },
+    business,
+    {
+      business_id: business.id,
+      customer_profile_id: profileId,
+      title: title || service || "Appointment",
+      service_requested: service,
+      scheduled_start_at: startIso,
+      scheduled_end_at: endIso,
+      timezone: tz,
+      status: "scheduled",
+      location,
+      notes
+    }
+  );
 
   revalidatePath("/owner/calendar");
   revalidatePath("/owner/today");
@@ -194,24 +230,35 @@ export async function setAppointmentStatus(formData: FormData): Promise<void> {
   if (!appointmentId || !APPOINTMENT_STATUSES.includes(status as AppointmentStatus)) {
     return;
   }
-  const rt = await getIntakeRuntime();
+
+  const { rt, business } = await getRuntimeAndBusiness();
   try {
-    await rt.appointmentRepository.update(appointmentId, { status: status as AppointmentStatus });
+    if (business) {
+      await updateBusinessAppointment(
+        {
+          appointmentRepository: rt.appointmentRepository,
+          customerProfileRepository: rt.customerProfileRepository,
+          auditEventRepository: rt.auditEventRepository
+        },
+        business,
+        appointmentId,
+        { status: status as AppointmentStatus }
+      );
+    }
   } catch {
     /* appointment may have been reset */
   }
+
   revalidatePath("/owner/calendar");
 }
 
-// Edit an appointment's attributes from the calendar detail modal.
 export async function updateAppointment(formData: FormData): Promise<void> {
   const appointmentId = String(formData.get("appointmentId") ?? "").trim();
   if (!appointmentId) return;
 
-  const rt = await getIntakeRuntime();
+  const { rt, business } = await getRuntimeAndBusiness();
   const existing = await rt.appointmentRepository.findById(appointmentId);
   if (!existing) return;
-  const business = (await rt.businessRepository.list())[0] ?? null;
   const tz = business?.timezone || existing.timezone || "America/New_York";
 
   const title = String(formData.get("title") ?? "").trim();
@@ -238,7 +285,18 @@ export async function updateAppointment(formData: FormData): Promise<void> {
   }
 
   try {
-    await rt.appointmentRepository.update(appointmentId, update);
+    if (business) {
+      await updateBusinessAppointment(
+        {
+          appointmentRepository: rt.appointmentRepository,
+          customerProfileRepository: rt.customerProfileRepository,
+          auditEventRepository: rt.auditEventRepository
+        },
+        business,
+        appointmentId,
+        update
+      );
+    }
   } catch {
     /* appointment may have been reset */
   }
@@ -251,13 +309,25 @@ export async function updateAppointment(formData: FormData): Promise<void> {
 export async function deleteAppointment(formData: FormData): Promise<void> {
   const appointmentId = String(formData.get("appointmentId") ?? "").trim();
   if (!appointmentId) return;
-  const rt = await getIntakeRuntime();
+
+  const { rt, business } = await getRuntimeAndBusiness();
   const existing = await rt.appointmentRepository.findById(appointmentId);
   try {
-    await rt.appointmentRepository.delete(appointmentId);
+    if (business) {
+      await deleteBusinessAppointment(
+        {
+          appointmentRepository: rt.appointmentRepository,
+          customerProfileRepository: rt.customerProfileRepository,
+          auditEventRepository: rt.auditEventRepository
+        },
+        business,
+        appointmentId
+      );
+    }
   } catch {
     /* appointment may have been reset */
   }
+
   revalidatePath("/owner/calendar");
   revalidatePath("/owner/today");
   if (existing?.customer_profile_id) revalidatePath(`/owner/${existing.customer_profile_id}`);
@@ -307,20 +377,11 @@ export async function saveSettings(formData: FormData): Promise<void> {
   revalidatePath("/owner/calendar");
 }
 
-// ---------------------------------------------------------------------------
-// Simulator — spawns a DISTINCT fake lead (unique phone) with pre-filled
-// AI-extracted details, so the quote/suggested-reply tool can be tested across
-// many scenarios without needing many real phone numbers. Gated by
-// SIMULATOR_ENABLED (on by default; turn off for client deployments).
-// ---------------------------------------------------------------------------
-
 const SIM_VOICEMAIL_FALLBACK =
-  "Hey, this is {name}. I'm looking to get {service} done — give me a call back when you can. Thanks!";
+  "Hey, this is {name}. I'm looking to get {service} done - give me a call back when you can. Thanks!";
 
-// A valid-looking US number (area code 415), avoiding the 555 exchange that the
-// phone normalizer rejects. Used only to keep each test lead a separate customer.
 function randomSimPhone(): string {
-  let exchange = 200 + Math.floor(Math.random() * 700); // 200–899
+  let exchange = 200 + Math.floor(Math.random() * 700);
   if (exchange === 555) exchange = 556;
   const line = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
   return `+1415${exchange}${line}`;
@@ -338,7 +399,6 @@ export async function simulateLead(formData: FormData): Promise<void> {
   const business = (await rt.businessRepository.list())[0] ?? null;
   if (!business) return;
 
-  // Unique phone => every test lead is its own customer (not piled onto one).
   const existing = new Set(
     (await rt.customerProfileRepository.list())
       .map((p) => p.phone_e164)
@@ -347,9 +407,6 @@ export async function simulateLead(formData: FormData): Promise<void> {
   let phone = randomSimPhone();
   for (let i = 0; i < 25 && existing.has(phone); i++) phone = randomSimPhone();
 
-  // Realistic mode: no manual service hint, so let the SAME AI pipeline that runs on
-  // a real voicemail read the transcript (name / service / timing). Filling the
-  // service field switches to manual mode (deterministic, skips the AI).
   const realistic = !service && Boolean(voicemail);
 
   if (!voicemail) {
@@ -384,16 +441,13 @@ export async function simulateLead(formData: FormData): Promise<void> {
   };
 
   if (realistic) {
-    // Create the voicemail WITHOUT a transcript, then run the real recording handler
-    // so AI extraction parses the transcript exactly like a live missed call does.
     await rt.callRecordRepository.create(baseCall);
     await rt.voiceIntakeService.handleRecording({ callSid: providerCallId, transcript: voicemail });
   } else {
-    // Manual mode: set the extracted fields directly so the scenario is deterministic.
     const summary = [
       name ? `${name} called` : "Caller left a voicemail",
       service ? `about ${service}` : null,
-      requested ? `— wants ${requested}` : null
+      requested ? `- wants ${requested}` : null
     ]
       .filter(Boolean)
       .join(" ")
@@ -430,10 +484,6 @@ export async function simulateLead(formData: FormData): Promise<void> {
   redirect(`/owner/${profile.id}`);
 }
 
-// AI service matcher for the reply composer: given a voicemail transcript and the
-// owner's exact service menu, asks the configured model which menu item(s) apply
-// (judging severity/damage/vehicle). Returns only names from the menu; falls back
-// to [] (composer keeps its keyword guess) when AI isn't configured or errors.
 export async function suggestServicesWithAI(input: {
   transcript: string;
   serviceNames: string[];

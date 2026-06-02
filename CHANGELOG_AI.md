@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner action audit consolidation
+
+### Changed
+- Routed owner server-action mutations through the canonical audited backend helpers for owner SMS, profile updates, task updates, and appointment create/update/delete behavior.
+- Preserved owner action signatures and revalidation behavior while removing duplicate direct repository mutation logic from `web/src/app/owner/actions.ts`.
+
+### Added
+- Added owner server-action tests covering audit events for owner text sending, profile status changes, callback completion, contact marking, and appointment create/update/delete flows.
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) passes.
+
 ## [2026-06-01] - Owner UI realign: dedupe helpers + remove dead styles (no behavior change)
 
 ### Changed
