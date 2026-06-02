@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner data-contract drift review
+
+### Reviewed
+- Reviewed recent `web/src/app/owner/**` reads and server actions against the current backend profile, SMS, task, appointment, and business-settings contracts.
+- Logged follow-up contract notes in `TASKS.md` for quote helper reuse, audited service-helper alignment, and lead-detail related-record parity.
+
+### Verified
+- `npm run verify` (27 files, 106 tests, 1 skipped) passes.
+
 ## [2026-06-01] - Follow-up sweep cron readiness
 
 ### Added
