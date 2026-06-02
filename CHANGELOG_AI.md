@@ -1,5 +1,22 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - PWA: installable, standalone owner app
+
+### Added
+- **Web app manifest** (`app/manifest.ts` → `/manifest.webmanifest`): standalone display, portrait,
+  brand theme/background, `start_url` `/owner/today`, SVG + maskable icons. The app is now installable
+  ("Add to Home Screen") and runs full-screen with no browser chrome.
+- **Icons**: `public/icon.svg` brand mark (manifest + favicon) and `apple-icon.tsx` (generated PNG) for
+  a crisp iOS home-screen icon. App name uses `BUSINESS_NAME` when set.
+- **Service worker** (`public/sw.js`) + `RegisterSW`: network-first navigations with an `/offline`
+  fallback page; deliberately caches no app code or data, so the live dashboard never serves stale leads.
+- Root layout: `appleWebApp` meta (capable / title / status bar), `themeColor`, `viewportFit: cover`
+  (notch-safe), and proper app name/description.
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) and `next build` pass; `/manifest.webmanifest`,
+  `/apple-icon`, and `/offline` routes generated.
+
 ## [2026-06-01] - Lead page UX cleanup: consolidated action bar + lighter chrome
 
 ### Changed
