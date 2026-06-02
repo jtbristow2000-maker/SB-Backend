@@ -759,6 +759,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 **Goal:** Surface stale leads so none are forgotten.
 **Files:** `web/src/app/api/internal/...` or `web/src/server/jobs/...`, tests.
+> **STATUS (Codex, 2026-06-01):** Vercel cron readiness is documented and configured via `web/vercel.json`; the sweep route accepts Vercel-style GET + bearer token requests as well as the existing POST path.
 **Requirements:**
 - `POST /api/internal/jobs/sweep-followups` protected by an internal token for cron use.
 - Find profiles in stale owner-action states and create one `follow_up` task per stale profile, idempotent per day.

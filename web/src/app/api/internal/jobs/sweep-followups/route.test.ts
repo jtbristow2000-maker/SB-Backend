@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { getIntakeRuntime, resetIntakeRuntimeForTests } from "@/server/intake/runtime";
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const originalEnv = {
   PERSISTENCE: process.env.PERSISTENCE,
@@ -34,6 +34,13 @@ function sweepRequest(token?: string): NextRequest {
   });
 }
 
+function vercelCronRequest(token: string): NextRequest {
+  return new NextRequest("http://localhost:3000/api/internal/jobs/sweep-followups", {
+    method: "GET",
+    headers: { authorization: `Bearer ${token}` }
+  });
+}
+
 afterEach(() => {
   process.env.PERSISTENCE = originalEnv.PERSISTENCE;
   process.env.INTERNAL_JOB_TOKEN = originalEnv.INTERNAL_JOB_TOKEN;
@@ -54,6 +61,22 @@ describe("BACKEND-21 POST /api/internal/jobs/sweep-followups", () => {
     const response = await POST(sweepRequest());
 
     expect(response.status).toBe(401);
+  });
+
+  it("accepts a Vercel Cron-style GET request with a bearer token", async () => {
+    configureEnv();
+    resetIntakeRuntimeForTests();
+
+    const response = await GET(vercelCronRequest("follow-up-job-test-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      scanned: 0,
+      stale: 0,
+      created: 0,
+      skipped_existing_today: 0
+    });
   });
 
   it("creates one daily follow-up task for a stale profile and skips fresh or owner-touched profiles", async () => {

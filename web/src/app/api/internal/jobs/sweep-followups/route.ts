@@ -7,7 +7,7 @@ import { withRequestLogging } from "@/server/observability/requestLogging";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+async function handleSweepFollowUps(request: NextRequest) {
   return withRequestLogging(
     request,
     "/api/internal/jobs/sweep-followups",
@@ -49,4 +49,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
   );
+}
+
+export async function GET(request: NextRequest) {
+  return handleSweepFollowUps(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleSweepFollowUps(request);
 }

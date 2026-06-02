@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Follow-up sweep cron readiness
+
+### Added
+- Added `web/vercel.json` with a daily cron entry for `/api/internal/jobs/sweep-followups`.
+- Added GET support for the sweep endpoint so Vercel Cron can invoke it, while preserving the existing POST path.
+- Documented `CRON_SECRET`, `INTERNAL_JOB_TOKEN`, and `FOLLOW_UP_STALE_HOURS` in `web/.env.example`.
+- Added a Vercel-style bearer-token GET test for the sweep route.
+
+### Verified
+- `npm run verify` (27 files, 106 tests, 1 skipped) passes.
+
 ## [2026-06-01] - BACKEND-20 appointment REST API
 
 ### Added
