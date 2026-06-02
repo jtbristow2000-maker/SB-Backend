@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Quote helper follow-up closed
+
+### Changed
+- Closed the `TASKS.md` maintenance follow-up for duplicate owner quote helpers now that owner screens use the shared backend `quotePriceLabel()` helper.
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) passes.
+
 ## [2026-06-01] - Lead detail related-record parity
 
 ### Changed
