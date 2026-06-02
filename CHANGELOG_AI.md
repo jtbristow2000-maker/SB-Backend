@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Lead page UX cleanup: consolidated action bar + lighter chrome
+
+### Changed
+- Replaced the three stacked control rows with a clear hierarchy: prominent **Call / Text**, then a
+  compact secondary `LeadActionBar` — **status that auto-saves** on change (no Save button),
+  **Mark done**, and a **📅 Book** button that reveals the booking fields on demand instead of an
+  always-open form.
+- "Texting is live" is now a quiet one-line note (the loud banner shows only when texting is OFF and
+  actionable). Dropped the redundant status text from the header subline and the static "built from
+  your settings" badge; trimmed the reply box to 4 rows. All features preserved (chips stay visible).
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Lead detail consumes the shared profile-detail timeline
 
 ### Changed

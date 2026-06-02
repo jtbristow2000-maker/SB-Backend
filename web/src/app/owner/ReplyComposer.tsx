@@ -366,7 +366,6 @@ export function ReplyComposer({
     <div style={S.card}>
       <div style={S.head}>
         <span>✨ Suggested reply</span>
-        <span style={S.badge}>built from your settings</span>
       </div>
 
       {/* Services → live quote */}
@@ -429,7 +428,7 @@ export function ReplyComposer({
 
       {/* Assembled message */}
       <div style={S.sectionLabel}>Message</div>
-      <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={5} style={S.textarea} />
+      <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={4} style={S.textarea} />
       <div style={S.actions}>
         <button type="button" onClick={send} disabled={sendState === "sending"} style={S.sendBtn}>
           {sendState === "sending" ? "Sending…" : sendState === "sent" ? "✓ Sent" : "💬 Send"}

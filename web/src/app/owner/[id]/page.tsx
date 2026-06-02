@@ -5,9 +5,9 @@ import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/inta
 import { getAppConfig } from "@/server/config";
 import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
 import { buildProfileDetail, type ProfileCallTimelineItem } from "@/server/profiles/detail";
-import { createAppointment, markCallbackDone, setProfileStatus } from "@/app/owner/actions";
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
 import { ContactButtons } from "@/app/owner/ContactButtons";
+import { LeadActionBar } from "@/app/owner/LeadActionBar";
 import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 import { fmtPhone, readExtracted, type Extracted } from "@/app/owner/format";
 
@@ -159,56 +159,21 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           {customer_replied && <span style={S.replied}>Replied</span>}
         </div>
         <div style={S.sub}>
-          {fmtPhone(profile.phone_e164)} · status {profile.status}
+          {fmtPhone(profile.phone_e164)}
           {profile.last_contact_at ? ` · last heard ${fmtTime(profile.last_contact_at, tz)}` : ""}
         </div>
       </header>
 
       {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
 
-      <div style={S.actionsRow}>
-        <form action={setProfileStatus} style={S.inlineForm}>
-          <input type="hidden" name="profileId" value={profile.id} />
-          <select name="status" defaultValue={profile.status} style={S.select}>
-            <option value="new">New</option>
-            <option value="contacted">Contacted</option>
-            <option value="booked">Booked</option>
-            <option value="won">Won</option>
-            <option value="lost">Lost</option>
-          </select>
-          <button type="submit" style={S.btnGhost}>Save status</button>
-        </form>
-
-        {open_task && (
-          <form action={markCallbackDone}>
-            <input type="hidden" name="taskId" value={open_task.id} />
-            <input type="hidden" name="profileId" value={profile.id} />
-            <button type="submit" style={S.btnPrimary}>✓ Mark callback done</button>
-          </form>
-        )}
-      </div>
-
-      <form action={createAppointment} style={S.bookRow}>
-        <input type="hidden" name="profileId" value={profile.id} />
-        <input
-          type="hidden"
-          name="title"
-          value={`${profile.display_name || fmtPhone(profile.phone_e164)}${aiX.service_requested ? ` — ${aiX.service_requested}` : ""}`}
-        />
-        <input type="hidden" name="service" value={aiX.service_requested ?? ""} />
-        <input type="hidden" name="notes" value={bookingNotes} />
-        <span style={S.bookLabel}>📅 Book:</span>
-        <input name="start" type="datetime-local" required style={S.bookInput} aria-label="Appointment time" />
-        <select name="duration" defaultValue="60" style={S.bookSelect} aria-label="Duration">
-          <option value="30">30m</option>
-          <option value="60">1h</option>
-          <option value="90">1.5h</option>
-          <option value="120">2h</option>
-          <option value="180">3h</option>
-          <option value="240">4h</option>
-        </select>
-        <button type="submit" style={S.btnGhost}>Add</button>
-      </form>
+      <LeadActionBar
+        profileId={profile.id}
+        status={profile.status}
+        openTaskId={open_task?.id ?? null}
+        bookTitle={`${profile.display_name || fmtPhone(profile.phone_e164)}${aiX.service_requested ? ` — ${aiX.service_requested}` : ""}`}
+        bookService={aiX.service_requested ?? ""}
+        bookNotes={bookingNotes}
+      />
 
       <div style={S.paneTitle}>CONVERSATION</div>
       {convo.length === 0 ? (
@@ -245,11 +210,13 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <div style={textingLive ? S.textOk : S.textWarn}>
-        {textingLive
-          ? "✓ Texting is live — replies send from your business number."
-          : `⚠ Texting is off — replies are saved here but not sent yet. Still needed: ${textingMissing.join(", ")} (set in Vercel), plus Twilio number verification.`}
-      </div>
+      {textingLive ? (
+        <div style={S.textOk}>✓ Texting on — replies send from your business number.</div>
+      ) : (
+        <div style={S.textWarn}>
+          ⚠ Texting is off — replies are saved here but not sent yet. Still needed: {textingMissing.join(", ")} (set in Vercel), plus Twilio number verification.
+        </div>
+      )}
 
       {profile.phone_e164 && (
         <ReplyComposer
@@ -288,19 +255,10 @@ const S: Record<string, CSSProperties> = {
   vmBubble: { maxWidth: "88%", padding: "9px 12px", borderRadius: 12, background: "#f4f5f8", borderLeft: "3px solid var(--brand)", fontSize: 13, boxSizing: "border-box" },
   vmHead: { fontSize: 12, fontWeight: 700, color: "#3c414b", marginBottom: 3 },
   vmBody: { color: "#1e2026", lineHeight: 1.4 },
-  textOk: { marginTop: 14, padding: "8px 12px", borderRadius: 10, background: "rgba(var(--positive-rgb),0.12)", color: "#1d6b4f", fontSize: 12, fontWeight: 600 },
+  textOk: { marginTop: 14, marginBottom: 2, fontSize: 11.5, fontWeight: 600, color: "#1d6b4f" },
   textWarn: { marginTop: 14, padding: "9px 12px", borderRadius: 10, background: "rgba(199,125,20,0.12)", color: "#8a5a0c", fontSize: 12, fontWeight: 600, lineHeight: 1.5 },
   bubbleMeta: { marginTop: 3, fontSize: 11, color: "#8a909c" },
-  footer: { marginTop: 18, color: "#8a909c", fontSize: 12, lineHeight: 1.5 },
-  actionsRow: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "8px 0 4px" },
-  inlineForm: { display: "flex", gap: 6, alignItems: "center" },
-  select: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
-  btnPrimary: { padding: "9px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
-  btnGhost: { padding: "9px 12px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#1e2026", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  bookRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "2px 0 4px" },
-  bookLabel: { fontSize: 13, fontWeight: 600, color: "#3c414b" },
-  bookInput: { flex: 1, minWidth: 150, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
-  bookSelect: { padding: "8px 8px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" }
+  footer: { marginTop: 18, color: "#8a909c", fontSize: 12, lineHeight: 1.5 }
 };
 
 function bubbleWrap(out: boolean): CSSProperties {
