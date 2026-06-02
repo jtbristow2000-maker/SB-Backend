@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
 
 import { sendOwnerText, suggestServicesWithAI } from "@/app/owner/actions";
+import { fmtUsd } from "@/app/owner/format";
 import type { BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
 
 // Interactive reply builder for a missed-call lead. Shows the whole flow in one place:
@@ -32,9 +33,6 @@ function startOfDay(d: Date): Date {
 }
 function fmtSlot(d: Date): string {
   return d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-function fmtUsd(n: number): string {
-  return `$${Math.round(n).toLocaleString("en-US")}`;
 }
 function parseHour(hhmm: string, fallback: number): number {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
@@ -482,7 +480,5 @@ const S: Record<string, CSSProperties> = {
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
   actions: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" },
   sendBtn: { padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
-  copyBtn: { padding: "10px 14px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 14, cursor: "pointer" },
-  tuneBtn: { padding: "10px 12px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#3c414b", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  controls: { marginTop: 12, paddingTop: 12, borderTop: "1px solid #eceef2" }
+  copyBtn: { padding: "10px 14px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 14, cursor: "pointer" }
 };

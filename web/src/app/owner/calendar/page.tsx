@@ -2,7 +2,8 @@ import type { CSSProperties } from "react";
 
 import { createAppointment } from "@/app/owner/actions";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
-import { getBusinessSettings, type QuoteRangeSettings } from "@/server/business/settings";
+import { fmtPhone } from "@/app/owner/format";
+import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
 import { getIntakeRuntime } from "@/server/intake/runtime";
 
 export const dynamic = "force-dynamic";
@@ -11,35 +12,6 @@ export const runtime = "nodejs";
 // Owner screen — Schedule: a Week / Month / Agenda calendar of appointments,
 // plus a quick "book an appointment" form. Calendar rendering + navigation is
 // the CalendarViews client island; booking is a server action.
-
-function fmtPhone(p: string | null): string {
-  if (!p) return "";
-  const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(p);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
-}
-
-function fmtUsd(n: number): string {
-  return `$${Math.round(n).toLocaleString("en-US")}`;
-}
-
-// Best-effort price for an appointment from the saved quote ranges (exact match,
-// else substring either way). Shown read-only in the calendar detail popup.
-function priceForService(service: string | null, ranges: QuoteRangeSettings[]): string | null {
-  const s = (service ?? "").trim().toLowerCase();
-  if (!s || ranges.length === 0) return null;
-  let best: QuoteRangeSettings | null = null;
-  for (const r of ranges) {
-    const rs = r.service.trim().toLowerCase();
-    if (!rs) continue;
-    if (s === rs) {
-      best = r;
-      break;
-    }
-    if ((s.includes(rs) || rs.includes(s)) && !best) best = r;
-  }
-  if (!best) return null;
-  return best.low === best.high ? fmtUsd(best.low) : `${fmtUsd(best.low)}–${fmtUsd(best.high)}`;
-}
 
 export default async function CalendarPage() {
   const rt = await getIntakeRuntime();
@@ -50,7 +22,9 @@ export default async function CalendarPage() {
   ]);
   const business = businesses[0] ?? null;
   const settings = getBusinessSettings(business);
-  const nameById = new Map(profiles.map((p) => [p.id, p.display_name || fmtPhone(p.phone_e164)]));
+  const nameById = new Map(
+    profiles.map((p) => [p.id, p.display_name || (p.phone_e164 ? fmtPhone(p.phone_e164) : "")])
+  );
   const phoneById = new Map(profiles.map((p) => [p.id, p.phone_e164]));
 
   const events: CalendarEvent[] = appointments
@@ -67,7 +41,7 @@ export default async function CalendarPage() {
       location: a.location,
       notes: a.notes,
       phone: a.customer_profile_id ? phoneById.get(a.customer_profile_id) ?? null : null,
-      priceLabel: priceForService(a.service_requested, settings.quote_ranges)
+      priceLabel: quotePriceLabel(a.service_requested, settings.quote_ranges)
     }));
 
   return (

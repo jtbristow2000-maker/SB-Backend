@@ -1,5 +1,20 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Owner UI realign: dedupe helpers + remove dead styles (no behavior change)
+
+### Changed
+- Deduped formatting/parsing helpers into `web/src/app/owner/format.ts` (`fmtPhone`, `fmtUsd`,
+  `readExtracted` + `Extracted` type) and switched the three `priceForService` copies (calendar page,
+  lead detail, leadRundown) to the shared `quotePriceLabel` from `@/server/business/settings`.
+  Behavior-identical (the calendar's null-phone "" case is preserved at the call site).
+- Removed dead style keys left over from earlier feature changes: lead detail
+  (`hero*`, old `callItem`/`callHead`/`transcript`, `quickActions`/`callBtn`/`textBtn`/`taskBar`,
+  `compose`/`textInput`); Callbacks (`meta`, `replied`, `linkBtnGhost`, `inlineLink`); Today
+  (`rowMeta`, `replied`, `link`); ReplyComposer (`tuneBtn`, `controls`). Verified unreferenced first.
+
+### Verified
+- `npm run verify` (27 files, 106 tests, 1 skipped) and `next build` pass. No visual/behavior change.
+
 ## [2026-06-01] - Owner data-contract drift review
 
 ### Reviewed

@@ -6,6 +6,7 @@ import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
 import { buildLeadRundown } from "@/app/owner/leadRundown";
+import { fmtPhone } from "@/app/owner/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,12 +19,6 @@ export const runtime = "nodejs";
 // ---------------------------------------------------------------------------
 
 const FALLBACK_TZ = "America/New_York";
-
-function fmtPhone(p: string | null): string {
-  if (!p) return "Unknown number";
-  const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(p);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
-}
 
 function greeting(tz: string): string {
   const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(new Date())) % 24;
@@ -125,9 +120,6 @@ const S = {
   metricLabel: { fontSize: 12, color: "#8a909c", marginTop: 4 } as CSSProperties,
   sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "26px 0 10px" } as CSSProperties,
   empty: { padding: "24px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", color: "#3c414b", fontSize: 14 } as CSSProperties,
-  rowMeta: { color: "#3c414b", fontSize: 13, marginTop: 3 } as CSSProperties,
-  replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "2px 9px", borderRadius: 999 } as CSSProperties,
-  link: { color: "var(--brand)", fontWeight: 600 } as CSSProperties,
   viewAll: { display: "inline-block", marginTop: 8, color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" } as CSSProperties
 };
 

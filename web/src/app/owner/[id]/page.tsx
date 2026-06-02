@@ -3,12 +3,13 @@ import type { CSSProperties } from "react";
 
 import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
-import { getBusinessSettings, type QuoteRangeSettings } from "@/server/business/settings";
+import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
 import { buildProfileDetail } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, setProfileStatus } from "@/app/owner/actions";
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
 import { ContactButtons } from "@/app/owner/ContactButtons";
 import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
+import { fmtPhone, readExtracted, type Extracted } from "@/app/owner/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,26 +22,6 @@ export const runtime = "nodejs";
 
 const FALLBACK_TZ = "America/New_York";
 
-type Extracted = {
-  caller_name?: string | null;
-  requested_datetime?: string | null;
-  service_requested?: string | null;
-  summary?: string | null;
-};
-
-function readExtracted(value: unknown): Extracted {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value as Extracted;
-  }
-  return {};
-}
-
-function fmtPhone(p: string | null): string {
-  if (!p) return "Unknown number";
-  const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(p);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
-}
-
 function fmtTime(iso: string | null, tz: string): string {
   if (!iso) return "";
   return new Date(iso).toLocaleString("en-US", {
@@ -50,28 +31,6 @@ function fmtTime(iso: string | null, tz: string): string {
     hour: "numeric",
     minute: "2-digit"
   });
-}
-
-function fmtUsd(n: number): string {
-  return `$${Math.round(n).toLocaleString("en-US")}`;
-}
-
-// Best-effort quote for a service from the saved ranges (exact match, else substring).
-function priceForService(service: string | null, ranges: QuoteRangeSettings[]): string | null {
-  const s = (service ?? "").trim().toLowerCase();
-  if (!s || ranges.length === 0) return null;
-  let best: QuoteRangeSettings | null = null;
-  for (const r of ranges) {
-    const rs = r.service.trim().toLowerCase();
-    if (!rs) continue;
-    if (s === rs) {
-      best = r;
-      break;
-    }
-    if ((s.includes(rs) || rs.includes(s)) && !best) best = r;
-  }
-  if (!best) return null;
-  return best.low === best.high ? fmtUsd(best.low) : `${fmtUsd(best.low)}–${fmtUsd(best.high)}`;
 }
 
 function callLabel(callType: string, hasTranscript: boolean, hasRecording: boolean): string {
@@ -179,7 +138,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   // Pre-fill booking notes from the voicemail (condition / vehicle / details) plus a
   // "Quote:" header from the saved price ranges, so the appointment carries the price
   // and context onto the calendar instead of starting blank.
-  const bookingPrice = priceForService(aiX.service_requested ?? null, settings.quote_ranges);
+  const bookingPrice = quotePriceLabel(aiX.service_requested ?? null, settings.quote_ranges);
   const bookingSummary = aiSummaryText ?? (aiTranscript ? aiTranscript.slice(0, 200) : "");
   const bookingNotes = [bookingPrice ? `Quote: ${bookingPrice}` : null, bookingSummary || null]
     .filter(Boolean)
@@ -318,22 +277,8 @@ const S: Record<string, CSSProperties> = {
   h1: { margin: "6px 0 2px", fontSize: 22 },
   sub: { color: "#8a909c", fontSize: 13 },
   replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 9px", borderRadius: 999 },
-  hero: { marginTop: 14, padding: "16px 18px", borderRadius: 14, background: "#fff", border: "1px solid #e3e6ec", borderLeft: "4px solid var(--brand)", boxShadow: "0 1px 3px rgba(17,21,28,0.05)" },
-  heroHead: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: "var(--brand)", textTransform: "uppercase" },
-  heroMeta: { fontSize: 12, fontWeight: 600, color: "#8a909c", textTransform: "none", letterSpacing: 0 },
-  heroQuote: { margin: "8px 0 0", fontSize: 17, lineHeight: 1.5, color: "#15171b", fontWeight: 500 },
-  heroFoot: { display: "flex", flexWrap: "wrap", gap: "6px 12px", marginTop: 10, alignItems: "center" },
-  heroNote: { fontSize: 11, color: "#9a6210" },
-  heroWhen: { fontSize: 12, fontWeight: 700, color: "#2a2a8a", background: "rgba(var(--brand-rgb),0.1)", padding: "2px 9px", borderRadius: 999 },
-  quickActions: { display: "flex", gap: 10, margin: "12px 0 4px" },
-  callBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" },
-  textBtn: { flex: 1, textAlign: "center", padding: "12px", borderRadius: 11, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 15, textDecoration: "none" },
-  taskBar: { padding: "9px 13px", borderRadius: 10, background: "rgba(var(--brand-rgb),0.08)", color: "#3a3a9a", fontSize: 13, margin: "10px 0 6px" },
   paneTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "14px 0 8px" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#8a909c" },
-  callItem: { padding: "9px 0", borderBottom: "1px solid #f1f2f5" },
-  callHead: { fontSize: 13, fontWeight: 600 },
-  transcript: { marginTop: 4, fontSize: 13, color: "#3c414b" },
   transcribing: { marginTop: 4, fontSize: 13, color: "#8a909c", fontStyle: "italic" },
   review: { color: "#9a6210", fontSize: 11 },
   vmBubble: { maxWidth: "88%", padding: "9px 12px", borderRadius: 12, background: "#f4f5f8", borderLeft: "3px solid var(--brand)", fontSize: 13, boxSizing: "border-box" },
@@ -351,9 +296,7 @@ const S: Record<string, CSSProperties> = {
   bookRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "2px 0 4px" },
   bookLabel: { fontSize: 13, fontWeight: 600, color: "#3c414b" },
   bookInput: { flex: 1, minWidth: 150, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
-  bookSelect: { padding: "8px 8px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
-  compose: { display: "flex", gap: 8, marginTop: 16 },
-  textInput: { flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 }
+  bookSelect: { padding: "8px 8px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" }
 };
 
 function bubbleWrap(out: boolean): CSSProperties {

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 
+import { fmtPhone } from "@/app/owner/format";
+
 // Client-side searchable lead directory. Unlike Callbacks (open callbacks only),
 // this lists EVERY lead, with name/number search + status filtering.
 
@@ -16,12 +18,6 @@ export type DirectoryLead = {
 };
 
 const STATUS_FILTERS = ["all", "new", "contacted", "booked", "won", "lost"] as const;
-
-function fmtPhone(p: string | null): string {
-  if (!p) return "Unknown number";
-  const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(p);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
-}
 
 function fmtWhen(iso: string | null, tz: string): string {
   if (!iso) return "";

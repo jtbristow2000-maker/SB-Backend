@@ -6,6 +6,7 @@ import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
 import { buildLeadRundown } from "@/app/owner/leadRundown";
+import { fmtPhone } from "@/app/owner/format";
 
 // Always read current in-memory state (the sandbox runtime), never statically cache.
 export const dynamic = "force-dynamic";
@@ -16,12 +17,6 @@ export const runtime = "nodejs";
 // Server component: reads the sandbox runtime and reuses Codex's read-API
 // builder (buildCallbackProfileList) so this matches GET /api/profiles exactly.
 // ---------------------------------------------------------------------------
-
-function fmtPhone(p: string | null): string {
-  if (!p) return "Unknown number";
-  const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(p);
-  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : p;
-}
 
 // Owner has reached out (vs a brand-new, untouched lead) → show the "Responded" pill.
 const RESPONDED_STATUSES = new Set(["contacted", "booked", "won"]);
@@ -101,10 +96,6 @@ const S: Record<string, CSSProperties> = {
   h1: { margin: "4px 0 2px", fontSize: 26 },
   sub: { color: "#8a909c", fontSize: 13 },
   empty: { marginTop: 28, padding: "28px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#3c414b" },
-  meta: { color: "#3c414b", fontSize: 13, marginTop: 3 },
-  replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" },
   linkBtn: { padding: "8px 12px", borderRadius: 10, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" },
-  linkBtnGhost: { padding: "8px 12px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 600, fontSize: 13, textDecoration: "none" },
-  inlineLink: { color: "var(--brand)", fontWeight: 600 },
   footer: { marginTop: 26, color: "#8a909c", fontSize: 12 }
 };
