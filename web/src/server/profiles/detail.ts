@@ -1,4 +1,11 @@
-import type { CallRecordRow, CustomerProfileRow, MessageRow, TaskRow } from "@/server/db/schema";
+import type {
+  AppointmentRow,
+  CallRecordRow,
+  CustomerProfileRow,
+  MessageRow,
+  QuoteDraftRow,
+  TaskRow
+} from "@/server/db/schema";
 import { hasCustomerRepliedSinceCall } from "@/server/profiles/callbacks";
 
 export type ProfileCallTimelineItem = {
@@ -44,8 +51,8 @@ export type ProfileDetailResponse = {
   profile: CustomerProfileRow;
   timeline: ProfileTimelineItem[];
   open_task: ProfileOpenTask | null;
-  appointments: [];
-  quote_drafts: [];
+  appointments: AppointmentRow[];
+  quote_drafts: QuoteDraftRow[];
   customer_replied: boolean;
 };
 
@@ -56,6 +63,8 @@ export type ProfileDetailInput = {
   calls: CallRecordRow[];
   messages: MessageRow[];
   tasks: TaskRow[];
+  appointments?: AppointmentRow[];
+  quoteDrafts?: QuoteDraftRow[];
 };
 
 export function buildProfileDetail(input: ProfileDetailInput): ProfileDetailResponse | null {
@@ -83,8 +92,8 @@ export function buildProfileDetail(input: ProfileDetailInput): ProfileDetailResp
     profile,
     timeline: buildTimeline(calls, messages),
     open_task: selectOpenCallbackTask(input.businessId, profile.id, input.tasks),
-    appointments: [],
-    quote_drafts: [],
+    appointments: selectLinkedAppointments(input.businessId, profile.id, input.appointments ?? []),
+    quote_drafts: selectLinkedQuoteDrafts(input.businessId, profile.id, input.quoteDrafts ?? []),
     customer_replied: hasCustomerRepliedSinceCall(messages, latestMissedOrVoicemailCall)
   };
 }
@@ -152,6 +161,36 @@ function sortCallsByNewest(calls: CallRecordRow[]): CallRecordRow[] {
   return [...calls].sort((a, b) =>
     compareIsoDesc(a.started_at ?? a.created_at, b.started_at ?? b.created_at)
   );
+}
+
+function selectLinkedAppointments(
+  businessId: string,
+  profileId: string,
+  appointments: AppointmentRow[]
+): AppointmentRow[] {
+  return appointments
+    .filter(
+      (appointment) =>
+        appointment.business_id === businessId && appointment.customer_profile_id === profileId
+    )
+    .sort((a, b) => compareIsoAsc(a.scheduled_start_at, b.scheduled_start_at));
+}
+
+function selectLinkedQuoteDrafts(
+  businessId: string,
+  profileId: string,
+  quoteDrafts: QuoteDraftRow[]
+): QuoteDraftRow[] {
+  return quoteDrafts
+    .filter(
+      (quoteDraft) =>
+        quoteDraft.business_id === businessId && quoteDraft.customer_profile_id === profileId
+    )
+    .sort((a, b) => compareIsoDesc(a.created_at, b.created_at));
+}
+
+function compareIsoAsc(a?: string | null, b?: string | null): number {
+  return new Date(a ?? 0).getTime() - new Date(b ?? 0).getTime();
 }
 
 function compareIsoDesc(a?: string | null, b?: string | null): number {

@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Lead detail related-record parity
+
+### Changed
+- Extended `buildProfileDetail` and `GET /api/profiles/{id}` to include profile-linked appointments and quote drafts while preserving the existing profile, timeline, open task, and reply fields.
+- Added an in-memory and Supabase-backed quote draft repository seam so the detail route can read quote drafts behind the same runtime interface as the other repositories.
+
+### Added
+- Expanded the lead detail route test to assert linked appointments and quote drafts are returned and unrelated records are excluded.
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) passes.
+
 ## [2026-06-01] - Owner action audit consolidation
 
 ### Changed

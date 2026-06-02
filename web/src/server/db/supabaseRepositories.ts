@@ -28,6 +28,10 @@ import type {
   MessageRepository
 } from "@/server/intake/messages";
 import type {
+  QuoteDraftCreateInput,
+  QuoteDraftRepository
+} from "@/server/intake/quoteDrafts";
+import type {
   TaskCreateInput,
   TaskRepository
 } from "@/server/intake/tasks";
@@ -41,6 +45,7 @@ import type {
   CustomerProfileRow,
   Database,
   MessageRow,
+  QuoteDraftRow,
   TaskRow
 } from "./schema";
 
@@ -490,6 +495,36 @@ export class SupabaseAppointmentRepository implements AppointmentRepository {
   }
 }
 
+export class SupabaseQuoteDraftRepository implements QuoteDraftRepository {
+  constructor(private readonly client: SupabaseClient<Database>) {}
+
+  async create(input: QuoteDraftCreateInput): Promise<QuoteDraftRow> {
+    const { data, error } = await this.client
+      .from("quote_drafts")
+      .insert({
+        business_id: input.business_id,
+        customer_profile_id: input.customer_profile_id ?? null,
+        source_call_record_id: input.source_call_record_id ?? null,
+        service_requested: input.service_requested ?? null,
+        job_address: input.job_address ?? null,
+        scope_notes: input.scope_notes ?? null,
+        timeline: input.timeline ?? null,
+        budget_hint: input.budget_hint ?? null,
+        estimated_amount: input.estimated_amount ?? null,
+        status: input.status ?? "draft"
+      })
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "create quote draft");
+  }
+
+  async list(): Promise<QuoteDraftRow[]> {
+    const { data, error } = await this.client.from("quote_drafts").select("*");
+    return rowsOrThrow(data, error, "list quote drafts");
+  }
+}
+
 export type IntakeRepositories = {
   businessRepository: BusinessRepository;
   customerProfileRepository: CustomerProfileRepository;
@@ -498,6 +533,7 @@ export type IntakeRepositories = {
   taskRepository: TaskRepository;
   auditEventRepository: AuditEventRepository;
   appointmentRepository: AppointmentRepository;
+  quoteDraftRepository: QuoteDraftRepository;
 };
 
 // Return the repositories typed as their interfaces (not the concrete classes) so
@@ -512,6 +548,7 @@ export function createSupabaseRepositories(client: SupabaseClient<Database>): In
     messageRepository: new SupabaseMessageRepository(client),
     taskRepository: new SupabaseTaskRepository(client),
     auditEventRepository: new SupabaseAuditEventRepository(client),
-    appointmentRepository: new SupabaseAppointmentRepository(client)
+    appointmentRepository: new SupabaseAppointmentRepository(client),
+    quoteDraftRepository: new SupabaseQuoteDraftRepository(client)
   };
 }

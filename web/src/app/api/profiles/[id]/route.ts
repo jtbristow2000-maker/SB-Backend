@@ -30,11 +30,13 @@ export async function GET(
     }
 
     logger.setContext({ businessId: business.id });
-    const [profiles, calls, messages, tasks] = await Promise.all([
+    const [profiles, calls, messages, tasks, appointments, quoteDrafts] = await Promise.all([
       intake.customerProfileRepository.list(),
       intake.callRecordRepository.list(),
       intake.messageRepository.list(),
-      intake.taskRepository.list()
+      intake.taskRepository.list(),
+      intake.appointmentRepository.list(),
+      intake.quoteDraftRepository.list()
     ]);
     const detail = buildProfileDetail({
       businessId: business.id,
@@ -42,7 +44,9 @@ export async function GET(
       profiles,
       calls,
       messages,
-      tasks
+      tasks,
+      appointments,
+      quoteDrafts
     });
 
     if (!detail) {

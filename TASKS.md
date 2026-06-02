@@ -795,7 +795,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 - 2026-06-01: Owner data-contract review follow-ups:
   - Switch duplicate owner-side quote range matchers in `/owner` detail/calendar/rundown code to the shared backend `quotePriceLabel()` helper so quote labels cannot drift.
   - DONE (Codex, 2026-06-01): Owner server-action mutations now route through the same audited service helpers used by REST endpoints where practical: `sendOwnerText` shares `sendOwnerApprovedSms`, appointment create/update/delete/status changes share the appointment helpers, and profile/task actions use the owner update helpers.
-  - Extend the lead detail read contract to include linked appointments and future quote drafts instead of returning empty arrays, so `/api/profiles/{id}` and owner lead detail expose the same related records once the UI consumes the REST shape.
+  - DONE (Codex, 2026-06-01): The lead detail read contract now includes linked appointments and quote drafts in `buildProfileDetail` and `GET /api/profiles/{id}` instead of returning empty arrays.
 - 2026-06-01: SMS provider selection is covered by tests, including Twilio selection when real sending is enabled and `BUSINESS_PHONE` supplies the from-number fallback; owner-approved SMS status now follows provider `networkCallsMade` just like the owner UI action.
 - 2026-06-01: Added shared `quotePriceLabel()` backend helper for quote range matching/formatting; owner UI duplicate quote helpers can switch to it later.
 

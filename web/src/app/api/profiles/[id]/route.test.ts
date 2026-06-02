@@ -169,6 +169,39 @@ describe("BACKEND-15 GET /api/profiles/[id]", () => {
       sent_at: "2026-05-31T14:05:00.000Z",
       created_at: "2026-05-31T14:05:00.000Z"
     });
+    const appointment = await runtime.appointmentRepository.create({
+      business_id: business.id,
+      customer_profile_id: profile.id,
+      title: "Full detail appointment",
+      service_requested: "Full detail SUV",
+      scheduled_start_at: "2026-06-06T14:00:00.000Z",
+      scheduled_end_at: "2026-06-06T16:00:00.000Z",
+      location: "123 Main St",
+      notes: "Bring water tank"
+    });
+    await runtime.appointmentRepository.create({
+      business_id: business.id,
+      customer_profile_id: "other-profile",
+      title: "Other appointment",
+      scheduled_start_at: "2026-06-06T18:00:00.000Z"
+    });
+    const quoteDraft = await runtime.quoteDraftRepository.create({
+      business_id: business.id,
+      customer_profile_id: profile.id,
+      source_call_record_id: call.id,
+      service_requested: "Full detail SUV",
+      job_address: "123 Main St",
+      scope_notes: "Exterior and interior detail",
+      timeline: "Saturday",
+      budget_hint: "$250-$350",
+      estimated_amount: 300,
+      status: "draft"
+    });
+    await runtime.quoteDraftRepository.create({
+      business_id: business.id,
+      customer_profile_id: "other-profile",
+      service_requested: "Other job"
+    });
 
     const response = await GET(
       detailRequest(profile.id, "profile-detail-test-key"),
@@ -186,8 +219,34 @@ describe("BACKEND-15 GET /api/profiles/[id]", () => {
       due_at: "2026-05-31T18:00:00.000Z"
     });
     expect(body.customer_replied).toBe(true);
-    expect(body.appointments).toEqual([]);
-    expect(body.quote_drafts).toEqual([]);
+    expect(body.appointments).toEqual([
+      expect.objectContaining({
+        id: appointment.id,
+        business_id: business.id,
+        customer_profile_id: profile.id,
+        title: "Full detail appointment",
+        service_requested: "Full detail SUV",
+        scheduled_start_at: "2026-06-06T14:00:00.000Z",
+        scheduled_end_at: "2026-06-06T16:00:00.000Z",
+        location: "123 Main St",
+        notes: "Bring water tank"
+      })
+    ]);
+    expect(body.quote_drafts).toEqual([
+      expect.objectContaining({
+        id: quoteDraft.id,
+        business_id: business.id,
+        customer_profile_id: profile.id,
+        source_call_record_id: call.id,
+        service_requested: "Full detail SUV",
+        job_address: "123 Main St",
+        scope_notes: "Exterior and interior detail",
+        timeline: "Saturday",
+        budget_hint: "$250-$350",
+        estimated_amount: 300,
+        status: "draft"
+      })
+    ]);
     expect(body.timeline).toEqual([
       {
         kind: "message",

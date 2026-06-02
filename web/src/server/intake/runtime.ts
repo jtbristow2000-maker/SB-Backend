@@ -25,6 +25,7 @@ import { type AppointmentRepository, InMemoryAppointmentRepository } from "./app
 import { type AuditEventRepository, InMemoryAuditEventRepository } from "./auditEvents";
 import { type CallRecordRepository, InMemoryCallRecordRepository } from "./callRecords";
 import { type MessageRepository, InMemoryMessageRepository } from "./messages";
+import { type QuoteDraftRepository, InMemoryQuoteDraftRepository } from "./quoteDrafts";
 import { SmsIntakeService } from "./sms";
 import { type TaskRepository, InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
@@ -38,6 +39,7 @@ type IntakeRuntime = {
   taskRepository: TaskRepository;
   auditEventRepository: AuditEventRepository;
   appointmentRepository: AppointmentRepository;
+  quoteDraftRepository: QuoteDraftRepository;
   providers: ReturnType<typeof createSandboxProviders>;
   smsProvider: SmsProvider;
   voiceIntakeService: VoiceIntakeService;
@@ -74,7 +76,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
           messageRepository: new InMemoryMessageRepository(),
           taskRepository: new InMemoryTaskRepository(),
           auditEventRepository: new InMemoryAuditEventRepository(),
-          appointmentRepository: new InMemoryAppointmentRepository()
+          appointmentRepository: new InMemoryAppointmentRepository(),
+          quoteDraftRepository: new InMemoryQuoteDraftRepository()
         };
   const {
     businessRepository,
@@ -83,7 +86,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     messageRepository,
     taskRepository,
     auditEventRepository,
-    appointmentRepository
+    appointmentRepository,
+    quoteDraftRepository
   } = repositories;
 
   await bootstrapSingleTenantBusiness(businessRepository);
@@ -136,6 +140,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     taskRepository,
     auditEventRepository,
     appointmentRepository,
+    quoteDraftRepository,
     providers,
     smsProvider,
     voiceIntakeService,
