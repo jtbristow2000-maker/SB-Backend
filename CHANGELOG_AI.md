@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - BACKEND-20 appointment REST API
+
+### Added
+- Added API-key guarded `GET/POST /api/appointments` and `PATCH/DELETE /api/appointments/[id]` routes.
+- Added appointment validation/service helpers for business-scoped list/create/update/delete behavior and owner audit events.
+- Added route tests for auth, range filtering/ordering, profile-linked create, patch audit, unknown IDs, and delete audit.
+
+### Verified
+- `npm run verify` (27 files, 105 tests, 1 skipped) passes.
+
 ## [2026-06-01] - SMS provider wiring tests
 
 ### Changed

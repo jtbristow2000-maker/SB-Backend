@@ -516,6 +516,8 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 > **BACKEND-03/04/05 are already implemented in `web/`** — recorded below only for completeness.
 >
+**Update 2026-06-01:** BACKEND-20 REST endpoints are now complete; the older pending note above is superseded.
+
 > **Path/term mapping:** some task bodies below were drafted against a Python/FastAPI layout.
 > Translate them to the `web/` track as you implement:
 > - `backend/app/api/.../*.py` → `web/src/app/api/.../route.ts` (route handler) + `web/src/server/<domain>/*.ts` (logic)
@@ -729,7 +731,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ---
 
-### BACKEND-20 — Appointments API (list / create / update)   (M)
+### BACKEND-20 — Appointments API (list / create / update)   (M) — DONE
 
 > **STATUS (Claude, 2026-06-01):** The appointment **repository** (InMemory + Supabase),
 > `getIntakeRuntime()` wiring, the `createAppointment` / `setAppointmentStatus` server actions, and
@@ -738,12 +740,16 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 > REST endpoints below (`/api/appointments`) for external/programmatic access — the owner UI uses
 > server actions, not REST.
 
+> **STATUS (Codex, 2026-06-01):** The API-key guarded REST endpoints are now DONE:
+> `GET/POST /api/appointments` and `PATCH/DELETE /api/appointments/[id]`, with owner audit events.
+
 **Goal:** Back the agenda/calendar in the owner UI.
 **Files:** `web/src/app/api/appointments/...`, `web/src/server/appointments/...`, tests.
 **Requirements:**
 - `GET /api/appointments?from=&to=` returns seeded-business appointments in range, ordered by `scheduled_start_at`.
 - `POST /api/appointments` creates an appointment, optionally linked to a customer profile.
 - `PATCH /api/appointments/{id}` reschedules or updates status/notes and audits owner changes.
+- `DELETE /api/appointments/{id}` deletes an appointment and audits the owner change.
 **Acceptance:** range query returns ordered items; create links to a profile; patch persists in the active repository mode.
 **Test:** create two appointments in/out of range; assert filtering, ordering, profile linking, and audit events.
 
