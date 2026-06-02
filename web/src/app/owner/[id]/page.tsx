@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
 import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
-import { buildProfileDetail } from "@/server/profiles/detail";
+import { buildProfileDetail, type ProfileCallTimelineItem } from "@/server/profiles/detail";
 import { createAppointment, markCallbackDone, setProfileStatus } from "@/app/owner/actions";
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
 import { ContactButtons } from "@/app/owner/ContactButtons";
@@ -81,44 +81,48 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const { profile, open_task, customer_replied } = detail;
+  const { profile, open_task, customer_replied, timeline } = detail;
 
-  // Most recent of THIS lead's calls that has AI-extracted details, for the quick-summary card.
-  const profileCalls = calls
-    .filter((c) => c.customer_profile_id === profile.id)
-    .sort((a, b) => {
-      const at = a.started_at ?? a.created_at ?? "";
-      const bt = b.started_at ?? b.created_at ?? "";
-      return at < bt ? 1 : at > bt ? -1 : 0; // newest first
-    });
+  // Calls come from the shared buildProfileDetail timeline (the same projection
+  // /api/profiles/{id} returns) so the screen and the read API can't drift. The
+  // timeline is newest-first, which is what the AI/hero lookups want.
+  const detailCalls = timeline.filter(
+    (item): item is ProfileCallTimelineItem => item.kind === "call"
+  );
   let aiX: Extracted = {};
   let aiSummaryText: string | null = null;
   let aiTranscript: string | null = null;
-  for (const c of profileCalls) {
-    const e = readExtracted(c.extracted_json);
-    if (c.ai_summary || e.caller_name || e.requested_datetime || e.service_requested || e.summary) {
+  for (const { call } of detailCalls) {
+    const e = readExtracted(call.extracted_json);
+    if (call.ai_summary || e.caller_name || e.requested_datetime || e.service_requested || e.summary) {
       aiX = e;
-      aiSummaryText = c.ai_summary || e.summary || null;
-      aiTranscript = c.transcript ?? null;
+      aiSummaryText = call.ai_summary || e.summary || null;
+      aiTranscript = call.transcript ?? null;
       break;
     }
   }
+
+  // Open-slot conflict detection needs EVERY appointment for the business, not just this
+  // lead's — so this stays on the full list (not detail.appointments, which is lead-scoped).
   const busy = appointments
     .filter((a) => !business || a.business_id === business.id)
     .map((a) => ({ start: a.scheduled_start_at, end: a.scheduled_end_at }));
 
   // Latest voicemail with a transcript — feeds the AI composer + booking notes.
   const heroCall =
-    profileCalls.find((c) => c.transcript) ??
-    profileCalls.find((c) => c.call_type === "voicemail" || c.recording_url) ??
+    detailCalls.find((c) => c.call.transcript) ??
+    detailCalls.find((c) => c.call.call_type === "voicemail" || c.call.recording_url) ??
     null;
 
   // One unified conversation: every voicemail + every text for this lead, oldest → newest.
+  // Calls come from the shared timeline; messages stay on the raw rows for now because the
+  // timeline message item doesn't carry provider_message_id, which messageLabel needs to tell
+  // the auto-reply from an owner-sent text (see TASKS.md).
   type ConvoItem =
-    | { kind: "call"; at: string; call: (typeof calls)[number] }
+    | { kind: "call"; at: string; call: ProfileCallTimelineItem["call"] }
     | { kind: "msg"; at: string; msg: (typeof messages)[number] };
   const convo: ConvoItem[] = [
-    ...profileCalls.map((c) => ({ kind: "call" as const, at: c.started_at ?? c.created_at ?? "", call: c })),
+    ...detailCalls.map((c) => ({ kind: "call" as const, at: c.at ?? "", call: c.call })),
     ...messages
       .filter((m) => (!business || m.business_id === business.id) && m.customer_profile_id === profile.id)
       .map((m) => ({ kind: "msg" as const, at: m.created_at ?? "", msg: m }))
@@ -258,7 +262,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           requestedWhen={aiX.requested_datetime ?? ""}
           contextText={contextText}
           pricingInquiry={pricingInquiry}
-          transcript={heroCall?.transcript ?? ""}
+          transcript={heroCall?.call.transcript ?? ""}
           aiEnabled={aiEnabled}
         />
       )}

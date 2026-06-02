@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-01] - Lead detail consumes the shared profile-detail timeline
+
+### Changed
+- The lead page now derives its **calls, AI summary/hero, and the conversation's call items from the
+  shared `buildProfileDetail` timeline** (the same projection `GET /api/profiles/{id}` returns)
+  instead of re-filtering raw call rows — so the screen and the read API can't drift. Removed the
+  page's bespoke `profileCalls` derivation. No visual/behavior change.
+
+### Notes
+- Messages still read from the raw rows only to label auto-reply vs. owner-sent (the timeline message
+  item lacks `provider_message_id`); `busy` still uses all-business appointments for slot conflicts
+  (not the lead-scoped `detail.appointments`). Both logged as follow-ups in `TASKS.md`.
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) and `next build` pass.
+
 ## [2026-06-01] - Quote helper follow-up closed
 
 ### Changed

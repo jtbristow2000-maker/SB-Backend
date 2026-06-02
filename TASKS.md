@@ -798,6 +798,9 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
   - DONE (Codex, 2026-06-01): The lead detail read contract now includes linked appointments and quote drafts in `buildProfileDetail` and `GET /api/profiles/{id}` instead of returning empty arrays.
 - 2026-06-01: SMS provider selection is covered by tests, including Twilio selection when real sending is enabled and `BUSINESS_PHONE` supplies the from-number fallback; owner-approved SMS status now follows provider `networkCallsMade` just like the owner UI action.
 - 2026-06-01: Added shared `quotePriceLabel()` backend helper for quote range matching/formatting; owner UI duplicate quote helpers now use it.
+- 2026-06-01 (Claude): Lead detail now derives its calls + AI summary/hero + the conversation's call items from the shared `buildProfileDetail` timeline (no more bespoke raw-call filtering). Two follow-ups for full parity:
+  - Add `provider_message_id` (or an `is_auto` boolean) to `ProfileMessageTimelineItem`. The owner conversation still reads raw `messages` only to label auto-reply vs owner-sent (prefix `missed-call-auto-text`); once the timeline carries this, the lead page can drop the raw-message read entirely.
+  - The lead page's open-slot `busy` list intentionally uses ALL business appointments (conflict detection), not the lead-scoped `detail.appointments`. `detail.appointments`/`quote_drafts` are not yet rendered on the lead page — wiring an "upcoming appointments for this lead" panel is a future UI task, not drift.
 
 ## Codex Tasks (legacy — superseded by Backend Build Tasks above)
 
