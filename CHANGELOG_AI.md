@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Editable business name in Settings
+
+### Added
+- Added a "Business name" field at the top of owner Settings; `saveSettings` now updates the business row name (carrying existing owner/phone/timezone values forward so nothing else is wiped) so owners can rename their business instead of being stuck with the email-derived default.
+
+### Verified
+- `npm run verify` (36 files, 134 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Owner phone-number settings UI
 
 ### Added

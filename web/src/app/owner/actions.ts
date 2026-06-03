@@ -378,7 +378,25 @@ export async function saveSettings(formData: FormData): Promise<void> {
     /* business may have been reset */
   }
 
+  // Business name lives on the row (not settings_json); update it via the full
+  // update, carrying existing values forward so nothing else is wiped.
+  const businessName = String(formData.get("business_name") ?? "").trim();
+  if (businessName && businessName !== business.name) {
+    try {
+      await rt.businessRepository.update(business.id, {
+        name: businessName,
+        ownerName: business.owner_name,
+        ownerPhone: business.owner_phone_e164,
+        businessPhone: business.business_phone_e164,
+        timezone: business.timezone
+      });
+    } catch {
+      /* business may have been reset */
+    }
+  }
+
   revalidatePath("/owner/settings");
+  revalidatePath("/owner/leads");
   revalidatePath("/owner");
   revalidatePath("/owner/today");
   revalidatePath("/owner/calendar");

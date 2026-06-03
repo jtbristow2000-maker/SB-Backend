@@ -45,6 +45,18 @@ export default async function SettingsPage() {
 
       <form action={saveSettings} style={S.form}>
         <section style={S.section}>
+          <div style={S.sectionTitle}>Business name</div>
+          <div style={S.sectionHint}>Shown across your dashboard and used wherever {"{business_name}"} appears in replies.</div>
+          <input
+            name="business_name"
+            defaultValue={business?.name ?? ""}
+            placeholder="e.g. Riverside Auto Detailing"
+            autoComplete="organization"
+            style={S.textInput}
+          />
+        </section>
+
+        <section style={S.section}>
           <div style={S.sectionTitle}>Brand color</div>
           <div style={S.sectionHint}>Used across buttons, highlights, and your logo.</div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -101,6 +113,7 @@ const S: Record<string, CSSProperties> = {
   sectionTitle: { fontSize: 14, fontWeight: 700, color: "#15171b" },
   sectionHint: { fontSize: 12, color: "#8a909c", margin: "2px 0 10px" },
   color: { width: 52, height: 36, padding: 0, border: "1px solid #d8dce3", borderRadius: 8, background: "#fff", cursor: "pointer" },
+  textInput: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, boxSizing: "border-box" },
   mono: { fontFamily: "ui-monospace, monospace", fontSize: 13, color: "#3c414b" },
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
   inlineLabel: { fontSize: 13, color: "#3c414b", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 },
