@@ -70,6 +70,11 @@ web_modules/
 .env.*
 !.env.example
 
+# Local secret scratch files — never commit (real secrets live in Vercel env vars)
+keys.txt
+**/keys.txt
+*.secrets
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
