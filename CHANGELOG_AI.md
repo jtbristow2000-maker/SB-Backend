@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Supabase tenant RLS migration
+
+### Added
+- Added an RLS migration that enables row-level security on business, membership, lead, call, message, task, appointment, quote draft, and audit tables.
+- Added membership-based policies using `auth.uid()` through a security-definer helper so authenticated owner sessions only see their business rows while service-role webhooks/cron remain available.
+- Added an offline migration coverage test and a `TASKS.md` Supabase rollout note for applying the auth migrations and enabling Email auth.
+
+### Verified
+- `npm run verify` (30 files, 115 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Owner business membership tenancy
 
 ### Added
