@@ -1,6 +1,14 @@
+import Link from "next/link";
 import type { CSSProperties } from "react";
 
 export const dynamic = "force-dynamic";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_login: "That email or password didn't match. Please try again.",
+  email_and_password_required: "Please enter your email and password.",
+  supabase_auth_not_configured: "Login isn't fully configured yet — check your environment settings.",
+  setup: "We're finishing your account setup. Give it a moment and try again."
+};
 
 export default async function LoginPage({
   searchParams
@@ -9,13 +17,14 @@ export default async function LoginPage({
 }) {
   const { error, redirectTo: rawRedirectTo } = await searchParams;
   const redirectTo = rawRedirectTo?.startsWith("/") ? rawRedirectTo : "/owner/today";
+  const errorMessage = error ? ERROR_MESSAGES[error] ?? "Please check your email and password." : null;
 
   return (
     <main style={S.shell}>
       <section style={S.card}>
         <div style={S.eyebrow}>Owner login</div>
         <h1 style={S.h1}>Sign in to your dashboard</h1>
-        {error && <div style={S.error}>Please check your email and password.</div>}
+        {errorMessage && <div style={S.error}>{errorMessage}</div>}
 
         <form action="/api/auth/sign-in" method="post" style={S.form}>
           <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -35,8 +44,8 @@ export default async function LoginPage({
           </label>
           <button type="submit" style={S.primary}>Sign in</button>
           <div style={S.signup}>
-            <div style={S.signupText}>First time here? Create the owner account with this email and password.</div>
-            <button type="submit" formAction="/api/auth/sign-up" style={S.secondary}>Create account</button>
+            <div style={S.signupText}>First time here? Set up your business in a minute.</div>
+            <Link href="/signup" style={S.secondary}>Create an account</Link>
           </div>
         </form>
       </section>
@@ -91,12 +100,15 @@ const S: Record<string, CSSProperties> = {
   signup: { marginTop: 16, paddingTop: 16, borderTop: "1px solid #eceef2" },
   signupText: { color: "#6f7787", fontSize: 12, lineHeight: 1.45, marginBottom: 9 },
   secondary: {
+    display: "block",
     padding: "10px 12px",
     borderRadius: 10,
     border: "1px solid #d8dce3",
     background: "#fff",
     color: "#1e2026",
     fontWeight: 800,
-    cursor: "pointer"
+    cursor: "pointer",
+    textAlign: "center",
+    textDecoration: "none"
   }
 };

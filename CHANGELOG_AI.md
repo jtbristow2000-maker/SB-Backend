@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Dedicated owner sign-up screen
+
+### Added
+- Added a dedicated `/signup` page (server page + client `SignupForm`) with business name, owner name, email, phone, and password + confirm-password fields. Inline validation (min length + match) runs before posting to `/api/auth/sign-up`, and known server error codes map to specific messages.
+- Linked `/login`'s "Create account" to `/signup` and mapped login error codes to specific messages instead of one generic line.
+
+### Note
+- The profile fields (`business_name` / `owner_name` / `phone`) are posted but only persisted once the sign-up handler seeds the business from them (backend follow-up for Codex).
+
+### Verified
+- `npm run verify` (31 files, 117 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Owner shell sign-out button
 
 ### Added
