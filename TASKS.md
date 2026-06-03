@@ -799,6 +799,12 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
   - DONE (Codex, 2026-06-03): `/owner/**` is protected in Supabase mode, and owner reads/actions now resolve the signed-in user's current business context.
   - DONE (Codex, 2026-06-03): `/api/auth/sign-up` now persists submitted `business_name`, `owner_name`, and normalized `phone` onto the first seeded business, with specific Supabase sign-up error codes.
   - Supabase rollout note: apply `web/supabase/migrations/0004_business_members.sql` and `0005_business_rls.sql`, then enable Supabase Email auth before setting `PERSISTENCE=supabase` for owner login. Memory/sandbox mode remains auth-free.
+- 2026-06-03: Per-business Twilio number foundation:
+  - DONE (Codex, 2026-06-03): Added `web/supabase/migrations/0006_business_numbers_and_port_requests.sql` with per-business Twilio number fields, trial status fields, and tenant-scoped `number_port_requests`.
+  - DONE (Codex, 2026-06-03): Added sandbox-safe `provisionNumberForBusiness()` / `activateBusinessNumber()` services. Real buying is gated by explicit owner activation plus `TWILIO_AUTO_PROVISION=true`, Supabase persistence, non-sandbox mode, credentials, and `PUBLIC_BASE_URL`.
+  - DONE (Codex, 2026-06-03): Incoming call/SMS routing now checks `businesses.twilio_number_e164` before falling back to `business_phone_e164`; owner outbound SMS uses the business Twilio number as From when present.
+  - DONE (Codex, 2026-06-03): Added Phase 2 porting storage/actions scaffold (`savePortRequest`, `submitPortRequest`, `completePortForBusiness`) without automating Twilio's Porting API.
+  - Claude/UI follow-up: render the clean number read model (`number_status`, `twilio_number_e164`, trial days left/expired, port request status) and call the backend activation/porting functions from owner screens.
 - 2026-06-01: Owner data-contract review follow-ups:
   - DONE (Claude/Codex, 2026-06-01): Duplicate owner-side quote range matchers were switched to the shared backend `quotePriceLabel()` helper, so quote labels now use one matching/formatting path.
   - DONE (Codex, 2026-06-01): Owner server-action mutations now route through the same audited service helpers used by REST endpoints where practical: `sendOwnerText` shares `sendOwnerApprovedSms`, appointment create/update/delete/status changes share the appointment helpers, and profile/task actions use the owner update helpers.

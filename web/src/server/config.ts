@@ -30,6 +30,8 @@ export type AppConfig = {
   realCallAutomationEnabled: boolean;
   supabaseConfigured: boolean;
   twilioConfigured: boolean;
+  twilioAutoProvision: boolean;
+  twilioDefaultAreaCode: string | null;
   openAiConfigured: boolean;
   anthropicConfigured: boolean;
   aiExtractionEnabled: boolean;
@@ -75,6 +77,8 @@ export function getAppConfig(): AppConfig {
         process.env.TWILIO_AUTH_TOKEN &&
         (process.env.TWILIO_PHONE_NUMBER || process.env.BUSINESS_PHONE)
     ),
+    twilioAutoProvision: readBoolean("TWILIO_AUTO_PROVISION", false),
+    twilioDefaultAreaCode: readString("TWILIO_DEFAULT_AREA_CODE") ?? null,
     openAiConfigured: Boolean(readString("OPENAI_API_KEY")),
     anthropicConfigured: Boolean(readString("ANTHROPIC_API_KEY")),
     sentryConfigured: Boolean(process.env.SENTRY_DSN)

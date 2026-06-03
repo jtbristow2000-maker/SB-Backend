@@ -1,4 +1,4 @@
-import type { BusinessRow } from "@/server/db/schema";
+import type { BusinessRow, NumberStatus } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
 
 import type { BusinessSettingsUpdate } from "./settings";
@@ -12,14 +12,27 @@ export type BusinessSeedInput = {
   ownerName?: string | null;
   ownerPhone?: string | null;
   businessPhone?: string | null;
+  twilioNumber?: string | null;
+  twilioNumberSid?: string | null;
+  numberStatus?: NumberStatus;
+  numberTrialEndsAt?: string | null;
   timezone: string;
+};
+
+export type BusinessTelephonyUpdateInput = {
+  twilioNumber?: string | null;
+  twilioNumberSid?: string | null;
+  numberStatus?: NumberStatus;
+  numberTrialEndsAt?: string | null;
 };
 
 export interface BusinessRepository {
   findById(id: string): Promise<BusinessRow | null>;
   findByBusinessPhone(phoneE164: string): Promise<BusinessRow | null>;
+  findByTwilioNumber(phoneE164: string): Promise<BusinessRow | null>;
   create(input: BusinessSeedInput & { id: string }): Promise<BusinessRow>;
   update(id: string, input: BusinessSeedInput): Promise<BusinessRow>;
+  updateTelephony(id: string, input: BusinessTelephonyUpdateInput): Promise<BusinessRow>;
   updateSettings(id: string, partial: BusinessSettingsUpdate): Promise<BusinessRow>;
   list(): Promise<BusinessRow[]>;
 }
@@ -39,6 +52,10 @@ export function getBusinessSeedFromEnv(env: NodeJS.ProcessEnv = process.env): Bu
     ownerName: env.OWNER_NAME || null,
     ownerPhone: env.OWNER_PHONE || null,
     businessPhone: env.BUSINESS_PHONE || null,
+    twilioNumber: null,
+    twilioNumberSid: null,
+    numberStatus: "none",
+    numberTrialEndsAt: null,
     timezone: env.TIMEZONE || "America/New_York"
   };
 }
@@ -70,6 +87,14 @@ export class InMemoryBusinessRepository implements BusinessRepository {
     );
   }
 
+  async findByTwilioNumber(phoneE164: string): Promise<BusinessRow | null> {
+    return (
+      Array.from(this.businesses.values()).find(
+        (business) => business.twilio_number_e164 === phoneE164
+      ) ?? null
+    );
+  }
+
   async create(input: BusinessSeedInput & { id: string }): Promise<BusinessRow> {
     const timestamp = nowIso();
     const business: BusinessRow = {
@@ -78,6 +103,10 @@ export class InMemoryBusinessRepository implements BusinessRepository {
       owner_name: input.ownerName ?? null,
       owner_phone_e164: normalizeOptionalPhone(input.ownerPhone),
       business_phone_e164: normalizeOptionalPhone(input.businessPhone),
+      twilio_number_e164: normalizeOptionalPhone(input.twilioNumber),
+      twilio_number_sid: input.twilioNumberSid ?? null,
+      number_status: input.numberStatus ?? "none",
+      number_trial_ends_at: input.numberTrialEndsAt ?? null,
       timezone: input.timezone,
       settings_json: {},
       created_at: timestamp,
@@ -100,7 +129,37 @@ export class InMemoryBusinessRepository implements BusinessRepository {
       owner_name: input.ownerName ?? null,
       owner_phone_e164: normalizeOptionalPhone(input.ownerPhone),
       business_phone_e164: normalizeOptionalPhone(input.businessPhone),
+      twilio_number_e164: normalizeOptionalPhone(input.twilioNumber) ?? existing.twilio_number_e164,
+      twilio_number_sid: input.twilioNumberSid ?? existing.twilio_number_sid,
+      number_status: input.numberStatus ?? existing.number_status,
+      number_trial_ends_at: input.numberTrialEndsAt ?? existing.number_trial_ends_at,
       timezone: input.timezone,
+      updated_at: nowIso()
+    };
+
+    this.businesses.set(id, updated);
+    return updated;
+  }
+
+  async updateTelephony(id: string, input: BusinessTelephonyUpdateInput): Promise<BusinessRow> {
+    const existing = this.businesses.get(id);
+    if (!existing) {
+      throw new Error(`Business ${id} was not found.`);
+    }
+
+    const updated: BusinessRow = {
+      ...existing,
+      twilio_number_e164:
+        input.twilioNumber === undefined
+          ? existing.twilio_number_e164
+          : normalizeOptionalPhone(input.twilioNumber),
+      twilio_number_sid:
+        input.twilioNumberSid === undefined ? existing.twilio_number_sid : input.twilioNumberSid,
+      number_status: input.numberStatus ?? existing.number_status,
+      number_trial_ends_at:
+        input.numberTrialEndsAt === undefined
+          ? existing.number_trial_ends_at
+          : input.numberTrialEndsAt,
       updated_at: nowIso()
     };
 

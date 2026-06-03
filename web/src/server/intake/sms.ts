@@ -2,6 +2,7 @@ import type { BusinessRepository } from "@/server/business/bootstrap";
 import type { CustomerProfileService } from "@/server/customerProfiles/service";
 import type { MessageRow, TaskRow } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
+import { resolveBusinessByInboundPhone } from "@/server/telephony/routing";
 
 import type { MessageRepository } from "./messages";
 import type { TaskRepository } from "./tasks";
@@ -33,7 +34,11 @@ export class SmsIntakeService {
   async handleInboundSms(payload: InboundSmsPayload): Promise<InboundSmsResult> {
     const fromPhone = normalizePhoneNumber(payload.from);
     const toPhone = normalizePhoneNumber(payload.to);
-    const business = await this.dependencies.businessRepository.findByBusinessPhone(toPhone);
+    const businessMatch = await resolveBusinessByInboundPhone(
+      this.dependencies.businessRepository,
+      toPhone
+    );
+    const business = businessMatch?.business ?? null;
 
     if (!business) {
       return { status: "business_not_found" };

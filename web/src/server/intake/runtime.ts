@@ -33,6 +33,7 @@ import { type QuoteDraftRepository, InMemoryQuoteDraftRepository } from "./quote
 import { SmsIntakeService } from "./sms";
 import { type TaskRepository, InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
+import { InMemoryNumberPortRequestRepository } from "@/server/telephony/portRequests";
 
 export type IntakeRuntime = {
   businessRepository: BusinessRepository;
@@ -45,6 +46,7 @@ export type IntakeRuntime = {
   auditEventRepository: AuditEventRepository;
   appointmentRepository: AppointmentRepository;
   quoteDraftRepository: QuoteDraftRepository;
+  numberPortRequestRepository: IntakeRepositories["numberPortRequestRepository"];
   providers: ReturnType<typeof createSandboxProviders>;
   smsProvider: SmsProvider;
   voiceIntakeService: VoiceIntakeService;
@@ -83,7 +85,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
           taskRepository: new InMemoryTaskRepository(),
           auditEventRepository: new InMemoryAuditEventRepository(),
           appointmentRepository: new InMemoryAppointmentRepository(),
-          quoteDraftRepository: new InMemoryQuoteDraftRepository()
+          quoteDraftRepository: new InMemoryQuoteDraftRepository(),
+          numberPortRequestRepository: new InMemoryNumberPortRequestRepository()
         };
   if (config.persistence === "memory") {
     await bootstrapSingleTenantBusiness(repositories.businessRepository);
@@ -108,7 +111,8 @@ export function buildIntakeRuntime(
     taskRepository,
     auditEventRepository,
     appointmentRepository,
-    quoteDraftRepository
+    quoteDraftRepository,
+    numberPortRequestRepository
   } = repositories;
 
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
@@ -162,6 +166,7 @@ export function buildIntakeRuntime(
     auditEventRepository,
     appointmentRepository,
     quoteDraftRepository,
+    numberPortRequestRepository,
     providers,
     smsProvider,
     voiceIntakeService,

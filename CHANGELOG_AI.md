@@ -1,5 +1,24 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Per-business Twilio number foundation
+
+### Added
+- Added `0006_business_numbers_and_port_requests.sql` to store per-business Twilio numbers, trial status, trial end time, and Phase 2 number port requests with tenant RLS.
+- Added typed business telephony fields and number port request table types/repositories for memory and Supabase.
+- Added backend telephony services for sandbox-safe trial number provisioning, owner-triggered activation, number trial read state, inbound To-number routing, and porting intake/submission/completion scaffolds.
+- Added config for `TWILIO_AUTO_PROVISION` and `TWILIO_DEFAULT_AREA_CODE`, defaulting real auto-provisioning off.
+
+### Changed
+- Incoming voice and SMS now resolve the business by `twilio_number_e164` first, falling back to the legacy bootstrap `business_phone_e164`.
+- Owner-approved outbound SMS now uses the business-owned Twilio number as the From number when present.
+
+### Safety
+- Real Twilio number purchase is never automatic on signup and is simulated in memory/sandbox mode. Real provisioning requires an explicit backend activation call plus `TWILIO_AUTO_PROVISION=true`, Supabase persistence, non-sandbox mode, credentials, and `PUBLIC_BASE_URL`.
+- Phase 2 porting stores intake data/status only; Twilio Porting API automation is intentionally left as a future seam.
+
+### Verified
+- `npm run verify` (36 files, 134 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Sign-up backend seeds owner business profile
 
 ### Changed

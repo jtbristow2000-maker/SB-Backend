@@ -184,6 +184,29 @@ describe("BACKEND-07 voice intake service", () => {
     });
   });
 
+  it("routes incoming calls by the business-owned Twilio number", async () => {
+    const { businessRepository, callRecordRepository, service } = await setupService();
+    await businessRepository.updateTelephony("00000000-0000-4000-8000-000000000201", {
+      twilioNumber: "+14155550100",
+      twilioNumberSid: "PN_VOICE_ROUTE",
+      numberStatus: "trial"
+    });
+
+    const result = await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+14155550100",
+      callSid: "CA_TWILIO_NUMBER"
+    });
+    const calls = await callRecordRepository.list();
+
+    expect(result.status).toBe("dial");
+    expect(calls[0]).toMatchObject({
+      business_id: "00000000-0000-4000-8000-000000000201",
+      provider_call_id: "CA_TWILIO_NUMBER",
+      to_phone_e164: "+14155550100"
+    });
+  });
+
   it("marks completed dial calls as answered and returns empty TwiML", async () => {
     const { callRecordRepository, taskRepository, service } = await setupService();
     await service.handleIncomingVoice({

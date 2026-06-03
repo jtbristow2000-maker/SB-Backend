@@ -17,13 +17,20 @@ const tenantTables = [
   "tasks",
   "appointments",
   "quote_drafts",
-  "audit_events"
+  "audit_events",
+  "number_port_requests"
 ];
+const numberSql = readFileSync(
+  join(process.cwd(), "supabase", "migrations", "0006_business_numbers_and_port_requests.sql"),
+  "utf8"
+);
 
 describe("owner business RLS migration", () => {
   it("enables row-level security on every tenant-scoped table", () => {
     for (const table of tenantTables) {
-      expect(rlsSql).toContain(`alter table public.${table} enable row level security`);
+      expect(`${rlsSql}\n${numberSql}`).toContain(
+        `alter table public.${table} enable row level security`
+      );
     }
   });
 
