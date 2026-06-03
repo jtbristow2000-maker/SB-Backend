@@ -797,6 +797,7 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
   - DONE (Codex, 2026-06-03): Business membership tenancy was added with per-user first-business creation.
   - DONE (Codex, 2026-06-03): RLS policies were added for tenant tables.
   - DONE (Codex, 2026-06-03): `/owner/**` is protected in Supabase mode, and owner reads/actions now resolve the signed-in user's current business context.
+  - DONE (Codex, 2026-06-03): `/api/auth/sign-up` now persists submitted `business_name`, `owner_name`, and normalized `phone` onto the first seeded business, with specific Supabase sign-up error codes.
   - Supabase rollout note: apply `web/supabase/migrations/0004_business_members.sql` and `0005_business_rls.sql`, then enable Supabase Email auth before setting `PERSISTENCE=supabase` for owner login. Memory/sandbox mode remains auth-free.
 - 2026-06-01: Owner data-contract review follow-ups:
   - DONE (Claude/Codex, 2026-06-01): Duplicate owner-side quote range matchers were switched to the shared backend `quotePriceLabel()` helper, so quote labels now use one matching/formatting path.

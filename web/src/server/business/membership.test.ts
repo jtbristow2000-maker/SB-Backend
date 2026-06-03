@@ -6,6 +6,7 @@ import { updateProfileForOwner } from "@/server/profiles/update";
 
 import { InMemoryBusinessRepository } from "./bootstrap";
 import {
+  businessSeedForUser,
   ensureBusinessForUser,
   InMemoryBusinessMemberRepository,
   resolveBusinessForUser
@@ -47,6 +48,51 @@ describe("owner business membership", () => {
     ]);
     expect(first.name).toBe("Owner Detail Co");
     expect(first.business_phone_e164).toBe("+13105550199");
+  });
+
+  it("uses sign-up overrides for a newly provisioned business", async () => {
+    const businessRepository = new InMemoryBusinessRepository();
+    const businessMemberRepository = new InMemoryBusinessMemberRepository();
+
+    const business = await ensureBusinessForUser(
+      { businessRepository, businessMemberRepository },
+      { id: "user-overrides", email: "fallback@example.com" },
+      env({
+        BUSINESS_NAME: "Env Detail Co",
+        OWNER_NAME: "Env Owner",
+        OWNER_PHONE: "+13105550199",
+        BUSINESS_PHONE: "+13105550200",
+        TIMEZONE: "America/Chicago"
+      }),
+      {
+        businessName: "  Shaw Mobile Detail  ",
+        ownerName: " Shaw ",
+        phone: " (213) 373-4253 "
+      }
+    );
+
+    expect(business).toMatchObject({
+      name: "Shaw Mobile Detail",
+      owner_name: "Shaw",
+      owner_phone_e164: "+12133734253",
+      business_phone_e164: "+12133734253",
+      timezone: "America/Chicago"
+    });
+  });
+
+  it("keeps the existing fallback business name when sign-up overrides are blank", () => {
+    const seed = businessSeedForUser(
+      { id: "user-blank-overrides", email: "fresh.owner@example.com" },
+      env({}),
+      { businessName: " ", ownerName: " ", phone: " " }
+    );
+
+    expect(seed).toMatchObject({
+      name: "fresh.owner's Business",
+      ownerName: null,
+      ownerPhone: null,
+      businessPhone: null
+    });
   });
 
   it("resolves each signed-in user to their own business membership", async () => {

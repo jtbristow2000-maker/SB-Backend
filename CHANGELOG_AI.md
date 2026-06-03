@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Sign-up backend seeds owner business profile
+
+### Changed
+- Extended `/api/auth/sign-up` payload parsing to accept `business_name`, `owner_name`, and `phone` from form-encoded and JSON requests.
+- Threaded those sign-up fields into first-business provisioning so the seeded business uses the submitted business name, owner name, and normalized phone number.
+- Mapped Supabase sign-up failures to specific error codes for disabled signups, duplicate email, weak password, and invalid email.
+- Made post-auth business provisioning best-effort: failures are logged without blocking the auth redirect.
+
+### Added
+- Added backend tests for sign-up payload parsing, business seed overrides/fallbacks, and sign-up error-code mapping.
+
+### Verified
+- `npm run verify` (32 files, 126 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Dedicated owner sign-up screen
 
 ### Added
@@ -7,7 +21,7 @@
 - Linked `/login`'s "Create account" to `/signup` and mapped login error codes to specific messages instead of one generic line.
 
 ### Note
-- The profile fields (`business_name` / `owner_name` / `phone`) are posted but only persisted once the sign-up handler seeds the business from them (backend follow-up for Codex).
+- The backend now persists the posted profile fields when seeding the first business.
 
 ### Verified
 - `npm run verify` (31 files, 117 tests, 1 skipped) passes.

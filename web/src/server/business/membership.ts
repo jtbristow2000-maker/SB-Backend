@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { BusinessMemberRole, BusinessMemberRow, BusinessRow } from "@/server/db/schema";
+import { normalizePhoneNumber } from "@/server/phone/normalize";
 
 import {
   type BusinessRepository,
@@ -11,6 +12,12 @@ import {
 export type OwnerAuthUser = {
   id: string;
   email?: string | null;
+};
+
+export type BusinessSeedOverrides = {
+  businessName?: string | null;
+  ownerName?: string | null;
+  phone?: string | null;
 };
 
 export type BusinessMemberCreateInput = {
@@ -30,7 +37,26 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function businessNameForUser(user: OwnerAuthUser, env: NodeJS.ProcessEnv): string {
+function cleanOptionalText(value?: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeOptionalOverridePhone(phone?: string | null): string | null {
+  const trimmed = cleanOptionalText(phone);
+  return trimmed ? normalizePhoneNumber(trimmed) : null;
+}
+
+function businessNameForUser(
+  user: OwnerAuthUser,
+  env: NodeJS.ProcessEnv,
+  overrides: BusinessSeedOverrides = {}
+): string {
+  const overrideName = cleanOptionalText(overrides.businessName);
+  if (overrideName) {
+    return overrideName;
+  }
+
   const seed = getBusinessSeedFromEnv(env);
   if (seed.name && seed.name !== "Local Service Business") {
     return seed.name;
@@ -40,15 +66,21 @@ function businessNameForUser(user: OwnerAuthUser, env: NodeJS.ProcessEnv): strin
   return emailName ? `${emailName}'s Business` : "Local Service Business";
 }
 
-function businessSeedForUser(
+export function businessSeedForUser(
   user: OwnerAuthUser,
-  env: NodeJS.ProcessEnv
+  env: NodeJS.ProcessEnv,
+  overrides: BusinessSeedOverrides = {}
 ): BusinessSeedInput & { id: string } {
   const seed = getBusinessSeedFromEnv(env);
+  const phoneOverride = normalizeOptionalOverridePhone(overrides.phone);
+
   return {
     ...seed,
     id: randomUUID(),
-    name: businessNameForUser(user, env)
+    name: businessNameForUser(user, env, overrides),
+    ownerName: cleanOptionalText(overrides.ownerName) ?? seed.ownerName,
+    ownerPhone: phoneOverride ?? seed.ownerPhone,
+    businessPhone: phoneOverride ?? seed.businessPhone
   };
 }
 
@@ -77,14 +109,17 @@ export async function ensureBusinessForUser(
     businessMemberRepository: BusinessMemberRepository;
   },
   user: OwnerAuthUser,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  overrides: BusinessSeedOverrides = {}
 ): Promise<BusinessRow> {
   const existing = await resolveBusinessForUser(repositories, user);
   if (existing) {
     return existing;
   }
 
-  const business = await repositories.businessRepository.create(businessSeedForUser(user, env));
+  const business = await repositories.businessRepository.create(
+    businessSeedForUser(user, env, overrides)
+  );
   await repositories.businessMemberRepository.create({
     business_id: business.id,
     user_id: user.id,
