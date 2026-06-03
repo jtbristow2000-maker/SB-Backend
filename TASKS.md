@@ -793,8 +793,9 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 ## Backend Maintenance / Contract Notes
 
 - 2026-06-03: Phase 1 owner login + strict per-business isolation is in progress in `web/`:
-  - Supabase SSR auth clients and email/password auth route handlers are being added first.
-  - Next steps in this phase: business membership tenancy, RLS policies, owner route protection, and owner read/action business-context replacement.
+  - DONE (Codex, 2026-06-03): Supabase SSR auth clients and email/password auth route handlers were added.
+  - IN PROGRESS (Codex, 2026-06-03): Business membership tenancy is being added with per-user first-business creation.
+  - Next steps in this phase: RLS policies, owner route protection, and owner read/action business-context replacement.
 - 2026-06-01: Owner data-contract review follow-ups:
   - DONE (Claude/Codex, 2026-06-01): Duplicate owner-side quote range matchers were switched to the shared backend `quotePriceLabel()` helper, so quote labels now use one matching/formatting path.
   - DONE (Codex, 2026-06-01): Owner server-action mutations now route through the same audited service helpers used by REST endpoints where practical: `sendOwnerText` shares `sendOwnerApprovedSms`, appointment create/update/delete/status changes share the appointment helpers, and profile/task actions use the owner update helpers.

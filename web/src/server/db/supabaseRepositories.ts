@@ -4,6 +4,10 @@ import type {
   BusinessRepository,
   BusinessSeedInput
 } from "@/server/business/bootstrap";
+import type {
+  BusinessMemberCreateInput,
+  BusinessMemberRepository
+} from "@/server/business/membership";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
 import { mergeBusinessSettingsJson } from "@/server/business/settings";
 import type {
@@ -40,6 +44,7 @@ import { normalizePhoneNumber } from "@/server/phone/normalize";
 import type {
   AppointmentRow,
   AuditEventRow,
+  BusinessMemberRow,
   BusinessRow,
   CallRecordRow,
   CustomerProfileRow,
@@ -167,6 +172,59 @@ export class SupabaseBusinessRepository implements BusinessRepository {
   async list(): Promise<BusinessRow[]> {
     const { data, error } = await this.client.from("businesses").select("*");
     return rowsOrThrow(data, error, "list businesses");
+  }
+}
+
+export class SupabaseBusinessMemberRepository implements BusinessMemberRepository {
+  constructor(private readonly client: SupabaseClient<Database>) {}
+
+  async findByUserId(userId: string): Promise<BusinessMemberRow[]> {
+    const { data, error } = await this.client
+      .from("business_members")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    return rowsOrThrow(data, error, "find business memberships by user");
+  }
+
+  async findByBusinessAndUser(
+    businessId: string,
+    userId: string
+  ): Promise<BusinessMemberRow | null> {
+    const { data, error } = await this.client
+      .from("business_members")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    failIfError(error, "find business membership");
+    return data;
+  }
+
+  async create(input: BusinessMemberCreateInput): Promise<BusinessMemberRow> {
+    const existing = await this.findByBusinessAndUser(input.business_id, input.user_id);
+    if (existing) {
+      return existing;
+    }
+
+    const { data, error } = await this.client
+      .from("business_members")
+      .insert({
+        business_id: input.business_id,
+        user_id: input.user_id,
+        role: input.role ?? "owner"
+      })
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "create business membership");
+  }
+
+  async list(): Promise<BusinessMemberRow[]> {
+    const { data, error } = await this.client.from("business_members").select("*");
+    return rowsOrThrow(data, error, "list business memberships");
   }
 }
 
@@ -527,6 +585,7 @@ export class SupabaseQuoteDraftRepository implements QuoteDraftRepository {
 
 export type IntakeRepositories = {
   businessRepository: BusinessRepository;
+  businessMemberRepository: BusinessMemberRepository;
   customerProfileRepository: CustomerProfileRepository;
   callRecordRepository: CallRecordRepository;
   messageRepository: MessageRepository;
@@ -543,6 +602,7 @@ export type IntakeRepositories = {
 export function createSupabaseRepositories(client: SupabaseClient<Database>): IntakeRepositories {
   return {
     businessRepository: new SupabaseBusinessRepository(client),
+    businessMemberRepository: new SupabaseBusinessMemberRepository(client),
     customerProfileRepository: new SupabaseCustomerProfileRepository(client),
     callRecordRepository: new SupabaseCallRecordRepository(client),
     messageRepository: new SupabaseMessageRepository(client),

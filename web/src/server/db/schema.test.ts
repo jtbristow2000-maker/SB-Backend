@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BACKEND_02_TABLES, BACKEND_03_TABLES, type AppointmentRow, type AuditEventRow, type CustomerProfileRow, type Database } from "./schema";
+import { BACKEND_02_TABLES, BACKEND_03_TABLES, type AppointmentRow, type AuditEventRow, type BusinessMemberRow, type CustomerProfileRow, type Database } from "./schema";
 
 describe("BACKEND-02 database contract", () => {
   it("declares the required foundation tables", () => {
@@ -88,5 +88,23 @@ describe("BACKEND-08 audit event contract", () => {
 
     expect(auditEvent.actor).toBe("system");
     expect(auditEvent.event_type).toBe("call.missed");
+  });
+});
+
+describe("owner auth tenancy contract", () => {
+  it("declares business membership rows for per-user owner access", () => {
+    const member = {
+      id: "member_1",
+      business_id: "business_1",
+      user_id: "user_1",
+      role: "owner",
+      created_at: "2026-06-03T00:00:00.000Z"
+    } satisfies BusinessMemberRow;
+
+    type Tables = keyof Database["public"]["Tables"];
+    const table: Tables = "business_members";
+
+    expect(member.role).toBe("owner");
+    expect(table).toBe("business_members");
   });
 });

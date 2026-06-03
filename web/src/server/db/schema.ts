@@ -12,6 +12,7 @@ export type MessageChannel = "sms" | "mms" | "email" | "web";
 export type TaskStatus = "open" | "done" | "completed" | "dismissed";
 export type AppointmentStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
 export type QuoteDraftStatus = "draft" | "reviewed" | "sent" | "accepted" | "declined";
+export type BusinessMemberRole = "owner" | "staff";
 
 export const BACKEND_02_TABLES = [
   "businesses",
@@ -40,6 +41,14 @@ export type BusinessRow = TimestampColumns & {
   business_phone_e164: string | null;
   timezone: string;
   settings_json: JsonValue;
+};
+
+export type BusinessMemberRow = {
+  id: string;
+  business_id: string;
+  user_id: string;
+  role: BusinessMemberRole;
+  created_at: string;
 };
 
 export type CustomerProfileRow = TimestampColumns & {
@@ -156,6 +165,12 @@ export type Database = {
         Row: BusinessRow;
         Insert: Partial<BusinessRow> & Pick<BusinessRow, "name">;
         Update: Partial<BusinessRow>;
+        Relationships: [];
+      };
+      business_members: {
+        Row: BusinessMemberRow;
+        Insert: Partial<BusinessMemberRow> & Pick<BusinessMemberRow, "business_id" | "user_id">;
+        Update: Partial<Pick<BusinessMemberRow, "role">>;
         Relationships: [];
       };
       customer_profiles: {

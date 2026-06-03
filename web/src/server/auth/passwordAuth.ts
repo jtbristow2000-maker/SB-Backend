@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { ensureBusinessForUser } from "@/server/business/membership";
+import { getAppConfig } from "@/server/config";
+import { getSupabaseServerClient } from "@/server/db/supabaseClient";
+import { createSupabaseRepositories } from "@/server/db/supabaseRepositories";
+
 import { createSupabaseRequestClient } from "./supabaseServer";
 
 type AuthPayload = {
@@ -64,6 +69,21 @@ function authSuccess(request: NextRequest, redirectTo: string | null): NextRespo
   return NextResponse.redirect(new URL(redirectTo ?? "/owner/today", request.url), { status: 303 });
 }
 
+async function ensureBusinessAfterAuth(user: { id: string; email?: string | null } | null): Promise<void> {
+  if (!user || getAppConfig().persistence !== "supabase") {
+    return;
+  }
+
+  const repositories = createSupabaseRepositories(getSupabaseServerClient());
+  await ensureBusinessForUser(
+    {
+      businessRepository: repositories.businessRepository,
+      businessMemberRepository: repositories.businessMemberRepository
+    },
+    user
+  );
+}
+
 export async function handlePasswordSignIn(request: NextRequest): Promise<NextResponse> {
   const payload = await readPayload(request);
   if (!payload?.email || !payload.password) {
@@ -71,7 +91,7 @@ export async function handlePasswordSignIn(request: NextRequest): Promise<NextRe
   }
 
   const supabase = await createSupabaseRequestClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: payload.email,
     password: payload.password
   });
@@ -80,6 +100,7 @@ export async function handlePasswordSignIn(request: NextRequest): Promise<NextRe
     return authError(request, "invalid_login", 401);
   }
 
+  await ensureBusinessAfterAuth(data.user);
   return authSuccess(request, payload.redirectTo);
 }
 
@@ -90,7 +111,7 @@ export async function handlePasswordSignUp(request: NextRequest): Promise<NextRe
   }
 
   const supabase = await createSupabaseRequestClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: payload.email,
     password: payload.password
   });
@@ -99,6 +120,7 @@ export async function handlePasswordSignUp(request: NextRequest): Promise<NextRe
     return authError(request, "signup_failed", 400);
   }
 
+  await ensureBusinessAfterAuth(data.user);
   return authSuccess(request, payload.redirectTo);
 }
 

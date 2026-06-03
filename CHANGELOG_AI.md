@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Owner business membership tenancy
+
+### Added
+- Added typed `business_members` support with in-memory and Supabase repository implementations.
+- Added per-user business resolution/bootstrap helpers that create one business plus owner membership for first-time signed-in users.
+- Added the `0004_business_members.sql` migration and wired `businessMemberRepository` into the intake runtime while keeping single-tenant bootstrap limited to memory mode.
+
+### Verified
+- `npm run verify` (29 files, 113 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Owner auth wiring foundation
 
 ### Added
