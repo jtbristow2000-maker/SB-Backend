@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Owner auth wiring foundation
+
+### Added
+- Added Supabase SSR auth clients for request-bound server usage and browser usage, plus `getServerSession()` / `getCurrentUser()` helpers.
+- Added email/password auth route handlers for sign-in, sign-up, and sign-out, with JSON and form-post support.
+- Added a minimal `/login` page as the redirect target for the upcoming owner route guard.
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) passes.
+
 ## [2026-06-01] - PWA: installable, standalone owner app
 
 ### Added
