@@ -56,7 +56,7 @@ export function SignupForm({
               type="text"
               required
               autoComplete="organization"
-              placeholder="e.g. Josh's Mobile Detailing"
+              placeholder="e.g. Riverside Auto Detailing"
               style={S.input}
             />
           </label>
@@ -68,7 +68,7 @@ export function SignupForm({
               type="text"
               required
               autoComplete="name"
-              placeholder="e.g. Josh Bristow"
+              placeholder="e.g. Alex Carter"
               style={S.input}
             />
           </label>
