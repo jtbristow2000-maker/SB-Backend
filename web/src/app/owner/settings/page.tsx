@@ -1,9 +1,11 @@
 import type { CSSProperties } from "react";
 
 import { saveSettings } from "@/app/owner/actions";
+import { PhoneNumberSection } from "@/app/owner/PhoneNumberSection";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
+import { buildBusinessNumberReadModel, type BusinessNumberReadModel } from "@/server/telephony/numberState";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,11 +24,24 @@ export default async function SettingsPage() {
   const context = await getOwnerBusinessContext();
   const business = context?.business ?? null;
   const settings = getBusinessSettings(business);
+  let numberModel: BusinessNumberReadModel | null = null;
+  if (context?.rt && business) {
+    const portRequest = await context.rt.numberPortRequestRepository
+      .findLatestByBusinessId(business.id)
+      .catch(() => null);
+    numberModel = buildBusinessNumberReadModel(business, portRequest);
+  }
 
   return (
     <main style={S.page}>
       <h1 style={S.h1}>Settings</h1>
       <div style={S.sub}>Customize how your assistant looks and replies. Saved changes apply right away.</div>
+
+      {numberModel && (
+        <div style={{ marginTop: 16 }}>
+          <PhoneNumberSection model={numberModel} />
+        </div>
+      )}
 
       <form action={saveSettings} style={S.form}>
         <section style={S.section}>

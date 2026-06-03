@@ -18,6 +18,8 @@ import { sendOwnerApprovedSms } from "@/server/messages/outbound";
 import { updateProfileForOwner } from "@/server/profiles/update";
 import { recommendServicesFromTranscript } from "@/server/providers";
 import { updateTaskForOwner } from "@/server/tasks/api";
+import { savePortRequest, submitPortRequest } from "@/server/telephony/porting";
+import { activateBusinessNumber } from "@/server/telephony/provisioning";
 
 function revalidateOwner(profileId?: string): void {
   revalidatePath("/owner");
@@ -516,4 +518,71 @@ export async function suggestServicesWithAI(input: {
   } catch {
     return [];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Phone number — provisioning + porting (thin wrappers over the telephony
+// services). Sandbox-safe: activateBusinessNumber simulates a number unless
+// real Twilio provisioning is configured (TWILIO_AUTO_PROVISION + supabase
+// mode + credentials + PUBLIC_BASE_URL).
+// ---------------------------------------------------------------------------
+
+export async function activateNumber(): Promise<void> {
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+  try {
+    await activateBusinessNumber(
+      business.id,
+      {},
+      { businessRepository: rt.businessRepository, auditEventRepository: rt.auditEventRepository }
+    );
+  } catch {
+    /* provisioning unavailable */
+  }
+  revalidatePath("/owner/settings");
+  revalidatePath("/owner/today");
+}
+
+export async function savePortInfo(formData: FormData): Promise<void> {
+  const currentNumber = String(formData.get("current_number_e164") ?? "").trim();
+  if (!currentNumber) return;
+
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+  try {
+    await savePortRequest(
+      {
+        businessId: business.id,
+        current_number_e164: currentNumber,
+        current_carrier: String(formData.get("current_carrier") ?? "").trim() || null,
+        account_number: String(formData.get("account_number") ?? "").trim() || null,
+        account_pin: String(formData.get("account_pin") ?? "").trim() || null,
+        billing_name: String(formData.get("billing_name") ?? "").trim() || null,
+        billing_address: String(formData.get("billing_address") ?? "").trim() || null
+      },
+      {
+        businessRepository: rt.businessRepository,
+        numberPortRequestRepository: rt.numberPortRequestRepository,
+        auditEventRepository: rt.auditEventRepository
+      }
+    );
+  } catch {
+    /* ignore */
+  }
+  revalidatePath("/owner/settings");
+}
+
+export async function submitPort(): Promise<void> {
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+  try {
+    await submitPortRequest(business.id, {
+      businessRepository: rt.businessRepository,
+      numberPortRequestRepository: rt.numberPortRequestRepository,
+      auditEventRepository: rt.auditEventRepository
+    });
+  } catch {
+    /* ignore */
+  }
+  revalidatePath("/owner/settings");
 }

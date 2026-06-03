@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Owner phone-number settings UI
+
+### Added
+- Added a "Phone number" section to owner Settings (`PhoneNumberSection`): shows the business's connected number + trial countdown/badge, an "Activate my number" button (sandbox-safe), call-forwarding instructions, and a collapsible port-in form to collect the info needed to move the owner's real number over.
+- Added owner server actions `activateNumber` / `savePortInfo` / `submitPort` wrapping the telephony provisioning + porting services, using the request-scoped runtime repositories.
+
+### Verified
+- `npm run verify` (36 files, 134 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Per-business Twilio number foundation
 
 ### Added
