@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Owner shell sign-out button
+
+### Added
+- Added a "Sign out" control to the owner shell (desktop sidebar footer + mobile top bar) that posts to `/api/auth/sign-out`. Shown only when `PERSISTENCE=supabase` (real auth is active), since memory mode has no session to end.
+
+### Verified
+- `npm run verify` (31 files, 117 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Owner route protection and business context
 
 ### Changed
