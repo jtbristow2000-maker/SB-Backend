@@ -3,8 +3,9 @@ import type { CSSProperties } from "react";
 
 import { simulateLead } from "@/app/owner/actions";
 import { getAppConfig } from "@/server/config";
+import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
-import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
+import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,8 +24,8 @@ export default async function SimulatorPage() {
     );
   }
 
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
+  const context = await getOwnerBusinessContext();
+  const business = context?.business ?? null;
   const settings = getBusinessSettings(business);
   const aiOn = hasConfiguredExtractionProvider(getAppConfig());
   const quotedServices = settings.quote_ranges.map((q) => q.service).filter(Boolean);

@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; redirectTo?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, redirectTo: rawRedirectTo } = await searchParams;
+  const redirectTo = rawRedirectTo?.startsWith("/") ? rawRedirectTo : "/owner/today";
 
   return (
     <main style={S.shell}>
@@ -17,7 +18,7 @@ export default async function LoginPage({
         {error && <div style={S.error}>Please check your email and password.</div>}
 
         <form action="/api/auth/sign-in" method="post" style={S.form}>
-          <input type="hidden" name="redirectTo" value="/owner/today" />
+          <input type="hidden" name="redirectTo" value={redirectTo} />
           <label style={S.label}>
             Email
             <input name="email" type="email" required autoComplete="email" style={S.input} />

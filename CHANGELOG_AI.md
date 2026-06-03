@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Owner route protection and business context
+
+### Changed
+- Routed owner server-rendered reads and server actions through `getOwnerBusinessContext()` so memory mode stays auth-free while Supabase owner paths use the signed-in user's business-scoped repositories.
+- Added `/owner/**` middleware that protects owner routes only when `PERSISTENCE=supabase`, refreshes Supabase session cookies, and redirects unauthenticated owners to `/login`.
+- Preserved webhook/cron service-role paths and the in-memory sandbox runtime without requiring auth.
+
+### Added
+- Added owner route guard coverage for memory vs. Supabase protection behavior.
+
+### Verified
+- `npm run verify` (31 files, 117 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Supabase tenant RLS migration
 
 ### Added

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
@@ -36,15 +36,15 @@ function outcomeSnippet(c: { last_call_outcome: string; voicemail_snippet: strin
 }
 
 export default async function Today() {
-  const rt = await getIntakeRuntime();
-  const [businesses, profiles, calls, messages, tasks] = await Promise.all([
-    rt.businessRepository.list(),
+  const context = await getOwnerBusinessContext();
+  const rt = context?.rt ?? null;
+  const business = context?.business ?? null;
+  const [profiles, calls, messages, tasks] = rt ? await Promise.all([
     rt.customerProfileRepository.list(),
     rt.callRecordRepository.list(),
     rt.messageRepository.list(),
     rt.taskRepository.list()
-  ]);
-  const business = businesses[0] ?? null;
+  ]) : [[], [], [], []];
   const tz = business?.timezone || FALLBACK_TZ;
   const callbacks = business
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })

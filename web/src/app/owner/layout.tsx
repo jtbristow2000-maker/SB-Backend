@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { getAppConfig } from "@/server/config";
 import { getBusinessSettings } from "@/server/business/settings";
-import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getOwnerBusinessContext } from "@/server/business/current";
 
 import { AutoRefresh } from "./AutoRefresh";
 import { OwnerNav } from "./OwnerNav";
@@ -24,8 +24,8 @@ function hexToRgb(hex: string): string {
 }
 
 export default async function OwnerLayout({ children }: { children: ReactNode }) {
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
+  const context = await getOwnerBusinessContext();
+  const business = context?.business ?? null;
   const settings = getBusinessSettings(business);
   const simulatorEnabled = getAppConfig().simulatorEnabled;
   const themeStyle = {

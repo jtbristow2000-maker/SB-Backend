@@ -2,8 +2,8 @@ import type { CSSProperties } from "react";
 
 import { saveSettings } from "@/app/owner/actions";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
+import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
-import { getIntakeRuntime } from "@/server/intake/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,8 +19,8 @@ const DAYS = [
 ];
 
 export default async function SettingsPage() {
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
+  const context = await getOwnerBusinessContext();
+  const business = context?.business ?? null;
   const settings = getBusinessSettings(business);
 
   return (

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
+import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
+import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
 import { buildProfileDetail, type ProfileCallTimelineItem } from "@/server/profiles/detail";
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
@@ -56,16 +57,16 @@ function messageLabel(m: { direction: string; status: string; provider_message_i
 
 export default async function OwnerLead({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const rt = await getIntakeRuntime();
-  const [businesses, profiles, calls, messages, tasks, appointments] = await Promise.all([
-    rt.businessRepository.list(),
+  const context = await getOwnerBusinessContext();
+  const rt = context?.rt ?? null;
+  const business = context?.business ?? null;
+  const [profiles, calls, messages, tasks, appointments] = rt ? await Promise.all([
     rt.customerProfileRepository.list(),
     rt.callRecordRepository.list(),
     rt.messageRepository.list(),
     rt.taskRepository.list(),
     rt.appointmentRepository.list()
-  ]);
-  const business = businesses[0] ?? null;
+  ]) : [[], [], [], [], []];
   const settings = getBusinessSettings(business);
   const tz = business?.timezone || FALLBACK_TZ;
   const detail = business

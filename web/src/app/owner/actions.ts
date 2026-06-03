@@ -8,11 +8,12 @@ import {
   deleteBusinessAppointment,
   updateBusinessAppointment
 } from "@/server/appointments/api";
+import { getOwnerBusinessContext } from "@/server/business/current";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
 import { getAppConfig } from "@/server/config";
 import type { AppointmentStatus } from "@/server/db/schema";
 import type { AppointmentUpdateInput } from "@/server/intake/appointments";
-import { getIntakeRuntime, hasConfiguredExtractionProvider } from "@/server/intake/runtime";
+import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { sendOwnerApprovedSms } from "@/server/messages/outbound";
 import { updateProfileForOwner } from "@/server/profiles/update";
 import { recommendServicesFromTranscript } from "@/server/providers";
@@ -25,9 +26,11 @@ function revalidateOwner(profileId?: string): void {
 }
 
 async function getRuntimeAndBusiness() {
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
-  return { rt, business };
+  const context = await getOwnerBusinessContext();
+  return {
+    rt: context?.rt ?? null,
+    business: context?.business ?? null
+  };
 }
 
 export async function markCallbackDone(formData: FormData): Promise<void> {
@@ -37,7 +40,7 @@ export async function markCallbackDone(formData: FormData): Promise<void> {
 
   const { rt, business } = await getRuntimeAndBusiness();
   try {
-    if (business) {
+    if (rt && business) {
       await updateTaskForOwner(
         {
           taskRepository: rt.taskRepository,
@@ -64,7 +67,7 @@ export async function setProfileStatus(formData: FormData): Promise<void> {
 
   const { rt, business } = await getRuntimeAndBusiness();
   try {
-    if (business) {
+    if (rt && business) {
       await updateProfileForOwner(
         {
           customerProfileRepository: rt.customerProfileRepository,
@@ -90,7 +93,7 @@ export async function sendOwnerText(formData: FormData): Promise<void> {
   if (!profileId || !body) return;
 
   const { rt, business } = await getRuntimeAndBusiness();
-  if (!business) return;
+  if (!rt || !business) return;
 
   try {
     const result = await sendOwnerApprovedSms(
@@ -135,6 +138,7 @@ export async function markContacted(formData: FormData): Promise<void> {
   if (!profileId) return;
 
   const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt) return;
   const profile = (await rt.customerProfileRepository.list()).find((p) => p.id === profileId) ?? null;
   if (!profile) return;
 
@@ -190,7 +194,7 @@ export async function createAppointment(formData: FormData): Promise<void> {
   if (!startLocal) return;
 
   const { rt, business } = await getRuntimeAndBusiness();
-  if (!business) return;
+  if (!rt || !business) return;
   const tz = business.timezone || "America/New_York";
 
   const startIso = zonedWallTimeToUtcIso(startLocal, tz);
@@ -233,7 +237,7 @@ export async function setAppointmentStatus(formData: FormData): Promise<void> {
 
   const { rt, business } = await getRuntimeAndBusiness();
   try {
-    if (business) {
+    if (rt && business) {
       await updateBusinessAppointment(
         {
           appointmentRepository: rt.appointmentRepository,
@@ -257,6 +261,7 @@ export async function updateAppointment(formData: FormData): Promise<void> {
   if (!appointmentId) return;
 
   const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt) return;
   const existing = await rt.appointmentRepository.findById(appointmentId);
   if (!existing) return;
   const tz = business?.timezone || existing.timezone || "America/New_York";
@@ -311,6 +316,7 @@ export async function deleteAppointment(formData: FormData): Promise<void> {
   if (!appointmentId) return;
 
   const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt) return;
   const existing = await rt.appointmentRepository.findById(appointmentId);
   try {
     if (business) {
@@ -334,9 +340,8 @@ export async function deleteAppointment(formData: FormData): Promise<void> {
 }
 
 export async function saveSettings(formData: FormData): Promise<void> {
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
-  if (!business) return;
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
 
   const partial: BusinessSettingsUpdate = {};
 
@@ -395,9 +400,8 @@ export async function simulateLead(formData: FormData): Promise<void> {
   const requested = String(formData.get("requested_datetime") ?? "").trim();
   let voicemail = String(formData.get("voicemail") ?? "").trim();
 
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
-  if (!business) return;
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
 
   const existing = new Set(
     (await rt.customerProfileRepository.list())
