@@ -10,6 +10,7 @@ import type {
   TaskRow
 } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
+import { resolveBusinessByInboundPhone } from "@/server/telephony/routing";
 import type {
   CallProvider,
   ExtractionProvider,
@@ -92,7 +93,11 @@ export class VoiceIntakeService {
   async handleIncomingVoice(payload: IncomingVoicePayload): Promise<IncomingVoiceResult> {
     const toPhone = normalizePhoneNumber(payload.to);
     const fromPhone = normalizePhoneNumber(payload.from);
-    const business = await this.dependencies.businessRepository.findByBusinessPhone(toPhone);
+    const businessMatch = await resolveBusinessByInboundPhone(
+      this.dependencies.businessRepository,
+      toPhone
+    );
+    const business = businessMatch?.business ?? null;
 
     if (!business) {
       return {

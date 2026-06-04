@@ -121,7 +121,14 @@ describe("BACKEND-18 POST /api/messages", () => {
     configureEnv({ smsSendingEnabled: false });
     resetIntakeRuntimeForTests();
     const runtime = await getIntakeRuntime();
-    const business = (await runtime.businessRepository.list())[0];
+    const business = await runtime.businessRepository.updateTelephony(
+      (await runtime.businessRepository.list())[0].id,
+      {
+        twilioNumber: "+14155550100",
+        twilioNumberSid: "PN_OWNER_SMS",
+        numberStatus: "trial"
+      }
+    );
     const profile = (
       await runtime.customerProfileService.upsertByBusinessAndPhone({
         businessId: business.id,
@@ -154,7 +161,7 @@ describe("BACKEND-18 POST /api/messages", () => {
       provider: "sandbox",
       direction: "outbound",
       channel: "sms",
-      from_phone_e164: business.business_phone_e164,
+      from_phone_e164: business.twilio_number_e164,
       to_phone_e164: profile.phone_e164,
       body: "Thanks for reaching out.",
       status: "queued",
@@ -176,7 +183,14 @@ describe("BACKEND-18 POST /api/messages", () => {
     configureEnv({ smsSendingEnabled: true });
     resetIntakeRuntimeForTests();
     const runtime = await getIntakeRuntime();
-    const business = (await runtime.businessRepository.list())[0];
+    const business = await runtime.businessRepository.updateTelephony(
+      (await runtime.businessRepository.list())[0].id,
+      {
+        twilioNumber: "+14155550100",
+        twilioNumberSid: "PN_OWNER_SMS",
+        numberStatus: "trial"
+      }
+    );
     const profile = (
       await runtime.customerProfileService.upsertByBusinessAndPhone({
         businessId: business.id,
@@ -204,7 +218,7 @@ describe("BACKEND-18 POST /api/messages", () => {
       {
         businessId: business.id,
         to: profile.phone_e164,
-        from: business.business_phone_e164 ?? undefined,
+        from: business.twilio_number_e164 ?? undefined,
         body: "I can come by at 3."
       }
     ]);

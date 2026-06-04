@@ -1,9 +1,11 @@
 import type { CSSProperties } from "react";
 
 import { saveSettings } from "@/app/owner/actions";
+import { PhoneNumberSection } from "@/app/owner/PhoneNumberSection";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
+import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
-import { getIntakeRuntime } from "@/server/intake/runtime";
+import { buildBusinessNumberReadModel, type BusinessNumberReadModel } from "@/server/telephony/numberState";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,16 +21,41 @@ const DAYS = [
 ];
 
 export default async function SettingsPage() {
-  const rt = await getIntakeRuntime();
-  const business = (await rt.businessRepository.list())[0] ?? null;
+  const context = await getOwnerBusinessContext();
+  const business = context?.business ?? null;
   const settings = getBusinessSettings(business);
+  let numberModel: BusinessNumberReadModel | null = null;
+  if (context?.rt && business) {
+    const portRequest = await context.rt.numberPortRequestRepository
+      .findLatestByBusinessId(business.id)
+      .catch(() => null);
+    numberModel = buildBusinessNumberReadModel(business, portRequest);
+  }
 
   return (
     <main style={S.page}>
       <h1 style={S.h1}>Settings</h1>
       <div style={S.sub}>Customize how your assistant looks and replies. Saved changes apply right away.</div>
 
+      {numberModel && (
+        <div style={{ marginTop: 16 }}>
+          <PhoneNumberSection model={numberModel} />
+        </div>
+      )}
+
       <form action={saveSettings} style={S.form}>
+        <section style={S.section}>
+          <div style={S.sectionTitle}>Business name</div>
+          <div style={S.sectionHint}>Shown across your dashboard and used wherever {"{business_name}"} appears in replies.</div>
+          <input
+            name="business_name"
+            defaultValue={business?.name ?? ""}
+            placeholder="e.g. Riverside Auto Detailing"
+            autoComplete="organization"
+            style={S.textInput}
+          />
+        </section>
+
         <section style={S.section}>
           <div style={S.sectionTitle}>Brand color</div>
           <div style={S.sectionHint}>Used across buttons, highlights, and your logo.</div>
@@ -86,6 +113,7 @@ const S: Record<string, CSSProperties> = {
   sectionTitle: { fontSize: 14, fontWeight: 700, color: "#15171b" },
   sectionHint: { fontSize: 12, color: "#8a909c", margin: "2px 0 10px" },
   color: { width: 52, height: 36, padding: 0, border: "1px solid #d8dce3", borderRadius: 8, background: "#fff", cursor: "pointer" },
+  textInput: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, boxSizing: "border-box" },
   mono: { fontFamily: "ui-monospace, monospace", fontSize: 13, color: "#3c414b" },
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
   inlineLabel: { fontSize: 13, color: "#3c414b", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 },

@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { BACKEND_02_TABLES, BACKEND_03_TABLES, type AppointmentRow, type AuditEventRow, type CustomerProfileRow, type Database } from "./schema";
+import {
+  BACKEND_02_TABLES,
+  BACKEND_03_TABLES,
+  type AppointmentRow,
+  type AuditEventRow,
+  type BusinessMemberRow,
+  type BusinessRow,
+  type CustomerProfileRow,
+  type Database,
+  type NumberPortRequestRow
+} from "./schema";
 
 describe("BACKEND-02 database contract", () => {
   it("declares the required foundation tables", () => {
@@ -88,5 +98,64 @@ describe("BACKEND-08 audit event contract", () => {
 
     expect(auditEvent.actor).toBe("system");
     expect(auditEvent.event_type).toBe("call.missed");
+  });
+});
+
+describe("owner auth tenancy contract", () => {
+  it("declares business membership rows for per-user owner access", () => {
+    const member = {
+      id: "member_1",
+      business_id: "business_1",
+      user_id: "user_1",
+      role: "owner",
+      created_at: "2026-06-03T00:00:00.000Z"
+    } satisfies BusinessMemberRow;
+
+    type Tables = keyof Database["public"]["Tables"];
+    const table: Tables = "business_members";
+
+    expect(member.role).toBe("owner");
+    expect(table).toBe("business_members");
+  });
+});
+
+describe("business telephony contract", () => {
+  it("tracks per-business Twilio numbers and port requests", () => {
+    const business = {
+      id: "business_1",
+      name: "Detail Co",
+      owner_name: "Owner",
+      owner_phone_e164: "+12133734253",
+      business_phone_e164: "+13105550199",
+      twilio_number_e164: "+14155550100",
+      twilio_number_sid: "PN_TEST",
+      number_status: "trial",
+      number_trial_ends_at: "2026-06-17T00:00:00.000Z",
+      timezone: "America/New_York",
+      settings_json: {},
+      created_at: "2026-06-03T00:00:00.000Z",
+      updated_at: "2026-06-03T00:00:00.000Z"
+    } satisfies BusinessRow;
+    const portRequest = {
+      id: "port_1",
+      business_id: business.id,
+      current_number_e164: "+19495550100",
+      current_carrier: "Carrier",
+      account_number: "acct",
+      account_pin: "pin",
+      billing_name: "Owner",
+      billing_address: "123 Main St",
+      loa_signed_at: null,
+      bill_uploaded: false,
+      status: "collecting",
+      created_at: "2026-06-03T00:00:00.000Z"
+    } satisfies NumberPortRequestRow;
+
+    type Tables = keyof Database["public"]["Tables"];
+    const table: Tables = "number_port_requests";
+
+    expect(business.number_status).toBe("trial");
+    expect(portRequest.business_id).toBe(business.id);
+    expect(table).toBe("number_port_requests");
   });
 });

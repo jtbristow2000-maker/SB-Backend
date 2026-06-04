@@ -31,6 +31,7 @@ describe("BACKEND-11 inbound SMS intake service", () => {
     });
 
     return {
+      businessRepository,
       customerProfileRepository,
       messageRepository,
       taskRepository,
@@ -94,5 +95,29 @@ describe("BACKEND-11 inbound SMS intake service", () => {
     expect(await customerProfileRepository.list()).toHaveLength(1);
     expect(second.flaggedTask?.id).toBe(tasks[0].id);
     expect(tasks[0].notes).toContain("Customer replied by SMS.");
+  });
+
+  it("routes inbound SMS by the business-owned Twilio number", async () => {
+    const { businessRepository, messageRepository, service } = await setupService();
+    await businessRepository.updateTelephony("00000000-0000-4000-8000-000000000401", {
+      twilioNumber: "+14155550100",
+      twilioNumberSid: "PN_SMS_ROUTE",
+      numberStatus: "trial"
+    });
+
+    const result = await service.handleInboundSms({
+      from: "(949) 555-0100",
+      to: "+14155550100",
+      body: "Need a quote",
+      messageSid: "SM_TWILIO_NUMBER"
+    });
+    const messages = await messageRepository.list();
+
+    expect(result.status).toBe("stored");
+    expect(messages[0]).toMatchObject({
+      business_id: "00000000-0000-4000-8000-000000000401",
+      provider_message_id: "SM_TWILIO_NUMBER",
+      to_phone_e164: "+14155550100"
+    });
   });
 });

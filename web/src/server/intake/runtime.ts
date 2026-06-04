@@ -3,12 +3,16 @@ import {
   bootstrapSingleTenantBusiness,
   InMemoryBusinessRepository
 } from "@/server/business/bootstrap";
+import { InMemoryBusinessMemberRepository } from "@/server/business/membership";
 import {
   type CustomerProfileRepository,
   InMemoryCustomerProfileRepository
 } from "@/server/customerProfiles/repository";
 import { CustomerProfileService } from "@/server/customerProfiles/service";
-import { createSupabaseRepositories } from "@/server/db/supabaseRepositories";
+import {
+  createSupabaseRepositories,
+  type IntakeRepositories
+} from "@/server/db/supabaseRepositories";
 import { getSupabaseServerClient } from "@/server/db/supabaseClient";
 import {
   AnthropicExtractionProvider,
@@ -29,9 +33,11 @@ import { type QuoteDraftRepository, InMemoryQuoteDraftRepository } from "./quote
 import { SmsIntakeService } from "./sms";
 import { type TaskRepository, InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
+import { InMemoryNumberPortRequestRepository } from "@/server/telephony/portRequests";
 
-type IntakeRuntime = {
+export type IntakeRuntime = {
   businessRepository: BusinessRepository;
+  businessMemberRepository: IntakeRepositories["businessMemberRepository"];
   customerProfileRepository: CustomerProfileRepository;
   customerProfileService: CustomerProfileService;
   callRecordRepository: CallRecordRepository;
@@ -40,6 +46,7 @@ type IntakeRuntime = {
   auditEventRepository: AuditEventRepository;
   appointmentRepository: AppointmentRepository;
   quoteDraftRepository: QuoteDraftRepository;
+  numberPortRequestRepository: IntakeRepositories["numberPortRequestRepository"];
   providers: ReturnType<typeof createSandboxProviders>;
   smsProvider: SmsProvider;
   voiceIntakeService: VoiceIntakeService;
@@ -66,31 +73,48 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
   }
 
   const config = getAppConfig();
-  const repositories =
+  const repositories: IntakeRepositories =
     config.persistence === "supabase"
       ? createSupabaseRepositories(getSupabaseServerClient())
       : {
           businessRepository: new InMemoryBusinessRepository(),
+          businessMemberRepository: new InMemoryBusinessMemberRepository(),
           customerProfileRepository: new InMemoryCustomerProfileRepository(),
           callRecordRepository: new InMemoryCallRecordRepository(),
           messageRepository: new InMemoryMessageRepository(),
           taskRepository: new InMemoryTaskRepository(),
           auditEventRepository: new InMemoryAuditEventRepository(),
           appointmentRepository: new InMemoryAppointmentRepository(),
-          quoteDraftRepository: new InMemoryQuoteDraftRepository()
+          quoteDraftRepository: new InMemoryQuoteDraftRepository(),
+          numberPortRequestRepository: new InMemoryNumberPortRequestRepository()
         };
+  if (config.persistence === "memory") {
+    await bootstrapSingleTenantBusiness(repositories.businessRepository);
+  }
+
+  const runtime = buildIntakeRuntime(repositories, config);
+
+  globalForIntake.__intakeRuntime = runtime;
+  return runtime;
+}
+
+export function buildIntakeRuntime(
+  repositories: IntakeRepositories,
+  config: AppConfig = getAppConfig()
+): IntakeRuntime {
   const {
     businessRepository,
+    businessMemberRepository,
     customerProfileRepository,
     callRecordRepository,
     messageRepository,
     taskRepository,
     auditEventRepository,
     appointmentRepository,
-    quoteDraftRepository
+    quoteDraftRepository,
+    numberPortRequestRepository
   } = repositories;
 
-  await bootstrapSingleTenantBusiness(businessRepository);
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
   const providers = createSandboxProviders();
   const smsProvider = selectSmsProvider(config, providers.sms);
@@ -133,6 +157,7 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
 
   const runtime: IntakeRuntime = {
     businessRepository,
+    businessMemberRepository,
     customerProfileRepository,
     customerProfileService,
     callRecordRepository,
@@ -141,13 +166,13 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
     auditEventRepository,
     appointmentRepository,
     quoteDraftRepository,
+    numberPortRequestRepository,
     providers,
     smsProvider,
     voiceIntakeService,
     smsIntakeService
   };
 
-  globalForIntake.__intakeRuntime = runtime;
   return runtime;
 }
 

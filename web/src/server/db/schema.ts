@@ -12,6 +12,9 @@ export type MessageChannel = "sms" | "mms" | "email" | "web";
 export type TaskStatus = "open" | "done" | "completed" | "dismissed";
 export type AppointmentStatus = "scheduled" | "confirmed" | "completed" | "cancelled" | "no_show";
 export type QuoteDraftStatus = "draft" | "reviewed" | "sent" | "accepted" | "declined";
+export type BusinessMemberRole = "owner" | "staff";
+export type NumberStatus = "none" | "trial" | "active" | "porting" | "ported";
+export type NumberPortRequestStatus = "collecting" | "submitted" | "completed" | "rejected";
 
 export const BACKEND_02_TABLES = [
   "businesses",
@@ -38,8 +41,20 @@ export type BusinessRow = TimestampColumns & {
   owner_name: string | null;
   owner_phone_e164: string | null;
   business_phone_e164: string | null;
+  twilio_number_e164: string | null;
+  twilio_number_sid: string | null;
+  number_status: NumberStatus;
+  number_trial_ends_at: string | null;
   timezone: string;
   settings_json: JsonValue;
+};
+
+export type BusinessMemberRow = {
+  id: string;
+  business_id: string;
+  user_id: string;
+  role: BusinessMemberRole;
+  created_at: string;
 };
 
 export type CustomerProfileRow = TimestampColumns & {
@@ -149,6 +164,21 @@ export type AuditEventRow = {
   created_at: string;
 };
 
+export type NumberPortRequestRow = {
+  id: string;
+  business_id: string;
+  current_number_e164: string;
+  current_carrier: string | null;
+  account_number: string | null;
+  account_pin: string | null;
+  billing_name: string | null;
+  billing_address: string | null;
+  loa_signed_at: string | null;
+  bill_uploaded: boolean;
+  status: NumberPortRequestStatus;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -156,6 +186,12 @@ export type Database = {
         Row: BusinessRow;
         Insert: Partial<BusinessRow> & Pick<BusinessRow, "name">;
         Update: Partial<BusinessRow>;
+        Relationships: [];
+      };
+      business_members: {
+        Row: BusinessMemberRow;
+        Insert: Partial<BusinessMemberRow> & Pick<BusinessMemberRow, "business_id" | "user_id">;
+        Update: Partial<Pick<BusinessMemberRow, "role">>;
         Relationships: [];
       };
       customer_profiles: {
@@ -198,6 +234,12 @@ export type Database = {
         Row: AuditEventRow;
         Insert: Partial<AuditEventRow> & Pick<AuditEventRow, "business_id" | "actor" | "event_type">;
         Update: never;
+        Relationships: [];
+      };
+      number_port_requests: {
+        Row: NumberPortRequestRow;
+        Insert: Partial<NumberPortRequestRow> & Pick<NumberPortRequestRow, "business_id" | "current_number_e164">;
+        Update: Partial<NumberPortRequestRow>;
         Relationships: [];
       };
     };

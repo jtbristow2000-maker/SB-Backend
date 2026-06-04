@@ -1,9 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
+  BusinessTelephonyUpdateInput,
   BusinessRepository,
   BusinessSeedInput
 } from "@/server/business/bootstrap";
+import type {
+  BusinessMemberCreateInput,
+  BusinessMemberRepository
+} from "@/server/business/membership";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
 import { mergeBusinessSettingsJson } from "@/server/business/settings";
 import type {
@@ -32,6 +37,11 @@ import type {
   QuoteDraftRepository
 } from "@/server/intake/quoteDrafts";
 import type {
+  NumberPortRequestCreateInput,
+  NumberPortRequestRepository,
+  NumberPortRequestUpdateInput
+} from "@/server/telephony/portRequests";
+import type {
   TaskCreateInput,
   TaskRepository
 } from "@/server/intake/tasks";
@@ -40,11 +50,13 @@ import { normalizePhoneNumber } from "@/server/phone/normalize";
 import type {
   AppointmentRow,
   AuditEventRow,
+  BusinessMemberRow,
   BusinessRow,
   CallRecordRow,
   CustomerProfileRow,
   Database,
   MessageRow,
+  NumberPortRequestRow,
   QuoteDraftRow,
   TaskRow
 } from "./schema";
@@ -102,6 +114,16 @@ export class SupabaseBusinessRepository implements BusinessRepository {
     return data;
   }
 
+  async findByTwilioNumber(phoneE164: string): Promise<BusinessRow | null> {
+    const { data, error } = await this.client
+      .from("businesses")
+      .select("*")
+      .eq("twilio_number_e164", phoneE164)
+      .maybeSingle();
+    failIfError(error, "find business by Twilio number");
+    return data;
+  }
+
   async create(input: BusinessSeedInput & { id: string }): Promise<BusinessRow> {
     const timestamp = nowIso();
     const { data, error } = await this.client
@@ -112,6 +134,10 @@ export class SupabaseBusinessRepository implements BusinessRepository {
         owner_name: input.ownerName ?? null,
         owner_phone_e164: normalizeOptionalPhone(input.ownerPhone),
         business_phone_e164: normalizeOptionalPhone(input.businessPhone),
+        twilio_number_e164: normalizeOptionalPhone(input.twilioNumber),
+        twilio_number_sid: input.twilioNumberSid ?? null,
+        number_status: input.numberStatus ?? "none",
+        number_trial_ends_at: input.numberTrialEndsAt ?? null,
         timezone: input.timezone,
         settings_json: {},
         updated_at: timestamp
@@ -135,6 +161,14 @@ export class SupabaseBusinessRepository implements BusinessRepository {
         owner_name: input.ownerName ?? null,
         owner_phone_e164: normalizeOptionalPhone(input.ownerPhone),
         business_phone_e164: normalizeOptionalPhone(input.businessPhone),
+        ...(input.twilioNumber !== undefined
+          ? { twilio_number_e164: normalizeOptionalPhone(input.twilioNumber) }
+          : {}),
+        ...(input.twilioNumberSid !== undefined ? { twilio_number_sid: input.twilioNumberSid } : {}),
+        ...(input.numberStatus !== undefined ? { number_status: input.numberStatus } : {}),
+        ...(input.numberTrialEndsAt !== undefined
+          ? { number_trial_ends_at: input.numberTrialEndsAt }
+          : {}),
         timezone: input.timezone,
         updated_at: nowIso()
       })
@@ -143,6 +177,30 @@ export class SupabaseBusinessRepository implements BusinessRepository {
       .single();
 
     return requireRow(data, error, "update business");
+  }
+
+  async updateTelephony(
+    id: string,
+    input: BusinessTelephonyUpdateInput
+  ): Promise<BusinessRow> {
+    const { data, error } = await this.client
+      .from("businesses")
+      .update({
+        ...(input.twilioNumber !== undefined
+          ? { twilio_number_e164: normalizeOptionalPhone(input.twilioNumber) }
+          : {}),
+        ...(input.twilioNumberSid !== undefined ? { twilio_number_sid: input.twilioNumberSid } : {}),
+        ...(input.numberStatus !== undefined ? { number_status: input.numberStatus } : {}),
+        ...(input.numberTrialEndsAt !== undefined
+          ? { number_trial_ends_at: input.numberTrialEndsAt }
+          : {}),
+        updated_at: nowIso()
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "update business telephony");
   }
 
   async updateSettings(id: string, partial: BusinessSettingsUpdate): Promise<BusinessRow> {
@@ -167,6 +225,59 @@ export class SupabaseBusinessRepository implements BusinessRepository {
   async list(): Promise<BusinessRow[]> {
     const { data, error } = await this.client.from("businesses").select("*");
     return rowsOrThrow(data, error, "list businesses");
+  }
+}
+
+export class SupabaseBusinessMemberRepository implements BusinessMemberRepository {
+  constructor(private readonly client: SupabaseClient<Database>) {}
+
+  async findByUserId(userId: string): Promise<BusinessMemberRow[]> {
+    const { data, error } = await this.client
+      .from("business_members")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    return rowsOrThrow(data, error, "find business memberships by user");
+  }
+
+  async findByBusinessAndUser(
+    businessId: string,
+    userId: string
+  ): Promise<BusinessMemberRow | null> {
+    const { data, error } = await this.client
+      .from("business_members")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    failIfError(error, "find business membership");
+    return data;
+  }
+
+  async create(input: BusinessMemberCreateInput): Promise<BusinessMemberRow> {
+    const existing = await this.findByBusinessAndUser(input.business_id, input.user_id);
+    if (existing) {
+      return existing;
+    }
+
+    const { data, error } = await this.client
+      .from("business_members")
+      .insert({
+        business_id: input.business_id,
+        user_id: input.user_id,
+        role: input.role ?? "owner"
+      })
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "create business membership");
+  }
+
+  async list(): Promise<BusinessMemberRow[]> {
+    const { data, error } = await this.client.from("business_members").select("*");
+    return rowsOrThrow(data, error, "list business memberships");
   }
 }
 
@@ -525,8 +636,82 @@ export class SupabaseQuoteDraftRepository implements QuoteDraftRepository {
   }
 }
 
+export class SupabaseNumberPortRequestRepository implements NumberPortRequestRepository {
+  constructor(private readonly client: SupabaseClient<Database>) {}
+
+  async create(input: NumberPortRequestCreateInput): Promise<NumberPortRequestRow> {
+    const { data, error } = await this.client
+      .from("number_port_requests")
+      .insert({
+        business_id: input.business_id,
+        current_number_e164: normalizePhoneNumber(input.current_number_e164),
+        current_carrier: input.current_carrier?.trim() || null,
+        account_number: input.account_number?.trim() || null,
+        account_pin: input.account_pin?.trim() || null,
+        billing_name: input.billing_name?.trim() || null,
+        billing_address: input.billing_address?.trim() || null,
+        loa_signed_at: input.loa_signed_at?.trim() || null,
+        bill_uploaded: input.bill_uploaded ?? false,
+        status: input.status ?? "collecting"
+      })
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "create number port request");
+  }
+
+  async update(
+    id: string,
+    input: NumberPortRequestUpdateInput
+  ): Promise<NumberPortRequestRow> {
+    const { data, error } = await this.client
+      .from("number_port_requests")
+      .update({
+        ...input,
+        ...(input.current_number_e164 !== undefined
+          ? { current_number_e164: normalizePhoneNumber(input.current_number_e164) }
+          : {})
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    return requireRow(data, error, "update number port request");
+  }
+
+  async findById(id: string): Promise<NumberPortRequestRow | null> {
+    const { data, error } = await this.client
+      .from("number_port_requests")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    failIfError(error, "find number port request by id");
+    return data;
+  }
+
+  async findLatestByBusinessId(businessId: string): Promise<NumberPortRequestRow | null> {
+    const { data, error } = await this.client
+      .from("number_port_requests")
+      .select("*")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    failIfError(error, "find latest number port request by business");
+    return data;
+  }
+
+  async list(): Promise<NumberPortRequestRow[]> {
+    const { data, error } = await this.client.from("number_port_requests").select("*");
+    return rowsOrThrow(data, error, "list number port requests");
+  }
+}
+
 export type IntakeRepositories = {
   businessRepository: BusinessRepository;
+  businessMemberRepository: BusinessMemberRepository;
   customerProfileRepository: CustomerProfileRepository;
   callRecordRepository: CallRecordRepository;
   messageRepository: MessageRepository;
@@ -534,6 +719,7 @@ export type IntakeRepositories = {
   auditEventRepository: AuditEventRepository;
   appointmentRepository: AppointmentRepository;
   quoteDraftRepository: QuoteDraftRepository;
+  numberPortRequestRepository: NumberPortRequestRepository;
 };
 
 // Return the repositories typed as their interfaces (not the concrete classes) so
@@ -543,12 +729,14 @@ export type IntakeRepositories = {
 export function createSupabaseRepositories(client: SupabaseClient<Database>): IntakeRepositories {
   return {
     businessRepository: new SupabaseBusinessRepository(client),
+    businessMemberRepository: new SupabaseBusinessMemberRepository(client),
     customerProfileRepository: new SupabaseCustomerProfileRepository(client),
     callRecordRepository: new SupabaseCallRecordRepository(client),
     messageRepository: new SupabaseMessageRepository(client),
     taskRepository: new SupabaseTaskRepository(client),
     auditEventRepository: new SupabaseAuditEventRepository(client),
     appointmentRepository: new SupabaseAppointmentRepository(client),
-    quoteDraftRepository: new SupabaseQuoteDraftRepository(client)
+    quoteDraftRepository: new SupabaseQuoteDraftRepository(client),
+    numberPortRequestRepository: new SupabaseNumberPortRequestRepository(client)
   };
 }

@@ -28,6 +28,10 @@ export type OwnerMessageDependencies = {
 
 const REQUIRED_FIELDS = ["profile_id", "body"] as const;
 
+function outboundFromNumber(business: BusinessRow): string | null {
+  return business.twilio_number_e164 ?? business.business_phone_e164;
+}
+
 export function validateOwnerMessagePayload(payload: unknown): OwnerMessageValidation {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return {
@@ -88,6 +92,7 @@ export async function sendOwnerApprovedSms(
 
   const smsSendingEnabled = dependencies.isSmsSendingEnabled();
   const sentAt = new Date().toISOString();
+  const fromNumber = outboundFromNumber(input.business);
   let message = await dependencies.messageRepository.create({
     business_id: input.business.id,
     customer_profile_id: profile.id,
@@ -95,7 +100,7 @@ export async function sendOwnerApprovedSms(
     provider_message_id: null,
     direction: "outbound",
     channel: "sms",
-    from_phone_e164: input.business.business_phone_e164,
+    from_phone_e164: fromNumber,
     to_phone_e164: profile.phone_e164,
     body: input.payload.body,
     status: "queued",
@@ -108,7 +113,7 @@ export async function sendOwnerApprovedSms(
       const result = await dependencies.smsProvider.sendMessage({
         businessId: input.business.id,
         to: profile.phone_e164,
-        from: input.business.business_phone_e164 ?? undefined,
+        from: fromNumber ?? undefined,
         body: input.payload.body
       });
 

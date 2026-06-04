@@ -1,5 +1,118 @@
 # CHANGELOG_AI.md
 
+## [2026-06-03] - Editable business name in Settings
+
+### Added
+- Added a "Business name" field at the top of owner Settings; `saveSettings` now updates the business row name (carrying existing owner/phone/timezone values forward so nothing else is wiped) so owners can rename their business instead of being stuck with the email-derived default.
+
+### Verified
+- `npm run verify` (36 files, 134 tests, 1 skipped) passes.
+
+## [2026-06-03] - Owner phone-number settings UI
+
+### Added
+- Added a "Phone number" section to owner Settings (`PhoneNumberSection`): shows the business's connected number + trial countdown/badge, an "Activate my number" button (sandbox-safe), call-forwarding instructions, and a collapsible port-in form to collect the info needed to move the owner's real number over.
+- Added owner server actions `activateNumber` / `savePortInfo` / `submitPort` wrapping the telephony provisioning + porting services, using the request-scoped runtime repositories.
+
+### Verified
+- `npm run verify` (36 files, 134 tests, 1 skipped) passes.
+
+## [2026-06-03] - Per-business Twilio number foundation
+
+### Added
+- Added `0006_business_numbers_and_port_requests.sql` to store per-business Twilio numbers, trial status, trial end time, and Phase 2 number port requests with tenant RLS.
+- Added typed business telephony fields and number port request table types/repositories for memory and Supabase.
+- Added backend telephony services for sandbox-safe trial number provisioning, owner-triggered activation, number trial read state, inbound To-number routing, and porting intake/submission/completion scaffolds.
+- Added config for `TWILIO_AUTO_PROVISION` and `TWILIO_DEFAULT_AREA_CODE`, defaulting real auto-provisioning off.
+
+### Changed
+- Incoming voice and SMS now resolve the business by `twilio_number_e164` first, falling back to the legacy bootstrap `business_phone_e164`.
+- Owner-approved outbound SMS now uses the business-owned Twilio number as the From number when present.
+
+### Safety
+- Real Twilio number purchase is never automatic on signup and is simulated in memory/sandbox mode. Real provisioning requires an explicit backend activation call plus `TWILIO_AUTO_PROVISION=true`, Supabase persistence, non-sandbox mode, credentials, and `PUBLIC_BASE_URL`.
+- Phase 2 porting stores intake data/status only; Twilio Porting API automation is intentionally left as a future seam.
+
+### Verified
+- `npm run verify` (36 files, 134 tests, 1 skipped) passes.
+
+## [2026-06-03] - Sign-up backend seeds owner business profile
+
+### Changed
+- Extended `/api/auth/sign-up` payload parsing to accept `business_name`, `owner_name`, and `phone` from form-encoded and JSON requests.
+- Threaded those sign-up fields into first-business provisioning so the seeded business uses the submitted business name, owner name, and normalized phone number.
+- Mapped Supabase sign-up failures to specific error codes for disabled signups, duplicate email, weak password, and invalid email.
+- Made post-auth business provisioning best-effort: failures are logged without blocking the auth redirect.
+
+### Added
+- Added backend tests for sign-up payload parsing, business seed overrides/fallbacks, and sign-up error-code mapping.
+
+### Verified
+- `npm run verify` (32 files, 126 tests, 1 skipped) passes.
+
+## [2026-06-03] - Dedicated owner sign-up screen
+
+### Added
+- Added a dedicated `/signup` page (server page + client `SignupForm`) with business name, owner name, email, phone, and password + confirm-password fields. Inline validation (min length + match) runs before posting to `/api/auth/sign-up`, and known server error codes map to specific messages.
+- Linked `/login`'s "Create account" to `/signup` and mapped login error codes to specific messages instead of one generic line.
+
+### Note
+- The backend now persists the posted profile fields when seeding the first business.
+
+### Verified
+- `npm run verify` (31 files, 117 tests, 1 skipped) passes.
+
+## [2026-06-03] - Owner shell sign-out button
+
+### Added
+- Added a "Sign out" control to the owner shell (desktop sidebar footer + mobile top bar) that posts to `/api/auth/sign-out`. Shown only when `PERSISTENCE=supabase` (real auth is active), since memory mode has no session to end.
+
+### Verified
+- `npm run verify` (31 files, 117 tests, 1 skipped) passes.
+
+## [2026-06-03] - Owner route protection and business context
+
+### Changed
+- Routed owner server-rendered reads and server actions through `getOwnerBusinessContext()` so memory mode stays auth-free while Supabase owner paths use the signed-in user's business-scoped repositories.
+- Added `/owner/**` middleware that protects owner routes only when `PERSISTENCE=supabase`, refreshes Supabase session cookies, and redirects unauthenticated owners to `/login`.
+- Preserved webhook/cron service-role paths and the in-memory sandbox runtime without requiring auth.
+
+### Added
+- Added owner route guard coverage for memory vs. Supabase protection behavior.
+
+### Verified
+- `npm run verify` (31 files, 117 tests, 1 skipped) passes.
+
+## [2026-06-03] - Supabase tenant RLS migration
+
+### Added
+- Added an RLS migration that enables row-level security on business, membership, lead, call, message, task, appointment, quote draft, and audit tables.
+- Added membership-based policies using `auth.uid()` through a security-definer helper so authenticated owner sessions only see their business rows while service-role webhooks/cron remain available.
+- Added an offline migration coverage test and a `TASKS.md` Supabase rollout note for applying the auth migrations and enabling Email auth.
+
+### Verified
+- `npm run verify` (30 files, 115 tests, 1 skipped) passes.
+
+## [2026-06-03] - Owner business membership tenancy
+
+### Added
+- Added typed `business_members` support with in-memory and Supabase repository implementations.
+- Added per-user business resolution/bootstrap helpers that create one business plus owner membership for first-time signed-in users.
+- Added the `0004_business_members.sql` migration and wired `businessMemberRepository` into the intake runtime while keeping single-tenant bootstrap limited to memory mode.
+
+### Verified
+- `npm run verify` (29 files, 113 tests, 1 skipped) passes.
+
+## [2026-06-03] - Owner auth wiring foundation
+
+### Added
+- Added Supabase SSR auth clients for request-bound server usage and browser usage, plus `getServerSession()` / `getCurrentUser()` helpers.
+- Added email/password auth route handlers for sign-in, sign-up, and sign-out, with JSON and form-post support.
+- Added a minimal `/login` page as the redirect target for the upcoming owner route guard.
+
+### Verified
+- `npm run verify` (28 files, 109 tests, 1 skipped) passes.
+
 ## [2026-06-01] - PWA: installable, standalone owner app
 
 ### Added

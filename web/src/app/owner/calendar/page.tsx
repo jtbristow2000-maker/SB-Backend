@@ -3,8 +3,8 @@ import type { CSSProperties } from "react";
 import { createAppointment } from "@/app/owner/actions";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
 import { fmtPhone } from "@/app/owner/format";
+import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
-import { getIntakeRuntime } from "@/server/intake/runtime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,13 +14,13 @@ export const runtime = "nodejs";
 // the CalendarViews client island; booking is a server action.
 
 export default async function CalendarPage() {
-  const rt = await getIntakeRuntime();
-  const [businesses, appointments, profiles] = await Promise.all([
-    rt.businessRepository.list(),
+  const context = await getOwnerBusinessContext();
+  const rt = context?.rt ?? null;
+  const business = context?.business ?? null;
+  const [appointments, profiles] = rt ? await Promise.all([
     rt.appointmentRepository.list(),
     rt.customerProfileRepository.list()
-  ]);
-  const business = businesses[0] ?? null;
+  ]) : [[], []];
   const settings = getBusinessSettings(business);
   const nameById = new Map(
     profiles.map((p) => [p.id, p.display_name || (p.phone_e164 ? fmtPhone(p.phone_e164) : "")])

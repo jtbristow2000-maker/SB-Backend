@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { getIntakeRuntime } from "@/server/intake/runtime";
+import { getOwnerBusinessContext } from "@/server/business/current";
 
 import { LeadDirectory, type DirectoryLead } from "../LeadDirectory";
 
@@ -13,12 +13,10 @@ export const runtime = "nodejs";
 const FALLBACK_TZ = "America/New_York";
 
 export default async function LeadsPage() {
-  const rt = await getIntakeRuntime();
-  const [businesses, profiles] = await Promise.all([
-    rt.businessRepository.list(),
-    rt.customerProfileRepository.list()
-  ]);
-  const business = businesses[0] ?? null;
+  const context = await getOwnerBusinessContext();
+  const rt = context?.rt ?? null;
+  const business = context?.business ?? null;
+  const profiles = rt ? await rt.customerProfileRepository.list() : [];
   const tz = business?.timezone || FALLBACK_TZ;
 
   const leads: DirectoryLead[] = profiles
