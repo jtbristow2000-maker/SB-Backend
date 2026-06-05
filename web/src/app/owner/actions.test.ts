@@ -220,6 +220,7 @@ describe("owner server actions audit alignment", () => {
     expect(appointments).toHaveLength(0);
     expect(auditEvents.map((event) => event.event_type)).toEqual([
       "appointment.created",
+      "profile.update",
       "appointment.updated",
       "appointment.updated",
       "appointment.deleted"
@@ -229,14 +230,16 @@ describe("owner server actions audit alignment", () => {
       business_id: business.id,
       customer_profile_id: profile.id
     });
-    expect(auditEvents[1].event_json).toMatchObject({
+    // Booking flips the lead to "booked" so its status lines up everywhere.
+    expect(auditEvents[1]).toMatchObject({ event_type: "profile.update" });
+    expect(auditEvents[2].event_json).toMatchObject({
       appointmentId: created.id,
       fields: ["status"]
     });
-    expect(auditEvents[2].event_json).toMatchObject({
+    expect(auditEvents[3].event_json).toMatchObject({
       appointmentId: created.id
     });
-    expect(auditEvents[3].event_json).toMatchObject({
+    expect(auditEvents[4].event_json).toMatchObject({
       appointmentId: created.id
     });
   });
