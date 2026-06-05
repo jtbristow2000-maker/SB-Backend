@@ -4,7 +4,7 @@ import { createAppointment } from "@/app/owner/actions";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
 import { fmtPhone } from "@/app/owner/format";
 import { getOwnerBusinessContext } from "@/server/business/current";
-import { getBusinessSettings, quotePriceLabel, quoteServiceColor } from "@/server/business/settings";
+import { getBusinessSettings, quotePriceLabel, quoteServiceColor, isServiceOnCalendar } from "@/server/business/settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,7 +28,7 @@ export default async function CalendarPage() {
   const phoneById = new Map(profiles.map((p) => [p.id, p.phone_e164]));
 
   const events: CalendarEvent[] = appointments
-    .filter((a) => !business || a.business_id === business.id)
+    .filter((a) => (!business || a.business_id === business.id) && isServiceOnCalendar(a.service_requested, settings.quote_ranges))
     .map((a) => ({
       id: a.id,
       title: a.title,
@@ -68,7 +68,7 @@ export default async function CalendarPage() {
         <button type="submit" style={S.btnPrimary}>Add to schedule</button>
       </form>
 
-      <CalendarViews events={events} legend={settings.quote_ranges.map((r) => ({ service: r.service, color: r.color ?? "#5b5bd6" }))} />
+      <CalendarViews events={events} legend={settings.quote_ranges.filter((r) => r.on_calendar !== false).map((r) => ({ service: r.service, color: r.color ?? "#5b5bd6" }))} />
     </main>
   );
 }
