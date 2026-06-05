@@ -508,6 +508,118 @@ export async function simulateLead(formData: FormData): Promise<void> {
   redirect(`/owner/${profile.id}`);
 }
 
+// --- Batch demo-lead seeding (Simulator "spawn a bunch") --------------------
+// Creates many varied, fully-populated demo leads at once so the owner can see
+// how the dashboard handles real volume. Each is tagged source:"simulator".
+const SIM_NAMES = [
+  "Marcus", "Jenna", "Tyler", "Priya", "Diego", "Ashley", "Kevin", "Brittany",
+  "Luis", "Hannah", "Derek", "Nicole", "Omar", "Chloe", "Brandon", "Maria",
+  "Jordan", "Kayla", "Andre", "Sofia", "Trevor", "Megan", "Carlos", "Erica"
+];
+const SIM_SERVICES = [
+  "Full detail", "Interior detail", "Wash & wax", "Ceramic coating",
+  "Headlight restoration", "Pet hair removal", "Engine bay cleaning",
+  "Paint correction", "Odor removal", "Maintenance wash", "Clay bar treatment"
+];
+const SIM_VEHICLES = [
+  "sedan", "SUV", "pickup truck", "minivan", "Jeep", "work van",
+  "crossover", "lifted truck", "sports car", "hatchback", "Tesla"
+];
+const SIM_TIMINGS = [
+  "this Thursday morning", "sometime this weekend", "next Tuesday",
+  "as soon as possible", "Friday afternoon", "early next week",
+  "before the weekend", "whenever you have an opening", "Monday if you can"
+];
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+export async function simulateLeadBatch(formData: FormData): Promise<void> {
+  if (!getAppConfig().simulatorEnabled) return;
+
+  const requested = Math.floor(Number(formData.get("count") ?? 25));
+  const count = Math.min(50, Math.max(1, Number.isFinite(requested) && requested > 0 ? requested : 25));
+
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+
+  const used = new Set(
+    (await rt.customerProfileRepository.list())
+      .map((p) => p.phone_e164)
+      .filter((p): p is string => Boolean(p))
+  );
+
+  const specs = Array.from({ length: count }, () => {
+    let phone = randomSimPhone();
+    for (let i = 0; i < 25 && used.has(phone); i++) phone = randomSimPhone();
+    used.add(phone);
+    return {
+      phone,
+      name: pickRandom(SIM_NAMES),
+      service: pickRandom(SIM_SERVICES),
+      vehicle: pickRandom(SIM_VEHICLES),
+      timing: pickRandom(SIM_TIMINGS)
+    };
+  });
+
+  await Promise.all(
+    specs.map(async ({ phone, name, service, vehicle, timing }, idx) => {
+      const now = new Date().toISOString();
+      const voicemail = `Hi, this is ${name} — I've got a ${vehicle} I'd like ${service.toLowerCase()} on. Hoping to get it done ${timing}. Give me a call back, thanks!`;
+      const summary = `${name} called about ${service.toLowerCase()} for their ${vehicle} — wants it ${timing}.`;
+
+      const { profile } = await rt.customerProfileService.upsertByBusinessAndPhone({
+        businessId: business.id,
+        phone,
+        displayName: name,
+        source: "simulator",
+        status: "new",
+        lastContactAt: now
+      });
+
+      await rt.callRecordRepository.create({
+        business_id: business.id,
+        customer_profile_id: profile.id,
+        provider: "sandbox",
+        provider_call_id: `SIM-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000000)}`,
+        direction: "inbound" as const,
+        call_type: "voicemail" as const,
+        from_phone_e164: phone,
+        to_phone_e164: business.business_phone_e164,
+        started_at: now,
+        duration_seconds: 20 + Math.floor(Math.random() * 40),
+        needs_review: true,
+        transcript: voicemail,
+        ai_summary: summary,
+        extracted_json: {
+          caller_name: name,
+          requested_datetime: timing,
+          service_requested: service,
+          summary
+        }
+      });
+
+      const existingTask = await rt.taskRepository.findOpenCallbackTask(profile.id);
+      if (!existingTask) {
+        await rt.taskRepository.create({
+          business_id: business.id,
+          customer_profile_id: profile.id,
+          task_type: "callback",
+          title: "Call back missed caller",
+          notes: "Simulated test lead",
+          status: "open"
+        });
+      }
+    })
+  );
+
+  revalidatePath("/owner");
+  revalidatePath("/owner/today");
+  revalidatePath("/owner/leads");
+  redirect("/owner/today");
+}
+
 export async function suggestServicesWithAI(input: {
   transcript: string;
   serviceNames: string[];

@@ -1,5 +1,25 @@
 # CHANGELOG_AI.md
 
+## [2026-06-05] - Batch demo-lead seeding in the Simulator
+
+### Added
+- Added a "Spawn a batch" control to the owner Simulator (`simulateLeadBatch` action + simulator page UI) that creates up to 50 varied, fully-populated demo leads in one action — randomized caller name, vehicle, service, and timing, each tagged `source: "simulator"` — so owners can see how the dashboard handles real volume.
+
+### Verified
+- `npm run verify` (37 files, 136 tests, 1 skipped) passes.
+
+## [2026-06-05] - Twilio call-capture concurrency test
+
+### Added
+- Added a signed-webhook concurrency test for the Twilio call-capture pipeline that runs 50 distinct calls through voice intake, no-answer status, recording-ready, and transcription callbacks concurrently.
+- Added an idempotency-under-race test that posts the same incoming voice webhook 10 times concurrently and asserts a single persisted call/profile.
+
+### Fixed
+- Fixed a real in-memory customer-profile upsert race where simultaneous same-phone webhook requests could throw `DuplicateCustomerProfileError` instead of re-reading the profile created by the winning request.
+
+### Verified
+- `npm run verify` (37 files, 136 tests, 1 skipped) passes.
+
 ## [2026-06-03] - Editable business name in Settings
 
 ### Added

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { simulateLead } from "@/app/owner/actions";
+import { simulateLead, simulateLeadBatch } from "@/app/owner/actions";
 import { getAppConfig } from "@/server/config";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
@@ -58,6 +58,18 @@ export default async function SimulatorPage() {
           ? <>: <strong>{quotedServices.join(", ")}</strong>.</>
           : <>. You haven&apos;t set any yet — add them in <Link href="/owner/settings" style={S.inlineLink}>Settings</Link>.</>}
       </div>
+
+      <form action={simulateLeadBatch} style={S.batch}>
+        <div style={S.batchTitle}>⚡ Spawn a batch (stress test)</div>
+        <div style={S.hint}>
+          Instantly create a bunch of varied demo leads — random caller, vehicle, service, and timing —
+          so you can see how the dashboard handles real volume. Each is tagged as a test lead.
+        </div>
+        <div style={S.batchRow}>
+          <input name="count" type="number" min={1} max={50} defaultValue={25} style={S.count} />
+          <button type="submit" style={S.submit}>Spawn demo leads →</button>
+        </div>
+      </form>
 
       <form action={simulateLead} style={S.form}>
         <label style={S.field}>
@@ -122,5 +134,9 @@ const S: Record<string, CSSProperties> = {
   textarea: { padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
   submit: { alignSelf: "flex-start", padding: "11px 18px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
   inlineLink: { color: "var(--brand)", fontWeight: 600 },
-  footer: { marginTop: 16, color: "#8a909c", fontSize: 12, lineHeight: 1.5 }
+  footer: { marginTop: 16, color: "#8a909c", fontSize: 12, lineHeight: 1.5 },
+  batch: { marginTop: 16, display: "flex", flexDirection: "column", gap: 8, padding: "16px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2" },
+  batchTitle: { fontSize: 14, fontWeight: 700, color: "#15171b" },
+  batchRow: { display: "flex", gap: 10, alignItems: "center", marginTop: 4 },
+  count: { width: 80, padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 }
 };
