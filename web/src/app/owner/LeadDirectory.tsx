@@ -54,6 +54,12 @@ function handlingSummary(lead: DirectoryLead, tz: string): Handling {
   return { icon: "🆕", text: lead.last_contact_at ? `New · heard ${fmtWhen(lead.last_contact_at, tz)}` : "New lead", color: "#6b7280" };
 }
 
+// A booked appointment trumps a stale "contacted"/"new" status, so the badge,
+// the handling line, and the status filter all agree.
+function effectiveStatus(lead: DirectoryLead): string {
+  return lead.next_appointment ? "booked" : (lead.status || "new");
+}
+
 const onlyDigits = (s: string): string => s.replace(/\D/g, "");
 
 export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: string }) {
@@ -64,7 +70,7 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
     const needle = query.trim().toLowerCase();
     const needleDigits = onlyDigits(needle);
     return leads.filter((lead) => {
-      if (status !== "all" && (lead.status || "new") !== status) return false;
+      if (status !== "all" && effectiveStatus(lead) !== status) return false;
       if (!needle) return true;
       const name = (lead.display_name || "").toLowerCase();
       const phone = (lead.phone_e164 || "").toLowerCase();
@@ -110,7 +116,7 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
                 <strong style={{ color: "#15171b", fontSize: 15 }}>
                   {lead.display_name || fmtPhone(lead.phone_e164)}
                 </strong>
-                <span style={statusBadge(lead.status)}>{lead.status || "new"}</span>
+                <span style={statusBadge(effectiveStatus(lead))}>{effectiveStatus(lead)}</span>
               </div>
               <div style={{ ...S.handling, color: h.color }}>{h.icon} {h.text}</div>
               <div style={S.phoneMeta}>{fmtPhone(lead.phone_e164)}</div>

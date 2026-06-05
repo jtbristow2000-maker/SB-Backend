@@ -224,6 +224,19 @@ export async function createAppointment(formData: FormData): Promise<void> {
     }
   );
 
+  // Booking an appointment moves the lead to "booked" so its status lines up
+  // everywhere (Leads list, lead detail, filters).
+  if (profileId) {
+    try {
+      await updateProfileForOwner(
+        { customerProfileRepository: rt.customerProfileRepository, auditEventRepository: rt.auditEventRepository },
+        { businessId: business.id, profileId, updates: { status: "booked" } }
+      );
+    } catch {
+      /* status update is best-effort */
+    }
+  }
+
   // Auto-conflict resolution: find other open leads who were offered this same
   // slot in an outbound message, and send each an automatic apology text so they
   // know to pick a different time — without the owner having to do it manually.
