@@ -4,7 +4,7 @@ import { createAppointment } from "@/app/owner/actions";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
 import { fmtPhone } from "@/app/owner/format";
 import { getOwnerBusinessContext } from "@/server/business/current";
-import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
+import { getBusinessSettings, quotePriceLabel, quoteServiceColor } from "@/server/business/settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,7 +41,8 @@ export default async function CalendarPage() {
       location: a.location,
       notes: a.notes,
       phone: a.customer_profile_id ? phoneById.get(a.customer_profile_id) ?? null : null,
-      priceLabel: quotePriceLabel(a.service_requested, settings.quote_ranges)
+      priceLabel: quotePriceLabel(a.service_requested, settings.quote_ranges),
+      serviceColor: quoteServiceColor(a.service_requested, settings.quote_ranges)
     }));
 
   return (
@@ -67,7 +68,7 @@ export default async function CalendarPage() {
         <button type="submit" style={S.btnPrimary}>Add to schedule</button>
       </form>
 
-      <CalendarViews events={events} />
+      <CalendarViews events={events} legend={settings.quote_ranges.map((r) => ({ service: r.service, color: r.color ?? "#5b5bd6" }))} />
     </main>
   );
 }
