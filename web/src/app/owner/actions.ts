@@ -457,13 +457,15 @@ export async function saveSettings(formData: FormData): Promise<void> {
 
   const formalityRaw = Number(formData.get("ai_formality") ?? 2);
   const warmthRaw = Number(formData.get("ai_warmth") ?? 2);
+  const levelRaw = Math.round(Number(formData.get("ai_auto_reply_level") ?? 0));
   partial.ai_reply = {
     ai_pick_enabled: formData.get("ai_pick_enabled") === "on",
     sign_off: String(formData.get("ai_sign_off") ?? "").trim(),
     custom_note: String(formData.get("ai_custom_note") ?? "").trim(),
     formality: Number.isFinite(formalityRaw) ? Math.min(4, Math.max(0, Math.round(formalityRaw))) : 2,
     warmth: Number.isFinite(warmthRaw) ? Math.min(4, Math.max(0, Math.round(warmthRaw))) : 2,
-    quote_style: formData.get("ai_quote_style") === "itemized" ? "itemized" : "total"
+    quote_style: formData.get("ai_quote_style") === "itemized" ? "itemized" : "total",
+    auto_reply_level: Number.isFinite(levelRaw) ? Math.min(3, Math.max(0, levelRaw)) : 0
   };
 
   try {

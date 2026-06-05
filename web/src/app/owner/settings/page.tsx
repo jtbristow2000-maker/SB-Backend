@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 import { saveSettings } from "@/app/owner/actions";
 import { PhoneNumberSection } from "@/app/owner/PhoneNumberSection";
+import { AutoReplyLevelSlider } from "@/app/owner/AutoReplyLevelSlider";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
@@ -101,6 +102,15 @@ export default async function SettingsPage() {
         <section style={S.section}>
           <div style={S.sectionTitle}>AI &amp; Replies</div>
           <div style={S.sectionHint}>Customize how the AI drafts and personalizes your suggested replies. Each business sets their own.</div>
+
+          <div style={{ marginTop: 10 }}>
+            <div style={S.sliderLabel}>Auto-reply to missed calls</div>
+            <div style={{ fontSize: 12, color: "#8a909c", margin: "0 0 8px", lineHeight: 1.45 }}>
+              How much the AI writes the reply for you. It waits for the caller&apos;s voicemail first — so it feels human and knows what they asked for. Higher = the more it says on its own.
+            </div>
+            <AutoReplyLevelSlider initial={settings.ai_reply.auto_reply_level} />
+            <div style={{ fontSize: 11.5, color: "#9aa0b3", marginTop: 8 }}>⚙️ Takes effect once AI + texting are switched on.</div>
+          </div>
 
           <label style={S.checkRow}>
             <input type="checkbox" name="ai_pick_enabled" defaultChecked={settings.ai_reply.ai_pick_enabled} style={{ marginTop: 2 }} />
