@@ -211,9 +211,27 @@ function buildDraft(args: {
   warmth: number;
   signOff: string;
   customNote: string;
+  slotConflict?: boolean;
+  confirmedSlot?: string | null;
 }): string {
-  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry, outsideLabel, formality, warmth, signOff, customNote } = args;
+  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry, outsideLabel, formality, warmth, signOff, customNote, slotConflict, confirmedSlot } = args;
   const hi = greetingFor(customerName, formality);
+  const signer = signOff || businessName;
+  const noteStr = customNote ? ` ${customNote}` : "";
+
+  // Slot conflict: the time the customer wanted is now taken — apologise + offer alternatives
+  if (slotConflict) {
+    const altTimes = slots.length
+      ? ` I do have these open: ${slots.slice(0, 3).join("; ")}.`
+      : " Let me know a time that works and I'll do my best to fit you in.";
+    return `${hi} So sorry — that time just got booked by someone else!${altTimes} Which works for you?${noteStr} — ${signer}`;
+  }
+
+  // Customer confirmed a specific slot and it's still free — send a quick confirmation
+  if (confirmedSlot) {
+    return `${hi} Perfect — ${confirmedSlot} is all set!${noteStr} See you then! — ${signer}`;
+  }
+
   const intro = openingFor(warmth, selected.length >= 1, pricingInquiry);
 
   let quote = "";
@@ -249,8 +267,6 @@ function buildDraft(args: {
       : "";
   }
   const closing = closingFor(warmth, slots.length > 0, outsideLabel);
-  const noteStr = customNote ? ` ${customNote}` : "";
-  const signer = signOff || businessName;
   return `${hi}${intro}${quote}${menu}${times}${closing}${noteStr} — ${signer}`;
 }
 
@@ -267,7 +283,9 @@ export function ReplyComposer({
   pricingInquiry,
   transcript,
   aiEnabled,
-  aiSettings
+  aiSettings,
+  slotConflict,
+  confirmedSlot
 }: {
   customerName: string;
   businessName: string;
@@ -281,6 +299,8 @@ export function ReplyComposer({
   transcript: string;
   aiEnabled: boolean;
   aiSettings: AiReplySettings;
+  slotConflict?: boolean;
+  confirmedSlot?: string | null;
 }) {
   const allSlots = useMemo(() => computeSlots(busy, businessHours, requestedWhen), [busy, businessHours, requestedWhen]);
   const initialPicks = useMemo(
@@ -345,9 +365,11 @@ export function ReplyComposer({
         formality: aiSettings.formality,
         warmth: aiSettings.warmth,
         signOff: aiSettings.sign_off,
-        customNote: aiSettings.custom_note
+        customNote: aiSettings.custom_note,
+        slotConflict,
+        confirmedSlot
       }),
-    [customerName, businessName, selected, selectedSlots, includeMenu, quoteRanges, pricingInquiry, outsideLabel, aiSettings]
+    [customerName, businessName, selected, selectedSlots, includeMenu, quoteRanges, pricingInquiry, outsideLabel, aiSettings, slotConflict, confirmedSlot]
   );
 
   const text = edited ?? draft;
