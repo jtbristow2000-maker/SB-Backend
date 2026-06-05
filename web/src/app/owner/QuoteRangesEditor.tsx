@@ -7,9 +7,9 @@ import type { CSSProperties } from "react";
 // carry name="quote_service|quote_low|quote_high" so they submit as parallel
 // arrays with the surrounding <form action={saveSettings}>.
 
-export type QuoteRange = { service: string; low: number; high: number; color?: string; on_calendar?: boolean; price_type?: string };
+export type QuoteRange = { service: string; low: number; high: number; color?: string; on_calendar?: boolean };
 
-type Row = { service: string; low: string; high: string; color: string; onCalendar: boolean; priced: boolean };
+type Row = { service: string; low: string; high: string; color: string; onCalendar: boolean };
 
 const PALETTE = [
   "#5b5bd6", "#16a34a", "#ea580c", "#0ea5e9", "#db2777",
@@ -19,17 +19,15 @@ const PALETTE = [
 export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
   const [rows, setRows] = useState<Row[]>(
     initial.length
-      ? initial.map((r) => ({ service: r.service, low: String(r.low), high: String(r.high), color: r.color || "#5b5bd6", onCalendar: r.on_calendar !== false, priced: r.price_type !== "varies" }))
-      : [{ service: "", low: "", high: "", color: PALETTE[0], onCalendar: true, priced: true }]
+      ? initial.map((r) => ({ service: r.service, low: String(r.low), high: String(r.high), color: r.color || "#5b5bd6", onCalendar: r.on_calendar !== false }))
+      : [{ service: "", low: "", high: "", color: PALETTE[0], onCalendar: true }]
   );
 
   const update = (i: number, key: "service" | "low" | "high" | "color", value: string) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
   const toggleCal = (i: number) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, onCalendar: !r.onCalendar } : r)));
-  const togglePriced = (i: number) =>
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, priced: !r.priced } : r)));
-  const add = () => setRows((prev) => [...prev, { service: "", low: "", high: "", color: PALETTE[prev.length % PALETTE.length], onCalendar: true, priced: true }]);
+  const add = () => setRows((prev) => [...prev, { service: "", low: "", high: "", color: PALETTE[prev.length % PALETTE.length], onCalendar: true }]);
   const remove = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i));
   const move = (i: number, dir: -1 | 1) =>
     setRows((prev) => {
@@ -42,7 +40,7 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
 
   return (
     <div>
-      <div style={S.editorHint}>🎨 calendar color · 💲 tap off if the price varies (quoted on site) · 📅 tap off to keep it off the calendar</div>
+      <div style={S.editorHint}>🎨 calendar color · 📅 tap to keep a service off the calendar · 💵 one price = flat rate · both = a range · blank = quoted on site</div>
       {rows.map((r, i) => (
         <div key={i} style={S.row}>
           <div style={S.reorder}>
@@ -65,33 +63,25 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
             placeholder="Service (e.g. full detail)"
             style={S.service}
           />
-          <input type="hidden" name="quote_price_type" value={r.priced ? "range" : "varies"} />
-          <button
-            type="button"
-            onClick={() => togglePriced(i)}
-            style={pricedToggle(r.priced)}
-            title={r.priced ? "Has a set price — tap if it varies (quoted on site)" : "Price varies (quoted on site) — tap to set a fixed price"}
-            aria-label="Toggle fixed vs. variable price"
-          >💲</button>
-          <span style={{ ...S.dollar, opacity: r.priced ? 1 : 0.4 }}>$</span>
+          <span style={S.dollar}>$</span>
           <input
             name="quote_low"
             type="number"
             min="0"
             value={r.low}
             onChange={(e) => update(i, "low", e.target.value)}
-            placeholder={r.priced ? "low" : "—"}
-            style={{ ...S.num, opacity: r.priced ? 1 : 0.4 }}
+            placeholder="price"
+            style={S.num}
           />
-          <span style={{ ...S.dash, opacity: r.priced ? 1 : 0.4 }}>–</span>
+          <span style={S.dash}>–</span>
           <input
             name="quote_high"
             type="number"
             min="0"
             value={r.high}
             onChange={(e) => update(i, "high", e.target.value)}
-            placeholder={r.priced ? "high" : "—"}
-            style={{ ...S.num, opacity: r.priced ? 1 : 0.4 }}
+            placeholder="(or range)"
+            style={S.num}
           />
           <input type="hidden" name="quote_on_calendar" value={r.onCalendar ? "1" : "0"} />
           <button
@@ -129,14 +119,5 @@ function calToggle(on: boolean): CSSProperties {
     border: `1px solid ${on ? "var(--brand)" : "#d8dce3"}`,
     background: on ? "rgba(var(--brand-rgb),0.1)" : "#f1f2f5",
     opacity: on ? 1 : 0.45
-  };
-}
-
-function pricedToggle(on: boolean): CSSProperties {
-  return {
-    width: 28, height: 30, padding: 0, borderRadius: 7, cursor: "pointer", flexShrink: 0, fontSize: 13,
-    border: `1px solid ${on ? "#16a34a" : "#d8dce3"}`,
-    background: on ? "rgba(22,163,74,0.1)" : "#f1f2f5",
-    opacity: on ? 1 : 0.5
   };
 }

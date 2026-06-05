@@ -12,7 +12,6 @@ export type QuoteRangeSettings = {
   high: number;
   color?: string;
   on_calendar?: boolean;
-  price_type?: string; // "range" (default, low–high) | "varies" (no fixed price, quoted on site)
 };
 
 export type AiReplySettings = {
@@ -117,8 +116,7 @@ export function mergeBusinessSettingsJson(
       low: range.low,
       high: range.high,
       color: range.color ?? "#5b5bd6",
-      on_calendar: range.on_calendar !== false,
-      price_type: range.price_type === "varies" ? "varies" : "range"
+      on_calendar: range.on_calendar !== false
     }));
   }
 
@@ -163,7 +161,8 @@ export function quotePriceLabel(
     });
 
   if (!substringMatch) return null;
-  if ((substringMatch.price_type ?? "range") === "varies") return null;
+  // No price entered (both blank/zero) → quote on site, so no label.
+  if ((substringMatch.low ?? 0) <= 0 && (substringMatch.high ?? 0) <= 0) return null;
   return quoteRangePriceLabel(substringMatch);
 }
 
@@ -256,8 +255,7 @@ function readQuoteRanges(value: JsonValue | undefined): QuoteRangeSettings[] {
     if (!Number.isFinite(raw.low) || !Number.isFinite(raw.high)) continue;
     const color = readHexColor(raw.color) ?? defaultServiceColor(out.length);
     const on_calendar = typeof raw.on_calendar === "boolean" ? raw.on_calendar : true;
-    const price_type = raw.price_type === "varies" ? "varies" : "range";
-    out.push({ service, low: raw.low, high: raw.high, color, on_calendar, price_type });
+    out.push({ service, low: raw.low, high: raw.high, color, on_calendar });
   }
   return out;
 }
@@ -268,9 +266,12 @@ function normalizeServiceName(service: string | null | undefined): string | null
 }
 
 function quoteRangePriceLabel(range: QuoteRangeSettings): string {
-  return range.high > range.low
-    ? `${formatUsd(range.low)}\u2013${formatUsd(range.high)}`
-    : formatUsd(range.low);
+  const low = range.low > 0 ? range.low : 0;
+  const high = range.high > 0 ? range.high : 0;
+  if (low > 0 && high > 0) {
+    return high > low ? `${formatUsd(low)}\u2013${formatUsd(high)}` : formatUsd(low);
+  }
+  return formatUsd(low > 0 ? low : high);
 }
 
 function formatUsd(amount: number): string {
