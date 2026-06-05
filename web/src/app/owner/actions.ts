@@ -15,6 +15,7 @@ import type { AppointmentStatus } from "@/server/db/schema";
 import type { AppointmentUpdateInput } from "@/server/intake/appointments";
 import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { sendOwnerApprovedSms } from "@/server/messages/outbound";
+import { containsSlotReference } from "@/app/owner/inboundParser";
 import { updateProfileForOwner } from "@/server/profiles/update";
 import { recommendServicesFromTranscript } from "@/server/providers";
 import { updateTaskForOwner } from "@/server/tasks/api";
@@ -222,6 +223,67 @@ export async function createAppointment(formData: FormData): Promise<void> {
       notes
     }
   );
+
+  // Auto-conflict resolution: find other open leads who were offered this same
+  // slot in an outbound message, and send each an automatic apology text so they
+  // know to pick a different time — without the owner having to do it manually.
+  try {
+    const bookedStart = new Date(startIso);
+    const [allProfiles, allMessages] = await Promise.all([
+      rt.customerProfileRepository.list(),
+      rt.messageRepository.list()
+    ]);
+
+    const smsDeps = {
+      customerProfileRepository: rt.customerProfileRepository,
+      messageRepository: rt.messageRepository,
+      auditEventRepository: rt.auditEventRepository,
+      smsProvider: rt.smsProvider,
+      isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled
+    };
+
+    const openProfiles = allProfiles.filter(
+      (p) =>
+        p.id !== profileId &&
+        p.business_id === business.id &&
+        ["new", "contacted"].includes(p.status ?? "new") &&
+        p.phone_e164
+    );
+
+    await Promise.all(
+      openProfiles.map(async (profile) => {
+        // Did the owner send this lead a message that mentions the booked slot?
+        const wasOffered = allMessages
+          .filter(
+            (m) =>
+              m.customer_profile_id === profile.id &&
+              m.direction === "outbound" &&
+              m.body
+          )
+          .some((m) => containsSlotReference(m.body ?? "", bookedStart));
+
+        if (!wasOffered) return;
+
+        const dayLabel = bookedStart.toLocaleString("en-US", {
+          weekday: "long",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        });
+        const firstName = profile.display_name?.split(" ")[0] || null;
+        const greeting = firstName ? `Hi ${firstName}!` : "Hi there!";
+        const apology = `${greeting} Sorry — ${dayLabel} just got booked by another customer. I still have other openings this week — just reply here and we'll find a time that works! — ${business.name}`;
+
+        await sendOwnerApprovedSms(
+          smsDeps,
+          { business, payload: { profile_id: profile.id, body: apology } }
+        );
+      })
+    );
+  } catch {
+    // Never let auto-apologies block or break the actual booking
+  }
 
   revalidatePath("/owner/calendar");
   revalidatePath("/owner/today");
