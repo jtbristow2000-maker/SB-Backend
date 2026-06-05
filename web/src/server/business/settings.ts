@@ -11,6 +11,7 @@ export type QuoteRangeSettings = {
   low: number;
   high: number;
   color?: string;
+  on_calendar?: boolean;
 };
 
 export type AiReplySettings = {
@@ -112,7 +113,8 @@ export function mergeBusinessSettingsJson(
       service: range.service,
       low: range.low,
       high: range.high,
-      color: range.color ?? "#5b5bd6"
+      color: range.color ?? "#5b5bd6",
+      on_calendar: range.on_calendar !== false
     }));
   }
 
@@ -187,6 +189,21 @@ export function quoteServiceColor(
   return match?.color ?? fallback;
 }
 
+// True unless the appointment's service matches a quote range explicitly flagged
+// off-calendar (e.g. add-ons), so the calendar can skip non-standalone jobs.
+export function isServiceOnCalendar(service: string | null, ranges: QuoteRangeSettings[]): boolean {
+  const normalizedService = normalizeServiceName(service);
+  if (!normalizedService || ranges.length === 0) return true;
+  const exact = ranges.find((r) => normalizeServiceName(r.service) === normalizedService);
+  const match =
+    exact ??
+    ranges.find((r) => {
+      const rs = normalizeServiceName(r.service);
+      return rs !== null && (normalizedService.includes(rs) || rs.includes(normalizedService));
+    });
+  return match ? match.on_calendar !== false : true;
+}
+
 function asJsonObject(value: JsonValue | undefined): JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value
@@ -231,7 +248,8 @@ function readQuoteRanges(value: JsonValue | undefined): QuoteRangeSettings[] {
     if (!service || typeof raw.low !== "number" || typeof raw.high !== "number") continue;
     if (!Number.isFinite(raw.low) || !Number.isFinite(raw.high)) continue;
     const color = readHexColor(raw.color) ?? defaultServiceColor(out.length);
-    out.push({ service, low: raw.low, high: raw.high, color });
+    const on_calendar = typeof raw.on_calendar === "boolean" ? raw.on_calendar : true;
+    out.push({ service, low: raw.low, high: raw.high, color, on_calendar });
   }
   return out;
 }
