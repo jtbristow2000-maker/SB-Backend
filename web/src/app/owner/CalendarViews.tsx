@@ -5,6 +5,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
 
 import { deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
+import { fmtPhone } from "@/app/owner/format";
 
 // Calendar with Week (hourly time axis + positioned blocks), Month (grid), and
 // Agenda views. Date math is in the browser's local timezone — for a single
@@ -469,6 +470,9 @@ function HoverCard({
       )}
       {ev.notes && <div style={{ ...S.hoverRow, whiteSpace: "pre-line" }}>📝 {ev.notes}</div>}
       {ev.who && <div style={S.hoverRow}>👤 {ev.who}</div>}
+      {ev.phone && (
+        <div style={S.hoverRow}>📞 <a href={`tel:${ev.phone}`} style={S.mapLink}>{fmtPhone(ev.phone)}</a></div>
+      )}
       <div style={S.hoverHint}>Click for full details · double-click to edit</div>
     </div>
   );
@@ -543,6 +547,12 @@ function AppointmentModal({
               {ev.notes ? <span style={{ whiteSpace: "pre-line" }}>{ev.notes}</span> : <span style={S.muted}>No notes</span>}
             </div>
             {ev.who && <div style={S.detailRow}><span style={S.detailIcon}>👤</span><span>{ev.who}</span></div>}
+            {ev.phone && (
+              <div style={S.detailRow}>
+                <span style={S.detailIcon}>📞</span>
+                <span><a href={`tel:${ev.phone}`} style={S.mapLink}>{fmtPhone(ev.phone)}</a></span>
+              </div>
+            )}
 
             <div style={S.modalActions}>
               <button type="button" onClick={onEdit} style={S.btnPrimary}>✎ Edit</button>
