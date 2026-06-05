@@ -21,6 +21,7 @@ export type AiReplySettings = {
   formality: number;         // 0–4  (0 = professional, 4 = casual/relaxed)  default 2
   warmth: number;            // 0–4  (0 = brief/direct,  4 = warm/friendly)   default 2
   quote_style: string;       // "total" (default) | "itemized" — how multi-service quotes read
+  auto_reply_level: number;  // 0 off/template · 1 personal · 2 assistant · 3 full-auto
 };
 
 export type BusinessSettings = {
@@ -48,7 +49,8 @@ export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
   custom_note: "",
   formality: 2,
   warmth: 2,
-  quote_style: "total"
+  quote_style: "total",
+  auto_reply_level: 0
 };
 
 export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
@@ -130,7 +132,8 @@ export function mergeBusinessSettingsJson(
       ...(u.custom_note !== undefined ? { custom_note: u.custom_note } : {}),
       ...(u.formality !== undefined ? { formality: u.formality } : {}),
       ...(u.warmth !== undefined ? { warmth: u.warmth } : {}),
-      ...(u.quote_style !== undefined ? { quote_style: u.quote_style } : {})
+      ...(u.quote_style !== undefined ? { quote_style: u.quote_style } : {}),
+      ...(u.auto_reply_level !== undefined ? { auto_reply_level: u.auto_reply_level } : {})
     };
   }
 
@@ -286,7 +289,8 @@ function readAiReplySettings(value: JsonValue | undefined): AiReplySettings {
     custom_note: typeof raw.custom_note === "string" ? raw.custom_note.trim() : DEFAULT_AI_REPLY_SETTINGS.custom_note,
     formality: readSlider(raw.formality),
     warmth: readSlider(raw.warmth),
-    quote_style: raw.quote_style === "itemized" ? "itemized" : "total"
+    quote_style: raw.quote_style === "itemized" ? "itemized" : "total",
+    auto_reply_level: typeof raw.auto_reply_level === "number" ? Math.min(3, Math.max(0, Math.round(raw.auto_reply_level))) : 0
   };
 }
 
