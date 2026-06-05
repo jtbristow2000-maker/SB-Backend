@@ -12,11 +12,20 @@ export type QuoteRangeSettings = {
   high: number;
 };
 
+export type AiReplySettings = {
+  ai_pick_enabled: boolean;  // auto-match services from voicemail; false = owner picks manually
+  sign_off: string;          // overrides business name at end of replies (e.g. "Mike")
+  custom_note: string;       // appended to every draft (e.g. "Ask about our monthly plan!")
+  formality: number;         // 0–4  (0 = professional, 4 = casual/relaxed)  default 2
+  warmth: number;            // 0–4  (0 = brief/direct,  4 = warm/friendly)   default 2
+};
+
 export type BusinessSettings = {
   brand_color: string;
   auto_text_message: string;
   business_hours: BusinessHoursSettings;
   quote_ranges: QuoteRangeSettings[];
+  ai_reply: AiReplySettings;
 };
 
 export type BusinessSettingsUpdate = {
@@ -24,10 +33,19 @@ export type BusinessSettingsUpdate = {
   auto_text_message?: string;
   business_hours?: Partial<BusinessHoursSettings>;
   quote_ranges?: QuoteRangeSettings[];
+  ai_reply?: Partial<AiReplySettings>;
 };
 
 export const DEFAULT_MISSED_CALL_AUTO_TEXT =
   "Sorry we missed your call \u2014 reply here and we'll get right back to you. \u2014 {business_name}";
+
+export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
+  ai_pick_enabled: true,
+  sign_off: "",
+  custom_note: "",
+  formality: 2,
+  warmth: 2
+};
 
 export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   brand_color: "#5b5bd6",
@@ -37,7 +55,8 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
     close: "17:00",
     days: [1, 2, 3, 4, 5]
   },
-  quote_ranges: []
+  quote_ranges: [],
+  ai_reply: DEFAULT_AI_REPLY_SETTINGS
 };
 
 type JsonObject = { [key: string]: JsonValue };
@@ -54,7 +73,8 @@ export function getBusinessSettings(
       readNonEmptyString(raw.missed_call_auto_text) ??
       DEFAULT_BUSINESS_SETTINGS.auto_text_message,
     business_hours: readBusinessHours(raw.business_hours),
-    quote_ranges: readQuoteRanges(raw.quote_ranges)
+    quote_ranges: readQuoteRanges(raw.quote_ranges),
+    ai_reply: readAiReplySettings(raw.ai_reply)
   };
 }
 
@@ -92,6 +112,19 @@ export function mergeBusinessSettingsJson(
       low: range.low,
       high: range.high
     }));
+  }
+
+  if (partial.ai_reply !== undefined) {
+    const existingAi = asJsonObject(merged.ai_reply);
+    const u = partial.ai_reply;
+    merged.ai_reply = {
+      ...existingAi,
+      ...(u.ai_pick_enabled !== undefined ? { ai_pick_enabled: u.ai_pick_enabled } : {}),
+      ...(u.sign_off !== undefined ? { sign_off: u.sign_off } : {}),
+      ...(u.custom_note !== undefined ? { custom_note: u.custom_note } : {}),
+      ...(u.formality !== undefined ? { formality: u.formality } : {}),
+      ...(u.warmth !== undefined ? { warmth: u.warmth } : {})
+    };
   }
 
   return merged;
@@ -186,4 +219,21 @@ function quoteRangePriceLabel(range: QuoteRangeSettings): string {
 
 function formatUsd(amount: number): string {
   return `$${Math.round(amount).toLocaleString("en-US")}`;
+}
+
+function readAiReplySettings(value: JsonValue | undefined): AiReplySettings {
+  const raw = asJsonObject(value);
+  return {
+    ai_pick_enabled: typeof raw.ai_pick_enabled === "boolean" ? raw.ai_pick_enabled : DEFAULT_AI_REPLY_SETTINGS.ai_pick_enabled,
+    sign_off: typeof raw.sign_off === "string" ? raw.sign_off.trim() : DEFAULT_AI_REPLY_SETTINGS.sign_off,
+    custom_note: typeof raw.custom_note === "string" ? raw.custom_note.trim() : DEFAULT_AI_REPLY_SETTINGS.custom_note,
+    formality: readSlider(raw.formality),
+    warmth: readSlider(raw.warmth)
+  };
+}
+
+function readSlider(value: JsonValue | undefined): number {
+  const n = typeof value === "number" ? value : parseFloat(String(value ?? ""));
+  if (!Number.isFinite(n)) return 2;
+  return Math.min(4, Math.max(0, Math.round(n)));
 }

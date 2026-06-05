@@ -232,6 +232,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           pricingInquiry={pricingInquiry}
           transcript={heroCall?.call.transcript ?? ""}
           aiEnabled={aiEnabled}
+          aiSettings={settings.ai_reply}
         />
       )}
 

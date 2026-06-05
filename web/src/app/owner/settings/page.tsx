@@ -98,6 +98,49 @@ export default async function SettingsPage() {
           <QuoteRangesEditor initial={settings.quote_ranges} />
         </section>
 
+        <section style={S.section}>
+          <div style={S.sectionTitle}>AI &amp; Replies</div>
+          <div style={S.sectionHint}>Customize how the AI drafts and personalizes your suggested replies. Each business sets their own.</div>
+
+          <label style={S.checkRow}>
+            <input type="checkbox" name="ai_pick_enabled" defaultChecked={settings.ai_reply.ai_pick_enabled} style={{ marginTop: 2 }} />
+            <span>
+              <span style={S.checkLabel}>AI auto-picks services</span>
+              <span style={S.checkHint}>Reads the voicemail and pre-selects the matching services. Uncheck to always pick manually.</span>
+            </span>
+          </label>
+
+          <div style={{ marginTop: 16 }}>
+            <div style={S.sliderLabel}>Tone</div>
+            <div style={S.sliderTrack}>
+              <span style={S.sliderEnd}>Professional</span>
+              <input type="range" name="ai_formality" min={0} max={4} step={1} defaultValue={settings.ai_reply.formality} style={S.slider} />
+              <span style={S.sliderEnd}>Relaxed</span>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div style={S.sliderLabel}>Warmth</div>
+            <div style={S.sliderTrack}>
+              <span style={S.sliderEnd}>Brief</span>
+              <input type="range" name="ai_warmth" min={0} max={4} step={1} defaultValue={settings.ai_reply.warmth} style={S.slider} />
+              <span style={S.sliderEnd}>Friendly</span>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <div style={S.sectionTitle}>Reply sign-off <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+            <div style={S.sectionHint}>Overrides &ldquo;{business?.name ?? "your business name"}&rdquo; at the end of replies. e.g. just &ldquo;Mike&rdquo; for a personal touch.</div>
+            <input name="ai_sign_off" defaultValue={settings.ai_reply.sign_off} placeholder={`e.g. Mike or Mike's Detailing`} style={S.textInput} autoComplete="off" />
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <div style={S.sectionTitle}>Custom note <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+            <div style={S.sectionHint}>Added to every draft before the sign-off. e.g. &ldquo;Ask about our monthly maintenance plan!&rdquo;</div>
+            <input name="ai_custom_note" defaultValue={settings.ai_reply.custom_note} placeholder="e.g. Ask about our monthly maintenance plan!" style={S.textInput} autoComplete="off" />
+          </div>
+        </section>
+
         <button type="submit" style={S.save}>Save settings</button>
       </form>
     </main>
@@ -120,5 +163,12 @@ const S: Record<string, CSSProperties> = {
   time: { padding: "7px 9px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
   days: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 },
   dayChip: { display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#3c414b", fontWeight: 600 },
-  save: { alignSelf: "flex-start", padding: "11px 18px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }
+  save: { alignSelf: "flex-start", padding: "11px 18px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
+  checkRow: { display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, marginBottom: 4 },
+  checkLabel: { display: "block", fontWeight: 700, color: "#15171b", marginBottom: 2 },
+  checkHint: { display: "block", fontSize: 12, color: "#8a909c" },
+  sliderLabel: { fontSize: 13, fontWeight: 700, color: "#15171b", marginBottom: 6 },
+  sliderTrack: { display: "flex", alignItems: "center", gap: 10 },
+  sliderEnd: { fontSize: 12, color: "#8a909c", whiteSpace: "nowrap" as const, minWidth: 82 },
+  slider: { flex: 1, accentColor: "var(--brand)" }
 };
