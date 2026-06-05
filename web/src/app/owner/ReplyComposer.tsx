@@ -195,9 +195,20 @@ function listPhrase(items: string[]): string {
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 }
+// Resolve a service's price to bounds, inferred from what's filled in:
+// both boxes = a range, one box = a flat rate, neither = quote on site (null).
+function bounds(r: QuoteRangeSettings): { lo: number; hi: number } | null {
+  const low = r.low > 0 ? r.low : 0;
+  const high = r.high > 0 ? r.high : 0;
+  if (low <= 0 && high <= 0) return null;
+  if (low > 0 && high > 0) return { lo: low, hi: high > low ? high : low };
+  const single = low > 0 ? low : high;
+  return { lo: single, hi: single };
+}
 function priceText(r: QuoteRangeSettings): string {
-  if ((r.price_type ?? "range") === "varies") return "Varies";
-  return r.high > r.low ? `${fmtUsd(r.low)}–${fmtUsd(r.high)}` : fmtUsd(r.low);
+  const b = bounds(r);
+  if (!b) return "Varies";
+  return b.lo === b.hi ? fmtUsd(b.lo) : `${fmtUsd(b.lo)}–${fmtUsd(b.hi)}`;
 }
 function buildDraft(args: {
   customerName: string;
@@ -236,31 +247,32 @@ function buildDraft(args: {
 
   const intro = openingFor(warmth, selected.length >= 1, pricingInquiry);
 
-  const isVaries = (r: QuoteRangeSettings) => (r.price_type ?? "range") === "varies";
-  const fixedPrice = (r: QuoteRangeSettings) => (r.high > r.low ? `${fmtUsd(r.low)}–${fmtUsd(r.high)}` : fmtUsd(r.low));
+  const priceLabel = (b: { lo: number; hi: number }) => (b.lo === b.hi ? fmtUsd(b.lo) : `${fmtUsd(b.lo)}–${fmtUsd(b.hi)}`);
 
   let quote = "";
   if (selected.length === 1) {
     const r = selected[0];
-    if (isVaries(r)) {
+    const b = bounds(r);
+    if (!b) {
       quote = ` We'll give you an exact price on the ${r.service.toLowerCase()} once we see it.`;
     } else {
       quote =
-        r.high > r.low
-          ? ` Your ${r.service.toLowerCase()} runs ${fixedPrice(r)}.`
-          : ` Your ${r.service.toLowerCase()} is ${fmtUsd(r.low)}.`;
+        b.lo === b.hi
+          ? ` Your ${r.service.toLowerCase()} is ${fmtUsd(b.lo)}.`
+          : ` Your ${r.service.toLowerCase()} runs ${priceLabel(b)}.`;
     }
   } else if (selected.length > 1) {
-    const priced = selected.filter((r) => !isVaries(r));
-    const varies = selected.filter(isVaries);
-    const lowSum = priced.reduce((s, r) => s + r.low, 0);
-    const highSum = priced.reduce((s, r) => s + (r.high > r.low ? r.high : r.low), 0);
+    const withBounds = selected.map((r) => ({ r, b: bounds(r) }));
+    const priced = withBounds.filter((x) => x.b !== null);
+    const varies = withBounds.filter((x) => x.b === null);
+    const lowSum = priced.reduce((s, x) => s + (x.b?.lo ?? 0), 0);
+    const highSum = priced.reduce((s, x) => s + (x.b?.hi ?? 0), 0);
     const totalStr = lowSum === highSum ? fmtUsd(lowSum) : `${fmtUsd(lowSum)}–${fmtUsd(highSum)}`;
-    const variesNote = varies.length ? ` plus ${listPhrase(varies.map((r) => r.service.toLowerCase()))} (quoted on site)` : "";
+    const variesNote = varies.length ? ` plus ${listPhrase(varies.map((x) => x.r.service.toLowerCase()))} (quoted on site)` : "";
 
     if (quoteStyle === "itemized") {
-      const items = selected.map((r) =>
-        isVaries(r) ? `${r.service.toLowerCase()} (quoted on site)` : `${r.service.toLowerCase()} ${fixedPrice(r)}`
+      const items = withBounds.map(({ r, b }) =>
+        b ? `${r.service.toLowerCase()} ${priceLabel(b)}` : `${r.service.toLowerCase()} (quoted on site)`
       );
       quote = ` Here's the breakdown: ${listPhrase(items)}.`;
       if (priced.length) quote += ` That's about ${totalStr} altogether.`;
@@ -369,10 +381,10 @@ export function ReplyComposer({
     () => [...selectedIdxs].sort((a, b) => a - b).map((i) => quoteRanges[i]).filter(Boolean),
     [selectedIdxs, quoteRanges]
   );
-  const pricedSelected = selected.filter((r) => (r.price_type ?? "range") !== "varies");
-  const hasVaries = selected.some((r) => (r.price_type ?? "range") === "varies");
-  const totalLow = pricedSelected.reduce((s, r) => s + r.low, 0);
-  const totalHigh = pricedSelected.reduce((s, r) => s + (r.high > r.low ? r.high : r.low), 0);
+  const pricedSelected = selected.filter((r) => bounds(r) !== null);
+  const hasVaries = selected.some((r) => bounds(r) === null);
+  const totalLow = pricedSelected.reduce((s, r) => s + (bounds(r)?.lo ?? 0), 0);
+  const totalHigh = pricedSelected.reduce((s, r) => s + (bounds(r)?.hi ?? 0), 0);
 
   const draft = useMemo(
     () =>
