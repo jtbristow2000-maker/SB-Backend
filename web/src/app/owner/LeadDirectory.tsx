@@ -15,6 +15,7 @@ export type DirectoryLead = {
   phone_e164: string | null;
   status: string;
   last_contact_at: string | null;
+  next_appointment: string | null;
 };
 
 const STATUS_FILTERS = ["all", "new", "contacted", "booked", "won", "lost"] as const;
@@ -28,6 +29,29 @@ function fmtWhen(iso: string | null, tz: string): string {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function fmtApptWhen(iso: string, tz: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: tz, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+  });
+}
+
+type Handling = { icon: string; text: string; color: string };
+// A short "how this lead has been handled" line — the pipeline state at a glance,
+// so Leads reads as a CRM (where they stand) rather than another voicemail list.
+function handlingSummary(lead: DirectoryLead, tz: string): Handling {
+  if (lead.next_appointment) {
+    return { icon: "📅", text: `Booked · ${fmtApptWhen(lead.next_appointment, tz)}`, color: "var(--brand)" };
+  }
+  const s = lead.status || "new";
+  if (s === "won") return { icon: "🏆", text: "Won — job closed", color: "var(--positive)" };
+  if (s === "lost") return { icon: "✕", text: "Lost", color: "#b23b3b" };
+  if (s === "booked") return { icon: "📅", text: "Booked", color: "var(--brand)" };
+  if (s === "contacted") {
+    return { icon: "💬", text: lead.last_contact_at ? `Contacted · ${fmtWhen(lead.last_contact_at, tz)}` : "Contacted", color: "#c77d14" };
+  }
+  return { icon: "🆕", text: lead.last_contact_at ? `New · heard ${fmtWhen(lead.last_contact_at, tz)}` : "New lead", color: "#6b7280" };
 }
 
 const onlyDigits = (s: string): string => s.replace(/\D/g, "");
@@ -78,22 +102,21 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
       {filtered.length === 0 ? (
         <div style={S.empty}>No leads match.</div>
       ) : (
-        filtered.map((lead) => (
-          <Link key={lead.id} href={`/owner/${lead.id}`} style={S.row}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-              <strong style={{ color: "#15171b", fontSize: 15 }}>
-                {lead.display_name || fmtPhone(lead.phone_e164)}
-              </strong>
-              <span style={statusBadge(lead.status)}>{lead.status || "new"}</span>
-            </div>
-            <div style={S.meta}>
-              {lead.display_name ? fmtPhone(lead.phone_e164) : ""}
-              {lead.last_contact_at
-                ? `${lead.display_name ? " · " : ""}last heard ${fmtWhen(lead.last_contact_at, tz)}`
-                : ""}
-            </div>
-          </Link>
-        ))
+        filtered.map((lead) => {
+          const h = handlingSummary(lead, tz);
+          return (
+            <Link key={lead.id} href={`/owner/${lead.id}`} style={S.row}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                <strong style={{ color: "#15171b", fontSize: 15 }}>
+                  {lead.display_name || fmtPhone(lead.phone_e164)}
+                </strong>
+                <span style={statusBadge(lead.status)}>{lead.status || "new"}</span>
+              </div>
+              <div style={{ ...S.handling, color: h.color }}>{h.icon} {h.text}</div>
+              <div style={S.phoneMeta}>{fmtPhone(lead.phone_e164)}</div>
+            </Link>
+          );
+        })
       )}
     </div>
   );
@@ -105,7 +128,8 @@ const S: Record<string, CSSProperties> = {
   count: { fontSize: 12, color: "#8a909c", marginBottom: 8 },
   empty: { marginTop: 8, padding: "22px 16px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#8a909c" },
   row: { display: "block", textDecoration: "none", padding: "13px 15px", marginBottom: 9, borderRadius: 13, background: "#fff", border: "1px solid #eceef2", boxShadow: "0 1px 3px rgba(17,21,28,0.05)" },
-  meta: { color: "#3c414b", fontSize: 13, marginTop: 3 }
+  handling: { fontSize: 13, fontWeight: 600, marginTop: 5 },
+  phoneMeta: { color: "#8a909c", fontSize: 12.5, marginTop: 2 }
 };
 
 function chipStyle(active: boolean): CSSProperties {

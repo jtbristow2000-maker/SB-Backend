@@ -16,8 +16,31 @@ export default async function LeadsPage() {
   const context = await getOwnerBusinessContext();
   const rt = context?.rt ?? null;
   const business = context?.business ?? null;
-  const profiles = rt ? await rt.customerProfileRepository.list() : [];
+  const [profiles, appointments] = rt
+    ? await Promise.all([rt.customerProfileRepository.list(), rt.appointmentRepository.list()])
+    : [[], []];
   const tz = business?.timezone || FALLBACK_TZ;
+
+  // Pick the most relevant appointment per lead (soonest upcoming, else most recent
+  // past) so the directory can show "Booked · <when>" instead of a generic timestamp.
+  const nowMs = Date.now();
+  const apptByProfile = new Map<string, string>();
+  for (const a of appointments) {
+    if ((business && a.business_id !== business.id) || !a.customer_profile_id) continue;
+    if (a.status === "cancelled" || a.status === "no_show") continue;
+    const pid = a.customer_profile_id;
+    const cur = apptByProfile.get(pid);
+    if (!cur) {
+      apptByProfile.set(pid, a.scheduled_start_at);
+      continue;
+    }
+    const curMs = new Date(cur).getTime();
+    const aMs = new Date(a.scheduled_start_at).getTime();
+    const curUp = curMs >= nowMs;
+    const aUp = aMs >= nowMs;
+    if (aUp && (!curUp || aMs < curMs)) apptByProfile.set(pid, a.scheduled_start_at);
+    else if (!aUp && !curUp && aMs > curMs) apptByProfile.set(pid, a.scheduled_start_at);
+  }
 
   const leads: DirectoryLead[] = profiles
     .filter((p) => !business || p.business_id === business.id)
@@ -26,7 +49,8 @@ export default async function LeadsPage() {
       display_name: p.display_name,
       phone_e164: p.phone_e164,
       status: p.status,
-      last_contact_at: p.last_contact_at
+      last_contact_at: p.last_contact_at,
+      next_appointment: apptByProfile.get(p.id) ?? null
     }))
     .sort((a, b) => {
       const at = a.last_contact_at ?? "";
@@ -37,7 +61,7 @@ export default async function LeadsPage() {
   return (
     <main style={S.page}>
       <h1 style={S.h1}>Leads</h1>
-      <div style={S.sub}>Everyone who&apos;s contacted you — search by name or number, filter by status.</div>
+      <div style={S.sub}>Your pipeline — where every lead stands, from new to booked to won.</div>
       <div style={{ marginTop: 16 }}>
         <LeadDirectory leads={leads} tz={tz} />
       </div>
