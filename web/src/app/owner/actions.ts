@@ -372,6 +372,16 @@ export async function saveSettings(formData: FormData): Promise<void> {
     .map((service, i) => ({ service, low: lows[i], high: highs[i] }))
     .filter((range) => range.service && Number.isFinite(range.low) && Number.isFinite(range.high));
 
+  const formalityRaw = Number(formData.get("ai_formality") ?? 2);
+  const warmthRaw = Number(formData.get("ai_warmth") ?? 2);
+  partial.ai_reply = {
+    ai_pick_enabled: formData.get("ai_pick_enabled") === "on",
+    sign_off: String(formData.get("ai_sign_off") ?? "").trim(),
+    custom_note: String(formData.get("ai_custom_note") ?? "").trim(),
+    formality: Number.isFinite(formalityRaw) ? Math.min(4, Math.max(0, Math.round(formalityRaw))) : 2,
+    warmth: Number.isFinite(warmthRaw) ? Math.min(4, Math.max(0, Math.round(warmthRaw))) : 2
+  };
+
   try {
     await rt.businessRepository.updateSettings(business.id, partial);
   } catch {

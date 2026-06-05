@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 
 import { sendOwnerText, suggestServicesWithAI } from "@/app/owner/actions";
 import { fmtUsd } from "@/app/owner/format";
-import type { BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
+import type { AiReplySettings, BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
 
 // Interactive reply builder for a missed-call lead. Shows the whole flow in one place:
 // the services we think the caller wants (pre-ticked from the voicemail, owner adjusts) →
@@ -169,6 +169,26 @@ function suggestServiceIdxs(contextText: string, ranges: QuoteRangeSettings[]): 
   return picked;
 }
 
+// -------------------------------------------------------------- tone helpers
+function greetingFor(name: string, formality: number): string {
+  if (formality <= 1) return name ? `Hello ${name},` : "Hello,";
+  if (formality <= 3) return name ? `Hi ${name}!` : "Hi there!";
+  return name ? `Hey ${name}! 👋` : "Hey there! 👋";
+}
+function openingFor(warmth: number, hasSelected: boolean, pricingInquiry: boolean): string {
+  if (warmth === 0) return "";
+  if (hasSelected) return warmth >= 3 ? " Really glad you reached out!" : " Thanks for reaching out!";
+  if (pricingInquiry) return warmth >= 3 ? " So glad you reached out — happy to help with a quote!" : " Thanks for reaching out — happy to give you a quote.";
+  return warmth >= 3 ? " So glad you reached out — sorry we missed your call!" : " Thanks for reaching out — sorry we missed you.";
+}
+function closingFor(warmth: number, hasSlots: boolean, outsideLabel: string | null): string {
+  if (!hasSlots && outsideLabel) return "";
+  if (!hasSlots) return warmth >= 3 ? " Can't wait to connect — when works best for you?" : " When works best for you?";
+  if (warmth === 0) return " Let me know which works.";
+  if (warmth <= 2) return " Which works best for you?";
+  return " Which works best? Looking forward to it!";
+}
+
 // ------------------------------------------------------------- message builder
 function listPhrase(items: string[]): string {
   if (items.length <= 1) return items[0] ?? "";
@@ -187,14 +207,14 @@ function buildDraft(args: {
   allRanges: QuoteRangeSettings[];
   pricingInquiry: boolean;
   outsideLabel: string | null;
+  formality: number;
+  warmth: number;
+  signOff: string;
+  customNote: string;
 }): string {
-  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry, outsideLabel } = args;
-  const hi = customerName ? `Hi ${customerName}!` : "Hi there!";
-
-  let intro: string;
-  if (selected.length >= 1) intro = " Thanks for reaching out!";
-  else if (pricingInquiry) intro = " Thanks for reaching out — happy to give you a quote.";
-  else intro = " Thanks for reaching out — sorry we missed you.";
+  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry, outsideLabel, formality, warmth, signOff, customNote } = args;
+  const hi = greetingFor(customerName, formality);
+  const intro = openingFor(warmth, selected.length >= 1, pricingInquiry);
 
   let quote = "";
   if (selected.length === 1) {
@@ -228,8 +248,10 @@ function buildDraft(args: {
       ? ` We don't usually do ${outsideLabel} — let me know a weekday that works and I'll get you in.`
       : "";
   }
-  const closing = slots.length ? " Which works best for you?" : outsideLabel ? "" : " When works best for you?";
-  return `${hi}${intro}${quote}${menu}${times}${closing} — ${businessName}`;
+  const closing = closingFor(warmth, slots.length > 0, outsideLabel);
+  const noteStr = customNote ? ` ${customNote}` : "";
+  const signer = signOff || businessName;
+  return `${hi}${intro}${quote}${menu}${times}${closing}${noteStr} — ${signer}`;
 }
 
 // ---------------------------------------------------------------- component
@@ -244,7 +266,8 @@ export function ReplyComposer({
   contextText,
   pricingInquiry,
   transcript,
-  aiEnabled
+  aiEnabled,
+  aiSettings
 }: {
   customerName: string;
   businessName: string;
@@ -257,9 +280,13 @@ export function ReplyComposer({
   pricingInquiry: boolean;
   transcript: string;
   aiEnabled: boolean;
+  aiSettings: AiReplySettings;
 }) {
   const allSlots = useMemo(() => computeSlots(busy, businessHours, requestedWhen), [busy, businessHours, requestedWhen]);
-  const initialPicks = useMemo(() => suggestServiceIdxs(contextText, quoteRanges), [contextText, quoteRanges]);
+  const initialPicks = useMemo(
+    () => aiSettings.ai_pick_enabled ? suggestServiceIdxs(contextText, quoteRanges) : [],
+    [aiSettings.ai_pick_enabled, contextText, quoteRanges]
+  );
   const outsideLabel = useMemo(() => describeOutsideHours(requestedWhen, businessHours), [requestedWhen, businessHours]);
 
   const [selectedIdxs, setSelectedIdxs] = useState<Set<number>>(() => new Set(initialPicks));
@@ -275,7 +302,7 @@ export function ReplyComposer({
   useEffect(() => {
     if (ranAi.current) return;
     ranAi.current = true;
-    if (!aiEnabled || !transcript.trim() || quoteRanges.length === 0) {
+    if (!aiSettings.ai_pick_enabled || !aiEnabled || !transcript.trim() || quoteRanges.length === 0) {
       setAiState("skip");
       return;
     }
@@ -314,9 +341,13 @@ export function ReplyComposer({
         includeMenu,
         allRanges: quoteRanges,
         pricingInquiry,
-        outsideLabel
+        outsideLabel,
+        formality: aiSettings.formality,
+        warmth: aiSettings.warmth,
+        signOff: aiSettings.sign_off,
+        customNote: aiSettings.custom_note
       }),
-    [customerName, businessName, selected, selectedSlots, includeMenu, quoteRanges, pricingInquiry, outsideLabel]
+    [customerName, businessName, selected, selectedSlots, includeMenu, quoteRanges, pricingInquiry, outsideLabel, aiSettings]
   );
 
   const text = edited ?? draft;
