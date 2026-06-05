@@ -68,6 +68,38 @@ export type InboundConfirmation = {
 };
 
 /**
+ * Returns true if a message body appears to reference a specific slot date/time.
+ * Used to find other leads who were offered the same slot when a booking is made.
+ * Checks for the day-of-week name AND a matching hour reference.
+ */
+export function containsSlotReference(messageText: string, slotDate: Date): boolean {
+  const t = messageText.toLowerCase();
+  const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+  const dayName = dayNames[slotDate.getDay()];
+  const h24 = slotDate.getHours();
+  const h12 = h24 > 12 ? h24 - 12 : h24 === 0 ? 12 : h24;
+  const ampm = h24 >= 12 ? "pm" : "am";
+  const min = slotDate.getMinutes();
+  const minStr = min === 0 ? "" : `:${String(min).padStart(2, "0")}`;
+
+  const hasDayRef =
+    t.includes(dayName) ||
+    t.includes(dayName.slice(0, 3)); // "tue", "wed", etc.
+
+  const hasTimeRef = [
+    `${h12}${ampm}`,
+    `${h12} ${ampm}`,
+    `${h12}:00`,
+    `${h12}${minStr}`,
+    // formatted slot label style: "2:00 PM", "10:00 AM"
+    `${h12}:${String(min).padStart(2, "0")} ${ampm.toUpperCase()}`,
+    `${h12}:00 ${ampm.toUpperCase()}`
+  ].some((p) => t.includes(p));
+
+  return hasDayRef && hasTimeRef;
+}
+
+/**
  * Tries to parse a customer's inbound message as a date/time confirmation.
  * Returns null when no confirmation signal or no recognisable date/time.
  * Pass `busy` (current appointments) so conflict detection can run immediately.
