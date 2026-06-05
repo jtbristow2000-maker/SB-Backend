@@ -129,6 +129,18 @@ export default async function SettingsPage() {
           </div>
 
           <div style={{ marginTop: 16 }}>
+            <div style={S.sliderLabel}>Quote style (when several services apply)</div>
+            <label style={S.radioRow}>
+              <input type="radio" name="ai_quote_style" value="total" defaultChecked={settings.ai_reply.quote_style !== "itemized"} />
+              <span><strong>Total only</strong> &mdash; &ldquo;&hellip;you&apos;re looking at about $450 altogether.&rdquo;</span>
+            </label>
+            <label style={S.radioRow}>
+              <input type="radio" name="ai_quote_style" value="itemized" defaultChecked={settings.ai_reply.quote_style === "itemized"} />
+              <span><strong>Itemized</strong> &mdash; &ldquo;full detail $300, ceramic $150 &mdash; $450 altogether.&rdquo;</span>
+            </label>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
             <div style={S.sectionTitle}>Reply sign-off <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
             <div style={S.sectionHint}>Overrides &ldquo;{business?.name ?? "your business name"}&rdquo; at the end of replies. e.g. just &ldquo;Mike&rdquo; for a personal touch.</div>
             <input name="ai_sign_off" defaultValue={settings.ai_reply.sign_off} placeholder={`e.g. Mike or Mike's Detailing`} style={S.textInput} autoComplete="off" />
@@ -170,5 +182,6 @@ const S: Record<string, CSSProperties> = {
   sliderLabel: { fontSize: 13, fontWeight: 700, color: "#15171b", marginBottom: 6 },
   sliderTrack: { display: "flex", alignItems: "center", gap: 10 },
   sliderEnd: { fontSize: 12, color: "#8a909c", whiteSpace: "nowrap" as const, minWidth: 82 },
-  slider: { flex: 1, accentColor: "var(--brand)" }
+  slider: { flex: 1, accentColor: "var(--brand)" },
+  radioRow: { display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "#3c414b", lineHeight: 1.4, marginTop: 6 }
 };

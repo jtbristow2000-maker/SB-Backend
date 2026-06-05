@@ -12,6 +12,7 @@ export type QuoteRangeSettings = {
   high: number;
   color?: string;
   on_calendar?: boolean;
+  price_type?: string; // "range" (default, low–high) | "varies" (no fixed price, quoted on site)
 };
 
 export type AiReplySettings = {
@@ -20,6 +21,7 @@ export type AiReplySettings = {
   custom_note: string;       // appended to every draft (e.g. "Ask about our monthly plan!")
   formality: number;         // 0–4  (0 = professional, 4 = casual/relaxed)  default 2
   warmth: number;            // 0–4  (0 = brief/direct,  4 = warm/friendly)   default 2
+  quote_style: string;       // "total" (default) | "itemized" — how multi-service quotes read
 };
 
 export type BusinessSettings = {
@@ -46,7 +48,8 @@ export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
   sign_off: "",
   custom_note: "",
   formality: 2,
-  warmth: 2
+  warmth: 2,
+  quote_style: "total"
 };
 
 export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
@@ -114,7 +117,8 @@ export function mergeBusinessSettingsJson(
       low: range.low,
       high: range.high,
       color: range.color ?? "#5b5bd6",
-      on_calendar: range.on_calendar !== false
+      on_calendar: range.on_calendar !== false,
+      price_type: range.price_type === "varies" ? "varies" : "range"
     }));
   }
 
@@ -127,7 +131,8 @@ export function mergeBusinessSettingsJson(
       ...(u.sign_off !== undefined ? { sign_off: u.sign_off } : {}),
       ...(u.custom_note !== undefined ? { custom_note: u.custom_note } : {}),
       ...(u.formality !== undefined ? { formality: u.formality } : {}),
-      ...(u.warmth !== undefined ? { warmth: u.warmth } : {})
+      ...(u.warmth !== undefined ? { warmth: u.warmth } : {}),
+      ...(u.quote_style !== undefined ? { quote_style: u.quote_style } : {})
     };
   }
 
@@ -157,7 +162,9 @@ export function quotePriceLabel(
       );
     });
 
-  return substringMatch ? quoteRangePriceLabel(substringMatch) : null;
+  if (!substringMatch) return null;
+  if ((substringMatch.price_type ?? "range") === "varies") return null;
+  return quoteRangePriceLabel(substringMatch);
 }
 
 const SERVICE_PALETTE = [
@@ -249,7 +256,8 @@ function readQuoteRanges(value: JsonValue | undefined): QuoteRangeSettings[] {
     if (!Number.isFinite(raw.low) || !Number.isFinite(raw.high)) continue;
     const color = readHexColor(raw.color) ?? defaultServiceColor(out.length);
     const on_calendar = typeof raw.on_calendar === "boolean" ? raw.on_calendar : true;
-    out.push({ service, low: raw.low, high: raw.high, color, on_calendar });
+    const price_type = raw.price_type === "varies" ? "varies" : "range";
+    out.push({ service, low: raw.low, high: raw.high, color, on_calendar, price_type });
   }
   return out;
 }
@@ -260,9 +268,9 @@ function normalizeServiceName(service: string | null | undefined): string | null
 }
 
 function quoteRangePriceLabel(range: QuoteRangeSettings): string {
-  return range.low === range.high
-    ? formatUsd(range.low)
-    : `${formatUsd(range.low)}\u2013${formatUsd(range.high)}`;
+  return range.high > range.low
+    ? `${formatUsd(range.low)}\u2013${formatUsd(range.high)}`
+    : formatUsd(range.low);
 }
 
 function formatUsd(amount: number): string {
@@ -276,7 +284,8 @@ function readAiReplySettings(value: JsonValue | undefined): AiReplySettings {
     sign_off: typeof raw.sign_off === "string" ? raw.sign_off.trim() : DEFAULT_AI_REPLY_SETTINGS.sign_off,
     custom_note: typeof raw.custom_note === "string" ? raw.custom_note.trim() : DEFAULT_AI_REPLY_SETTINGS.custom_note,
     formality: readSlider(raw.formality),
-    warmth: readSlider(raw.warmth)
+    warmth: readSlider(raw.warmth),
+    quote_style: raw.quote_style === "itemized" ? "itemized" : "total"
   };
 }
 
