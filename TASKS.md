@@ -792,6 +792,10 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-06-05: Twilio call-capture concurrency coverage:
+  - DONE (Codex, 2026-06-05): Added a signed-webhook burst test that runs 50 distinct calls through the realistic voice -> status -> recording-ready -> transcription lifecycle and asserts one persisted call/profile/task/auto-text per caller.
+  - DONE (Codex, 2026-06-05): Added an idempotency-under-race test that posts the same incoming voice webhook 10 times concurrently and asserts a single call/profile record.
+  - FIXED (Codex, 2026-06-05): `CustomerProfileService.upsertByBusinessAndPhone()` now handles a concurrent duplicate-create loser by re-reading and updating the winning profile row instead of surfacing a 500.
 - 2026-06-03: Phase 1 owner login + strict per-business isolation is complete in `web/`:
   - DONE (Codex, 2026-06-03): Supabase SSR auth clients and email/password auth route handlers were added.
   - DONE (Codex, 2026-06-03): Business membership tenancy was added with per-user first-business creation.

@@ -3,7 +3,10 @@ import type { CountryCode } from "libphonenumber-js";
 import type { CustomerProfileRow } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
 
-import type { CustomerProfileRepository } from "./repository";
+import {
+  DuplicateCustomerProfileError,
+  type CustomerProfileRepository
+} from "./repository";
 
 export type CustomerProfileUpsertInput = {
   businessId: string;
@@ -39,39 +42,53 @@ export class CustomerProfileService {
     const existing = await this.repository.findByBusinessAndPhone(input.businessId, phoneE164);
 
     if (!existing) {
-      const profile = await this.repository.create({
-        business_id: input.businessId,
-        display_name: input.displayName ?? null,
-        phone_e164: phoneE164,
-        email: input.email ?? null,
-        address_line1: input.addressLine1 ?? null,
-        address_line2: input.addressLine2 ?? null,
-        city: input.city ?? null,
-        state: input.state ?? null,
-        postal_code: input.postalCode ?? null,
-        source: input.source ?? null,
-        status: input.status ?? "new",
-        summary: input.summary ?? null,
-        notes: input.notes ?? null,
-        last_contact_at: input.lastContactAt ?? null
-      });
+      try {
+        const profile = await this.repository.create({
+          business_id: input.businessId,
+          display_name: input.displayName ?? null,
+          phone_e164: phoneE164,
+          email: input.email ?? null,
+          address_line1: input.addressLine1 ?? null,
+          address_line2: input.addressLine2 ?? null,
+          city: input.city ?? null,
+          state: input.state ?? null,
+          postal_code: input.postalCode ?? null,
+          source: input.source ?? null,
+          status: input.status ?? "new",
+          summary: input.summary ?? null,
+          notes: input.notes ?? null,
+          last_contact_at: input.lastContactAt ?? null
+        });
 
-      return { profile, created: true };
+        return { profile, created: true };
+      } catch (error) {
+        if (!(error instanceof DuplicateCustomerProfileError)) {
+          throw error;
+        }
+      }
     }
 
-    const profile = await this.repository.update(existing.id, {
-      display_name: input.displayName ?? existing.display_name,
-      email: input.email ?? existing.email,
-      address_line1: input.addressLine1 ?? existing.address_line1,
-      address_line2: input.addressLine2 ?? existing.address_line2,
-      city: input.city ?? existing.city,
-      state: input.state ?? existing.state,
-      postal_code: input.postalCode ?? existing.postal_code,
-      source: input.source ?? existing.source,
-      status: input.status ?? existing.status,
-      summary: input.summary ?? existing.summary,
-      notes: existing.notes ?? input.notes ?? null,
-      last_contact_at: input.lastContactAt ?? existing.last_contact_at
+    const profileToUpdate =
+      existing ?? (await this.repository.findByBusinessAndPhone(input.businessId, phoneE164));
+    if (!profileToUpdate) {
+      throw new Error(
+        `Customer profile upsert lost duplicate profile for business ${input.businessId} and phone ${phoneE164}`
+      );
+    }
+
+    const profile = await this.repository.update(profileToUpdate.id, {
+      display_name: input.displayName ?? profileToUpdate.display_name,
+      email: input.email ?? profileToUpdate.email,
+      address_line1: input.addressLine1 ?? profileToUpdate.address_line1,
+      address_line2: input.addressLine2 ?? profileToUpdate.address_line2,
+      city: input.city ?? profileToUpdate.city,
+      state: input.state ?? profileToUpdate.state,
+      postal_code: input.postalCode ?? profileToUpdate.postal_code,
+      source: input.source ?? profileToUpdate.source,
+      status: input.status ?? profileToUpdate.status,
+      summary: input.summary ?? profileToUpdate.summary,
+      notes: profileToUpdate.notes ?? input.notes ?? null,
+      last_contact_at: input.lastContactAt ?? profileToUpdate.last_contact_at
     });
 
     return { profile, created: false };
