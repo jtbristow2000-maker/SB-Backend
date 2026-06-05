@@ -196,7 +196,8 @@ function listPhrase(items: string[]): string {
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 }
 function priceText(r: QuoteRangeSettings): string {
-  return r.low === r.high ? fmtUsd(r.low) : `${fmtUsd(r.low)}–${fmtUsd(r.high)}`;
+  if ((r.price_type ?? "range") === "varies") return "Varies";
+  return r.high > r.low ? `${fmtUsd(r.low)}–${fmtUsd(r.high)}` : fmtUsd(r.low);
 }
 function buildDraft(args: {
   customerName: string;
@@ -211,10 +212,11 @@ function buildDraft(args: {
   warmth: number;
   signOff: string;
   customNote: string;
+  quoteStyle: string;
   slotConflict?: boolean;
   confirmedSlot?: string | null;
 }): string {
-  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry, outsideLabel, formality, warmth, signOff, customNote, slotConflict, confirmedSlot } = args;
+  const { customerName, businessName, selected, slots, includeMenu, allRanges, pricingInquiry, outsideLabel, formality, warmth, signOff, customNote, quoteStyle, slotConflict, confirmedSlot } = args;
   const hi = greetingFor(customerName, formality);
   const signer = signOff || businessName;
   const noteStr = customNote ? ` ${customNote}` : "";
@@ -234,21 +236,40 @@ function buildDraft(args: {
 
   const intro = openingFor(warmth, selected.length >= 1, pricingInquiry);
 
+  const isVaries = (r: QuoteRangeSettings) => (r.price_type ?? "range") === "varies";
+  const fixedPrice = (r: QuoteRangeSettings) => (r.high > r.low ? `${fmtUsd(r.low)}–${fmtUsd(r.high)}` : fmtUsd(r.low));
+
   let quote = "";
   if (selected.length === 1) {
     const r = selected[0];
-    quote =
-      r.low === r.high
-        ? ` Your ${r.service.toLowerCase()} is ${fmtUsd(r.low)}.`
-        : ` Your ${r.service.toLowerCase()} runs ${fmtUsd(r.low)}–${fmtUsd(r.high)}.`;
+    if (isVaries(r)) {
+      quote = ` We'll give you an exact price on the ${r.service.toLowerCase()} once we see it.`;
+    } else {
+      quote =
+        r.high > r.low
+          ? ` Your ${r.service.toLowerCase()} runs ${fixedPrice(r)}.`
+          : ` Your ${r.service.toLowerCase()} is ${fmtUsd(r.low)}.`;
+    }
   } else if (selected.length > 1) {
-    const low = selected.reduce((s, r) => s + r.low, 0);
-    const high = selected.reduce((s, r) => s + r.high, 0);
-    const names = listPhrase(selected.map((r) => r.service.toLowerCase()));
-    quote =
-      low === high
-        ? ` For the ${names}, that's ${fmtUsd(low)}.`
-        : ` For the ${names}, you're looking at about ${fmtUsd(low)}–${fmtUsd(high)} altogether.`;
+    const priced = selected.filter((r) => !isVaries(r));
+    const varies = selected.filter(isVaries);
+    const lowSum = priced.reduce((s, r) => s + r.low, 0);
+    const highSum = priced.reduce((s, r) => s + (r.high > r.low ? r.high : r.low), 0);
+    const totalStr = lowSum === highSum ? fmtUsd(lowSum) : `${fmtUsd(lowSum)}–${fmtUsd(highSum)}`;
+    const variesNote = varies.length ? ` plus ${listPhrase(varies.map((r) => r.service.toLowerCase()))} (quoted on site)` : "";
+
+    if (quoteStyle === "itemized") {
+      const items = selected.map((r) =>
+        isVaries(r) ? `${r.service.toLowerCase()} (quoted on site)` : `${r.service.toLowerCase()} ${fixedPrice(r)}`
+      );
+      quote = ` Here's the breakdown: ${listPhrase(items)}.`;
+      if (priced.length) quote += ` That's about ${totalStr} altogether.`;
+    } else if (priced.length === 0) {
+      quote = ` We'll give you an exact price on the ${listPhrase(selected.map((r) => r.service.toLowerCase()))} once we see it.`;
+    } else {
+      const names = listPhrase(selected.map((r) => r.service.toLowerCase()));
+      quote = ` For the ${names}, you're looking at about ${totalStr} altogether${variesNote}.`;
+    }
   }
 
   let menu = "";
@@ -348,8 +369,10 @@ export function ReplyComposer({
     () => [...selectedIdxs].sort((a, b) => a - b).map((i) => quoteRanges[i]).filter(Boolean),
     [selectedIdxs, quoteRanges]
   );
-  const totalLow = selected.reduce((s, r) => s + r.low, 0);
-  const totalHigh = selected.reduce((s, r) => s + r.high, 0);
+  const pricedSelected = selected.filter((r) => (r.price_type ?? "range") !== "varies");
+  const hasVaries = selected.some((r) => (r.price_type ?? "range") === "varies");
+  const totalLow = pricedSelected.reduce((s, r) => s + r.low, 0);
+  const totalHigh = pricedSelected.reduce((s, r) => s + (r.high > r.low ? r.high : r.low), 0);
 
   const draft = useMemo(
     () =>
@@ -366,6 +389,7 @@ export function ReplyComposer({
         warmth: aiSettings.warmth,
         signOff: aiSettings.sign_off,
         customNote: aiSettings.custom_note,
+        quoteStyle: aiSettings.quote_style,
         slotConflict,
         confirmedSlot
       }),
@@ -447,7 +471,9 @@ export function ReplyComposer({
           <div style={S.quoteLine}>
             {selected.length === 0
               ? "No service selected — tap the ones they asked about."
-              : `Quote: ${totalLow === totalHigh ? fmtUsd(totalLow) : `${fmtUsd(totalLow)}–${fmtUsd(totalHigh)}`}${selected.length > 1 ? " total" : ""}`}
+              : pricedSelected.length === 0
+                ? "Quoted on site"
+                : `Quote: ${totalLow === totalHigh ? fmtUsd(totalLow) : `${fmtUsd(totalLow)}–${fmtUsd(totalHigh)}`}${pricedSelected.length > 1 ? " total" : ""}${hasVaries ? " + on-site" : ""}`}
           </div>
           <button type="button" onClick={toggleMenu} style={menuToggle(includeMenu)}>
             {includeMenu ? "✓ Including full price list" : "+ Add full price list"}

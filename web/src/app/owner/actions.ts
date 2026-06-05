@@ -432,13 +432,15 @@ export async function saveSettings(formData: FormData): Promise<void> {
   const highs = formData.getAll("quote_high").map((v) => Number(v));
   const colors = formData.getAll("quote_color").map((v) => String(v).trim());
   const onCals = formData.getAll("quote_on_calendar").map((v) => String(v) !== "0");
+  const priceTypes = formData.getAll("quote_price_type").map((v) => String(v));
   partial.quote_ranges = services
     .map((service, i) => ({
       service,
       low: lows[i],
       high: highs[i],
       color: /^#[0-9a-fA-F]{6}$/.test(colors[i] ?? "") ? colors[i].toLowerCase() : "#5b5bd6",
-      on_calendar: onCals[i] ?? true
+      on_calendar: onCals[i] ?? true,
+      price_type: priceTypes[i] === "varies" ? "varies" : "range"
     }))
     .filter((range) => range.service && Number.isFinite(range.low) && Number.isFinite(range.high));
 
@@ -449,7 +451,8 @@ export async function saveSettings(formData: FormData): Promise<void> {
     sign_off: String(formData.get("ai_sign_off") ?? "").trim(),
     custom_note: String(formData.get("ai_custom_note") ?? "").trim(),
     formality: Number.isFinite(formalityRaw) ? Math.min(4, Math.max(0, Math.round(formalityRaw))) : 2,
-    warmth: Number.isFinite(warmthRaw) ? Math.min(4, Math.max(0, Math.round(warmthRaw))) : 2
+    warmth: Number.isFinite(warmthRaw) ? Math.min(4, Math.max(0, Math.round(warmthRaw))) : 2,
+    quote_style: formData.get("ai_quote_style") === "itemized" ? "itemized" : "total"
   };
 
   try {
