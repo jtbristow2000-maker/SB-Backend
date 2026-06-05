@@ -10,6 +10,7 @@ export type QuoteRangeSettings = {
   service: string;
   low: number;
   high: number;
+  color?: string;
 };
 
 export type AiReplySettings = {
@@ -110,7 +111,8 @@ export function mergeBusinessSettingsJson(
     merged.quote_ranges = partial.quote_ranges.map((range) => ({
       service: range.service,
       low: range.low,
-      high: range.high
+      high: range.high,
+      color: range.color ?? "#5b5bd6"
     }));
   }
 
@@ -156,6 +158,35 @@ export function quotePriceLabel(
   return substringMatch ? quoteRangePriceLabel(substringMatch) : null;
 }
 
+const SERVICE_PALETTE = [
+  "#5b5bd6", "#16a34a", "#ea580c", "#0ea5e9", "#db2777",
+  "#ca8a04", "#0d9488", "#7c3aed", "#dc2626", "#2563eb"
+];
+
+export function defaultServiceColor(index: number): string {
+  const len = SERVICE_PALETTE.length;
+  return SERVICE_PALETTE[((index % len) + len) % len];
+}
+
+// Matches an appointment's service to a configured quote range and returns its
+// color, so the calendar can colour-code jobs by type. Falls back to the brand.
+export function quoteServiceColor(
+  service: string | null,
+  ranges: QuoteRangeSettings[],
+  fallback = "#5b5bd6"
+): string {
+  const normalizedService = normalizeServiceName(service);
+  if (!normalizedService || ranges.length === 0) return fallback;
+  const exact = ranges.find((r) => normalizeServiceName(r.service) === normalizedService);
+  const match =
+    exact ??
+    ranges.find((r) => {
+      const rs = normalizeServiceName(r.service);
+      return rs !== null && (normalizedService.includes(rs) || rs.includes(normalizedService));
+    });
+  return match?.color ?? fallback;
+}
+
 function asJsonObject(value: JsonValue | undefined): JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value
@@ -193,17 +224,16 @@ function readQuoteRanges(value: JsonValue | undefined): QuoteRangeSettings[] {
     return DEFAULT_BUSINESS_SETTINGS.quote_ranges;
   }
 
-  return value.flatMap((entry) => {
+  const out: QuoteRangeSettings[] = [];
+  for (const entry of value) {
     const raw = asJsonObject(entry);
     const service = readNonEmptyString(raw.service);
-    if (!service || typeof raw.low !== "number" || typeof raw.high !== "number") {
-      return [];
-    }
-
-    return Number.isFinite(raw.low) && Number.isFinite(raw.high)
-      ? [{ service, low: raw.low, high: raw.high }]
-      : [];
-  });
+    if (!service || typeof raw.low !== "number" || typeof raw.high !== "number") continue;
+    if (!Number.isFinite(raw.low) || !Number.isFinite(raw.high)) continue;
+    const color = readHexColor(raw.color) ?? defaultServiceColor(out.length);
+    out.push({ service, low: raw.low, high: raw.high, color });
+  }
+  return out;
 }
 
 function normalizeServiceName(service: string | null | undefined): string | null {

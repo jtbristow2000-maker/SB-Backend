@@ -430,8 +430,14 @@ export async function saveSettings(formData: FormData): Promise<void> {
   const services = formData.getAll("quote_service").map((v) => String(v).trim());
   const lows = formData.getAll("quote_low").map((v) => Number(v));
   const highs = formData.getAll("quote_high").map((v) => Number(v));
+  const colors = formData.getAll("quote_color").map((v) => String(v).trim());
   partial.quote_ranges = services
-    .map((service, i) => ({ service, low: lows[i], high: highs[i] }))
+    .map((service, i) => ({
+      service,
+      low: lows[i],
+      high: highs[i],
+      color: /^#[0-9a-fA-F]{6}$/.test(colors[i] ?? "") ? colors[i].toLowerCase() : "#5b5bd6"
+    }))
     .filter((range) => range.service && Number.isFinite(range.low) && Number.isFinite(range.high));
 
   const formalityRaw = Number(formData.get("ai_formality") ?? 2);

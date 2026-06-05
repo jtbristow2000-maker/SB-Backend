@@ -24,6 +24,7 @@ export type CalendarEvent = {
   notes: string | null;
   phone: string | null;
   priceLabel: string | null;
+  serviceColor: string;
 };
 
 type View = "week" | "month" | "agenda";
@@ -90,7 +91,7 @@ function weekLabel(weekStart: Date): string {
   return `${MONTHS[weekStart.getMonth()].slice(0, 3)} ${weekStart.getDate()} – ${sameMonth ? "" : `${MONTHS[end.getMonth()].slice(0, 3)} `}${end.getDate()}, ${end.getFullYear()}`;
 }
 
-export function CalendarViews({ events }: { events: CalendarEvent[] }) {
+export function CalendarViews({ events, legend = [] }: { events: CalendarEvent[]; legend?: { service: string; color: string }[] }) {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [selected, setSelected] = useState<Selection | null>(null);
@@ -167,6 +168,16 @@ export function CalendarViews({ events }: { events: CalendarEvent[] }) {
         )}
       </div>
       <div style={S.periodLabel}>{periodLabel}</div>
+      {legend.length > 0 && (
+        <div style={S.legend}>
+          {legend.map((l) => (
+            <span key={l.service} style={S.legendItem}>
+              <span style={{ ...S.legendDot, background: l.color }} />
+              {l.service}
+            </span>
+          ))}
+        </div>
+      )}
 
       {view === "week" && (
         <WeekView anchor={anchor} evs={evs} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
@@ -282,7 +293,8 @@ function EventBlock({
   onHover: (ev: Ev, rect: DOMRect) => void;
   onHoverLeave: () => void;
 }) {
-  const color = statusColor(ev.status);
+  const color = ev.serviceColor || statusColor(ev.status);
+  const dimmed = ev.status === "cancelled" || ev.status === "no_show";
   // Distinguish single click (view) from double click (edit) with a short timer.
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const handleClick = () => {
@@ -311,7 +323,8 @@ function EventBlock({
     color: "#1e2026",
     textAlign: "left",
     cursor: "pointer",
-    fontFamily: "inherit"
+    fontFamily: "inherit",
+    opacity: dimmed ? 0.5 : 1
   };
   return (
     <button
@@ -353,7 +366,7 @@ function MonthView({ anchor, evs, onPickDay }: { anchor: Date; evs: Ev[]; onPick
             <button key={d.toISOString()} type="button" onClick={() => onPickDay(new Date(d))} style={monthCell(inMonth, sameDay(d, today))}>
               <div style={S.monthDayNum}>{d.getDate()}</div>
               {dayEvents.slice(0, 3).map((e) => (
-                <div key={e.id} style={{ ...S.monthChip, background: `${statusColor(e.status)}1f`, borderLeft: `2px solid ${statusColor(e.status)}` }}>
+                <div key={e.id} style={{ ...S.monthChip, background: `${e.serviceColor}1f`, borderLeft: `2px solid ${e.serviceColor}` }}>
                   {timeLabel(e.startDate)} {e.title}
                 </div>
               ))}
@@ -388,7 +401,7 @@ function AgendaView({ evs, onOpen }: { evs: Ev[]; onOpen: (ev: Ev, mode: "view" 
         <div key={g.key} style={{ marginTop: 14 }}>
           <div style={S.agendaDay}>{g.label}</div>
           {g.items.map((e) => (
-            <div key={e.id} style={S.agendaItem}>
+            <div key={e.id} style={{ ...S.agendaItem, borderLeft: `4px solid ${e.serviceColor}` }}>
               <div style={S.agendaTime}>
                 {timeLabel(e.startDate)}
                 {e.endDate ? <div style={S.agendaEnd}>–{timeLabel(e.endDate)}</div> : null}
@@ -650,6 +663,9 @@ const S: Record<string, CSSProperties> = {
   navBtn: { padding: "6px 12px", borderRadius: 8, border: "1px solid #d8dce3", background: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", lineHeight: 1 },
   navToday: { padding: "6px 12px", borderRadius: 8, border: "1px solid #d8dce3", background: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   periodLabel: { fontSize: 15, fontWeight: 700, color: "#15171b", margin: "10px 0 6px" },
+  legend: { display: "flex", flexWrap: "wrap", gap: 12, margin: "0 0 12px", fontSize: 12, color: "#3c414b" },
+  legendItem: { display: "inline-flex", alignItems: "center", gap: 5 },
+  legendDot: { width: 11, height: 11, borderRadius: 3, display: "inline-block", flexShrink: 0 },
   weekScroll: { overflowX: "auto", border: "1px solid #eceef2", borderRadius: 12, background: "#fff" },
   weekInner: { minWidth: 724 },
   weekRow: { display: "flex" },

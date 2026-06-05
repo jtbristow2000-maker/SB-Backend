@@ -7,20 +7,25 @@ import type { CSSProperties } from "react";
 // carry name="quote_service|quote_low|quote_high" so they submit as parallel
 // arrays with the surrounding <form action={saveSettings}>.
 
-export type QuoteRange = { service: string; low: number; high: number };
+export type QuoteRange = { service: string; low: number; high: number; color?: string };
 
-type Row = { service: string; low: string; high: string };
+type Row = { service: string; low: string; high: string; color: string };
+
+const PALETTE = [
+  "#5b5bd6", "#16a34a", "#ea580c", "#0ea5e9", "#db2777",
+  "#ca8a04", "#0d9488", "#7c3aed", "#dc2626", "#2563eb"
+];
 
 export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
   const [rows, setRows] = useState<Row[]>(
     initial.length
-      ? initial.map((r) => ({ service: r.service, low: String(r.low), high: String(r.high) }))
-      : [{ service: "", low: "", high: "" }]
+      ? initial.map((r) => ({ service: r.service, low: String(r.low), high: String(r.high), color: r.color || "#5b5bd6" }))
+      : [{ service: "", low: "", high: "", color: PALETTE[0] }]
   );
 
   const update = (i: number, key: keyof Row, value: string) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
-  const add = () => setRows((prev) => [...prev, { service: "", low: "", high: "" }]);
+  const add = () => setRows((prev) => [...prev, { service: "", low: "", high: "", color: PALETTE[prev.length % PALETTE.length] }]);
   const remove = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i));
   const move = (i: number, dir: -1 | 1) =>
     setRows((prev) => {
@@ -39,6 +44,15 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
             <button type="button" onClick={() => move(i, -1)} disabled={i === 0} style={S.moveBtn} aria-label="Move up">↑</button>
             <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1} style={S.moveBtn} aria-label="Move down">↓</button>
           </div>
+          <input
+            type="color"
+            name="quote_color"
+            value={r.color}
+            onChange={(e) => update(i, "color", e.target.value)}
+            style={S.color}
+            aria-label="Calendar color for this service"
+            title="Calendar color for this service"
+          />
           <input
             name="quote_service"
             value={r.service}
@@ -78,7 +92,8 @@ const S: Record<string, CSSProperties> = {
   row: { display: "flex", alignItems: "center", gap: 6, marginBottom: 8 },
   reorder: { display: "flex", flexDirection: "column", gap: 2 },
   moveBtn: { width: 22, height: 18, padding: 0, lineHeight: 1, borderRadius: 6, border: "1px solid #d8dce3", background: "#fff", color: "#3c414b", fontSize: 11, cursor: "pointer" },
-  service: { flex: 1, minWidth: 120, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
+  color: { width: 30, height: 30, padding: 0, border: "1px solid #d8dce3", borderRadius: 7, background: "#fff", cursor: "pointer", flexShrink: 0 },
+  service: { flex: 1, minWidth: 110, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
   dollar: { color: "#8a909c", fontSize: 13 },
   dash: { color: "#8a909c" },
   num: { width: 72, padding: "8px 8px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
