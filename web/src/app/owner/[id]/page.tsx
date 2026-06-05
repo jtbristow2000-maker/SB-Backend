@@ -11,6 +11,7 @@ import { ContactButtons } from "@/app/owner/ContactButtons";
 import { LeadActionBar } from "@/app/owner/LeadActionBar";
 import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 import { fmtPhone, readExtracted, type Extracted } from "@/app/owner/format";
+import { parseInboundConfirmation } from "@/app/owner/inboundParser";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -132,6 +133,16 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   // Context the reply composer uses to pre-pick services + detect a price question.
   const contextText = [aiX.service_requested, aiSummaryText, aiTranscript].filter(Boolean).join(" ");
   const pricingInquiry = /\b(price|pricing|cost|how much|quote|charge|rate|rates)\b/i.test(contextText);
+  // Check if the latest inbound customer message confirms a date/time.
+  // If it does, we pre-fill the booking form and adjust the reply draft.
+  const latestInbound = convo
+    .filter((item) => item.kind === "msg" && item.msg.direction === "inbound")
+    .at(-1);
+  const latestInboundText = latestInbound?.kind === "msg" ? latestInbound.msg.body ?? "" : "";
+  const inboundConfirmation = latestInboundText
+    ? parseInboundConfirmation(latestInboundText, busy)
+    : null;
+
   const cfg = getAppConfig();
   const aiEnabled = hasConfiguredExtractionProvider(cfg);
   const textingLive = cfg.smsSendingEnabled && cfg.realMessageSendingEnabled && cfg.twilioConfigured;
@@ -174,6 +185,8 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         bookTitle={`${profile.display_name || fmtPhone(profile.phone_e164)}${aiX.service_requested ? ` — ${aiX.service_requested}` : ""}`}
         bookService={aiX.service_requested ?? ""}
         bookNotes={bookingNotes}
+        prefilledStart={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.datetimeLocal : undefined}
+        confirmedLabel={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : undefined}
       />
 
       <div style={S.paneTitle}>CONVERSATION</div>
@@ -233,6 +246,8 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           transcript={heroCall?.call.transcript ?? ""}
           aiEnabled={aiEnabled}
           aiSettings={settings.ai_reply}
+          slotConflict={inboundConfirmation?.isConflict ?? false}
+          confirmedSlot={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : null}
         />
       )}
 

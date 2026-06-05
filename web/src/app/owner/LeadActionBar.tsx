@@ -17,7 +17,9 @@ export function LeadActionBar({
   openTaskId,
   bookTitle,
   bookService,
-  bookNotes
+  bookNotes,
+  prefilledStart,
+  confirmedLabel
 }: {
   profileId: string;
   status: string;
@@ -25,8 +27,10 @@ export function LeadActionBar({
   bookTitle: string;
   bookService: string;
   bookNotes: string;
+  prefilledStart?: string;   // datetime-local value when customer confirmed a time
+  confirmedLabel?: string;   // human-readable label for the confirmed slot
 }) {
-  const [booking, setBooking] = useState(false);
+  const [booking, setBooking] = useState(() => Boolean(prefilledStart));
 
   return (
     <div style={S.wrap}>
@@ -55,9 +59,15 @@ export function LeadActionBar({
         )}
 
         <button type="button" onClick={() => setBooking((v) => !v)} style={booking ? S.btnOn : S.btn}>
-          📅 Book{booking ? " ▾" : ""}
+          📅 {confirmedLabel ? `Book — ${confirmedLabel}` : "Book"}{booking ? " ▾" : ""}
         </button>
       </div>
+
+      {confirmedLabel && !booking && (
+        <div style={S.confirmedBanner}>
+          📅 Customer confirmed <strong>{confirmedLabel}</strong> — tap <em>Book</em> above to lock it in.
+        </div>
+      )}
 
       {booking && (
         <form action={createAppointment} style={S.bookForm}>
@@ -65,7 +75,7 @@ export function LeadActionBar({
           <input type="hidden" name="title" value={bookTitle} />
           <input type="hidden" name="service" value={bookService} />
           <input type="hidden" name="notes" value={bookNotes} />
-          <input name="start" type="datetime-local" required style={S.input} aria-label="Appointment time" />
+          <input name="start" type="datetime-local" required defaultValue={prefilledStart ?? ""} style={S.input} aria-label="Appointment time" />
           <select name="duration" defaultValue="60" style={S.input} aria-label="Duration">
             <option value="30">30m</option>
             <option value="60">1h</option>
@@ -90,5 +100,6 @@ const S: Record<string, CSSProperties> = {
   btnOn: { padding: "7px 11px", borderRadius: 9, border: "1px solid var(--brand)", background: "rgba(var(--brand-rgb),0.1)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   bookForm: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#f6f7f9", border: "1px solid #eceef2" },
   input: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
-  btnPrimary: { padding: "8px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }
+  btnPrimary: { padding: "8px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  confirmedBanner: { marginTop: 8, padding: "8px 12px", borderRadius: 10, background: "rgba(var(--positive-rgb),0.1)", border: "1px solid rgba(var(--positive-rgb),0.2)", color: "#1d6b4f", fontSize: 13, lineHeight: 1.4 }
 };
