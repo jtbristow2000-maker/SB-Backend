@@ -66,7 +66,14 @@ export default async function Today() {
   ];
 
   const settings = getBusinessSettings(business);
-  const attentionItems: LeadListItem[] = callbacks.slice(0, 5).map((c) => ({
+  // Needs Attention = only what still needs YOU: brand-new leads you haven't
+  // responded to, or existing customers who've replied back. Once you've
+  // responded (and they haven't written back) it drops off here — it still
+  // lives on the Callbacks page. Replies-waiting float to the top.
+  const attentionCallbacks = callbacks
+    .filter((c) => c.customer_replied || !RESPONDED_STATUSES.has(c.status))
+    .sort((a, b) => Number(b.customer_replied) - Number(a.customer_replied));
+  const attentionItems: LeadListItem[] = attentionCallbacks.map((c) => ({
     id: c.id,
     name: c.display_name || fmtPhone(c.phone_e164),
     snippet: outcomeSnippet(c),
@@ -94,16 +101,16 @@ export default async function Today() {
       </div>
 
       <div style={S.sectionLabel}>NEEDS ATTENTION</div>
-      {callbacks.length === 0 ? (
+      {attentionItems.length === 0 ? (
         <div style={S.empty}>
-          You&apos;re all caught up. New missed calls will show up here automatically.
+          You&apos;re all caught up — nothing needs a reply right now. New leads and replies show up here automatically.
         </div>
       ) : (
         <div>
-          <LeadList items={attentionItems} />
-          {callbacks.length > 5 && (
-            <Link href="/owner" style={S.viewAll}>View all {callbacks.length} callbacks →</Link>
-          )}
+          <div style={S.attentionScroll}>
+            <LeadList items={attentionItems} />
+          </div>
+          <Link href="/owner" style={S.viewAll}>View all {callbacks.length} callbacks →</Link>
         </div>
       )}
     </main>
@@ -120,6 +127,7 @@ const S = {
   metricLabel: { fontSize: 12, color: "#8a909c", marginTop: 4 } as CSSProperties,
   sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "26px 0 10px" } as CSSProperties,
   empty: { padding: "24px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", color: "#3c414b", fontSize: 14 } as CSSProperties,
+  attentionScroll: { maxHeight: 520, overflowY: "auto", paddingRight: 6 } as CSSProperties,
   viewAll: { display: "inline-block", marginTop: 8, color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" } as CSSProperties
 };
 
