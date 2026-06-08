@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Invite-code gate on signup (beta safeguard)
+
+### Added
+- Optional invite gate: when `SIGNUP_INVITE_CODE` (Vercel env) is set, signup requires a matching code — only people you give the code to can register; unset = open signup. Adds an "Invite code" field to the signup form (shown only when a code is required), server-side enforcement in `handlePasswordSignUp`, and an `invalid_invite` error message.
+
+### Verified
+- `npm run verify` passes: 42 test files, 160 passed, 1 skipped.
+
 ## [2026-06-08] - "Ring my phone first" backend wiring
 
 ### Changed

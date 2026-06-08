@@ -12,10 +12,12 @@ import { useState, type CSSProperties, type FormEvent } from "react";
 
 export function SignupForm({
   errorMessage,
-  redirectTo
+  redirectTo,
+  inviteRequired
 }: {
   errorMessage: string | null;
   redirectTo: string;
+  inviteRequired: boolean;
 }) {
   const [clientError, setClientError] = useState<string | null>(null);
 
@@ -48,6 +50,13 @@ export function SignupForm({
 
         <form action="/api/auth/sign-up" method="post" style={S.form} onSubmit={handleSubmit}>
           <input type="hidden" name="redirectTo" value={redirectTo} />
+
+          {inviteRequired && (
+            <label style={S.label}>
+              Invite code
+              <input name="invite_code" type="text" required autoComplete="off" placeholder="Enter your invite code" style={S.input} />
+            </label>
+          )}
 
           <label style={S.label}>
             Business name

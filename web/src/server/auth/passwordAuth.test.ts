@@ -43,7 +43,8 @@ describe("password auth payloads", () => {
       businessName: "Bright Detail Co",
       ownerName: "Shaw",
       phone: "(213) 373-4253",
-      redirectTo: "/owner/today"
+      redirectTo: "/owner/today",
+      inviteCode: null
     });
   });
 
@@ -66,7 +67,8 @@ describe("password auth payloads", () => {
       businessName: null,
       ownerName: "Owner Name",
       phone: null,
-      redirectTo: null
+      redirectTo: null,
+      inviteCode: null
     });
   });
 });
