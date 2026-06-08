@@ -5,6 +5,7 @@ import { PhoneNumberSection } from "@/app/owner/PhoneNumberSection";
 import { AutoReplyLevelSlider } from "@/app/owner/AutoReplyLevelSlider";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
 import { LogoUpload } from "@/app/owner/LogoUpload";
+import { UnsavedChangesGuard } from "@/app/owner/UnsavedChangesGuard";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildBusinessNumberReadModel, type BusinessNumberReadModel } from "@/server/telephony/numberState";
@@ -45,7 +46,8 @@ export default async function SettingsPage() {
         </div>
       )}
 
-      <form action={saveSettings} style={S.form}>
+      <form id="settings-form" action={saveSettings} style={S.form}>
+        <UnsavedChangesGuard formId="settings-form" />
         <section style={S.section}>
           <div style={S.sectionTitle}>Business name</div>
           <div style={S.sectionHint}>Shown across your dashboard and used wherever {"{business_name}"} appears in replies.</div>
