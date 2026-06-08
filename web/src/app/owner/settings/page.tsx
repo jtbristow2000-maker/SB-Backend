@@ -76,12 +76,6 @@ export default async function SettingsPage() {
         </section>
 
         <section style={S.section}>
-          <div style={S.sectionTitle}>Missed-call auto-text</div>
-          <div style={S.sectionHint}>Texted to a caller you miss. Use {"{business_name}"} to insert your name.</div>
-          <textarea name="auto_text_message" defaultValue={settings.auto_text_message} rows={3} style={S.textarea} />
-        </section>
-
-        <section style={S.section}>
           <div style={S.sectionTitle}>Business hours</div>
           <div style={S.sectionHint}>Used to suggest open appointment times in replies.</div>
           <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
@@ -112,7 +106,13 @@ export default async function SettingsPage() {
           <div style={S.sectionTitle}>AI &amp; Replies</div>
           <div style={S.sectionHint}>Customize how the AI drafts and personalizes your suggested replies. Each business sets their own.</div>
 
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 12 }}>
+            <div style={S.sectionTitle}>Missed-call auto-text</div>
+            <div style={S.sectionHint}>Texted to a caller you miss. Use {"{business_name}"} to insert your name.</div>
+            <textarea name="auto_text_message" defaultValue={settings.auto_text_message} rows={3} style={S.textarea} />
+          </div>
+
+          <div style={{ marginTop: 16 }}>
             <div style={S.sliderLabel}>Auto-reply to missed calls</div>
             <div style={{ fontSize: 12, color: "#8a909c", margin: "0 0 8px", lineHeight: 1.45 }}>
               How much the AI writes the reply for you. It waits for the caller&apos;s voicemail first — so it feels human and knows what they asked for. Higher = the more it says on its own.
@@ -160,14 +160,14 @@ export default async function SettingsPage() {
           </div>
 
           <div style={{ marginTop: 16 }}>
-            <div style={S.sectionTitle}>Reply sign-off <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+            <div style={S.sectionTitle}>Signature <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
             <div style={S.sectionHint}>Overrides &ldquo;{business?.name ?? "your business name"}&rdquo; at the end of replies. e.g. just &ldquo;Mike&rdquo; for a personal touch.</div>
             <input name="ai_sign_off" defaultValue={settings.ai_reply.sign_off} placeholder={`e.g. Mike or Mike's Detailing`} style={S.textInput} autoComplete="off" />
           </div>
 
           <div style={{ marginTop: 12 }}>
             <div style={S.sectionTitle}>Custom note <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
-            <div style={S.sectionHint}>Added to every draft before the sign-off. e.g. &ldquo;Ask about our monthly maintenance plan!&rdquo;</div>
+            <div style={S.sectionHint}>Added to every draft before the signature. e.g. &ldquo;Ask about our monthly maintenance plan!&rdquo;</div>
             <input name="ai_custom_note" defaultValue={settings.ai_reply.custom_note} placeholder="e.g. Ask about our monthly maintenance plan!" style={S.textInput} autoComplete="off" />
           </div>
         </section>
