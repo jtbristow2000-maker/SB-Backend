@@ -49,9 +49,20 @@ export function buildLeadRundown(
 
 const VEHICLE_RE =
   /\b(lifted truck|pickup truck|work van|sports car|pickup|minivan|crossover|hatchback|sedan|suv|truck|van|jeep|tesla|coupe|wagon)\b/i;
-function detectVehicle(text: string): string | null {
+export function detectVehicle(text: string): string | null {
   const m = VEHICLE_RE.exec(text);
   return m ? m[1].toLowerCase() : null;
+}
+
+// Soft guess at how the customer wants to be reached, from explicit phrasing only.
+// A generic "give me a call back" voicemail closer is NOT treated as a preference,
+// so we don't end up flagging "call" on essentially every lead.
+export function detectPreferredContact(text: string): "call" | "text" | "email" | null {
+  const t = text.toLowerCase();
+  if (/\b(?:just )?text (?:me|us)\b|\btext is best\b|\bprefer.{0,15}text\b/.test(t)) return "text";
+  if (/\bemail (?:me|us)\b|\bshoot me an email\b|\bprefer.{0,15}email\b/.test(t)) return "email";
+  if (/\bcall is best\b|\bbest to call\b|\bprefer.{0,15}call\b/.test(t)) return "call";
+  return null;
 }
 
 // Time of the most recent call + voicemail length, for the lead-card sub-line.
