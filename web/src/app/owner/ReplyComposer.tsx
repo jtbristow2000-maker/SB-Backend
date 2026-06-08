@@ -586,7 +586,7 @@ const S: Record<string, CSSProperties> = {
   auto: { fontWeight: 600, color: "var(--positive)", textTransform: "none", letterSpacing: 0 },
   chips: { display: "flex", flexWrap: "wrap", gap: 6 },
   chipPrice: { fontWeight: 700, opacity: 0.85 },
-  quoteLine: { marginTop: 8, fontSize: 13, fontWeight: 700, color: "#15171b" },
+  quoteLine: { marginTop: 8, fontSize: 13, fontWeight: 700, color: "var(--ink)" },
   outsideNote: { marginBottom: 8, fontSize: 12, lineHeight: 1.45, color: "#8a5a0c", background: "rgba(199,125,20,0.1)", padding: "7px 10px", borderRadius: 9 },
   noRanges: { fontSize: 13, color: "#8a909c", padding: "6px 0" },
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },

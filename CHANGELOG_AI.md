@@ -1,5 +1,23 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Premium UI pass + dashboard metric rework
+
+### Added
+- Premium design tokens in `styles.css` — layered elevation (`--shadow-sm/md/lg`), surface/border/ink/muted colors, and reusable `.card` / `.card-tap` (hover-lift) / `.scroll-soft` primitives, referenced from inline styles via `var()`.
+- Today metric cards reworked: dropped the confusing "Replied — waiting on you" (always 0) and the redundant all-time "Voicemails" (≈ Callbacks); added **Booked today** and **Voicemails today** so the top row is a true "today" snapshot above the weekly rollup.
+- Every lead card now shows a status pill (the "New" state was previously hidden) plus the call time inline for more at-a-glance info.
+
+### Changed
+- Refined the dark sidebar (subtle gradient + edge, smoother nav hover/active with an accent rail), logo glow, and heading typography (heavier weight, tighter tracking) app-wide.
+- Lead cards (Today + Callbacks), the Leads directory, lead detail, schedule (week grid / agenda / modal), settings, phone-number, and simulator surfaces all moved onto the shared card primitives + elevation tokens for a consistent, elevated look.
+
+### Fixed
+- Status/metric chips that used a `var(--brand)1a` string (invalid CSS → no fill) now render proper rgba tints on the Today metric chips and the Leads status badges.
+- The "Booked today" card links to `/owner/calendar` (the real Schedule route) instead of a non-existent `/owner/schedule`.
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-08] - Auto-fill customer details from the voicemail
 
 ### Added

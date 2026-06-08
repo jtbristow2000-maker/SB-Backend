@@ -68,6 +68,7 @@ export function LeadList({ items }: { items: LeadListItem[] }) {
             onClick={() => open(it)}
             onMouseEnter={(e) => showHover(it, e.currentTarget.getBoundingClientRect())}
             onMouseLeave={queueHide}
+            className="card card-tap"
             style={rowStyle(unread)}
           >
             <div style={S.top}>
@@ -78,7 +79,10 @@ export function LeadList({ items }: { items: LeadListItem[] }) {
               </div>
               {statusPill(it)}
             </div>
-            <div style={S.need}>{needLine(it)}</div>
+            <div style={S.bottom}>
+              <span style={S.need}>{needLine(it)}</span>
+              {it.callTimeLabel && <span style={S.time}>{it.callTimeLabel}</span>}
+            </div>
           </Link>
         );
       })}
@@ -143,40 +147,39 @@ function statusPill(it: LeadListItem): ReactNode {
   if (s === "booked") return <span style={S.booked}>Booked</span>;
   if (s === "won") return <span style={S.won}>Won</span>;
   if (s === "contacted") return <span style={S.responded}>Responded</span>;
-  return null;
+  if (s === "lost") return <span style={S.lost}>Lost</span>;
+  return <span style={S.fresh}>New</span>;
 }
 
 function rowStyle(unread: boolean): CSSProperties {
   return {
     display: "block",
-    textDecoration: "none",
-    padding: "10px 13px",
-    marginBottom: 7,
-    borderRadius: 11,
-    background: unread ? "rgba(var(--brand-rgb),0.05)" : "#fff",
-    border: "1px solid #eceef2",
-    borderLeft: `3px solid ${unread ? "var(--brand)" : "#e3e6ec"}`,
-    boxShadow: "0 1px 3px rgba(17,21,28,0.05)"
+    padding: "11px 14px",
+    marginBottom: 9,
+    background: unread ? "rgba(var(--brand-rgb),0.05)" : "var(--surface)",
+    borderLeft: `3px solid ${unread ? "var(--brand)" : "transparent"}`
   };
 }
 
+const pill: CSSProperties = { fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap", letterSpacing: 0.2 };
 const S: Record<string, CSSProperties> = {
   top: { display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" },
   nameWrap: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
-  dot: { width: 8, height: 8, borderRadius: 999, background: "var(--brand)", flexShrink: 0 },
-  name: { color: "#15171b", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  pills: { display: "flex", gap: 6, flexShrink: 0 },
-  replied: { fontSize: 11, fontWeight: 700, color: "#9a6210", background: "rgba(199,125,20,0.14)", padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" },
-  responded: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.14)", padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" },
-  meta: { color: "#3c414b", fontSize: 13, marginTop: 3 },
-  subMeta: { color: "#9aa0b3", fontSize: 11.5, marginTop: 3 },
-  vehicle: { color: "#8a909c", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", textTransform: "capitalize" },
-  need: { color: "#3c414b", fontSize: 12.5, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  booked: { fontSize: 11, fontWeight: 700, color: "#3a3a9a", background: "rgba(var(--brand-rgb),0.12)", padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" },
-  won: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.14)", padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" },
-  hoverCard: { position: "fixed", width: 288, maxWidth: "calc(100vw - 16px)", background: "#fff", border: "1px solid #e3e6ec", borderRadius: 12, boxShadow: "0 8px 28px rgba(17,21,28,0.18)", padding: "11px 13px", fontSize: 13, lineHeight: 1.45, color: "#1e2026", zIndex: 900 },
-  hoverName: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontWeight: 700, fontSize: 14, marginBottom: 5 },
+  dot: { width: 7, height: 7, borderRadius: 999, background: "var(--brand)", flexShrink: 0 },
+  name: { color: "var(--ink)", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  vehicle: { color: "var(--muted)", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", textTransform: "capitalize" },
+  bottom: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginTop: 4 },
+  need: { color: "#3c414b", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 },
+  time: { color: "#9aa0b3", fontSize: 11.5, fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 },
+  replied: { ...pill, color: "#9a6210", background: "rgba(199,125,20,0.15)" },
+  responded: { ...pill, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.14)" },
+  booked: { ...pill, color: "#3a3a9a", background: "rgba(var(--brand-rgb),0.13)" },
+  won: { ...pill, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.16)" },
+  fresh: { ...pill, color: "var(--brand)", background: "rgba(var(--brand-rgb),0.12)" },
+  lost: { ...pill, color: "#8a909c", background: "rgba(138,144,156,0.16)" },
+  hoverCard: { position: "fixed", width: 290, maxWidth: "calc(100vw - 16px)", background: "#fff", border: "1px solid var(--border)", borderRadius: 14, boxShadow: "var(--shadow-lg)", padding: "12px 14px", fontSize: 13, lineHeight: 1.45, color: "#1e2026", zIndex: 900 },
+  hoverName: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontWeight: 700, fontSize: 14, marginBottom: 6 },
   hoverRow: { marginTop: 3 },
-  hoverMuted: { marginTop: 3, color: "#3c414b", fontStyle: "italic" },
-  hoverHint: { marginTop: 8, paddingTop: 6, borderTop: "1px solid #f1f2f5", fontSize: 11, color: "#8a909c" }
+  hoverMuted: { marginTop: 4, color: "#3c414b", fontStyle: "italic" },
+  hoverHint: { marginTop: 9, paddingTop: 7, borderTop: "1px solid #f1f2f5", fontSize: 11, color: "#8a909c" }
 };
