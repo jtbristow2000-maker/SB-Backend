@@ -29,6 +29,7 @@ export type BusinessSettings = {
   logo_url: string;
   auto_text_message: string;
   voicemail_greeting: string;
+  forward_calls: boolean;
   business_hours: BusinessHoursSettings;
   quote_ranges: QuoteRangeSettings[];
   ai_reply: AiReplySettings;
@@ -39,6 +40,7 @@ export type BusinessSettingsUpdate = {
   logo_url?: string;
   auto_text_message?: string;
   voicemail_greeting?: string;
+  forward_calls?: boolean;
   business_hours?: Partial<BusinessHoursSettings>;
   quote_ranges?: QuoteRangeSettings[];
   ai_reply?: Partial<AiReplySettings>;
@@ -67,6 +69,7 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   logo_url: "",
   auto_text_message: DEFAULT_MISSED_CALL_AUTO_TEXT,
   voicemail_greeting: "",
+  forward_calls: true,
   business_hours: {
     open: "09:00",
     close: "17:00",
@@ -94,6 +97,8 @@ export function getBusinessSettings(
       typeof raw.voicemail_greeting === "string"
         ? raw.voicemail_greeting.trim()
         : DEFAULT_BUSINESS_SETTINGS.voicemail_greeting,
+    forward_calls:
+      typeof raw.forward_calls === "boolean" ? raw.forward_calls : DEFAULT_BUSINESS_SETTINGS.forward_calls,
     business_hours: readBusinessHours(raw.business_hours),
     quote_ranges: readQuoteRanges(raw.quote_ranges),
     ai_reply: readAiReplySettings(raw.ai_reply)
@@ -119,6 +124,10 @@ export function mergeBusinessSettingsJson(
 
   if (partial.voicemail_greeting !== undefined) {
     merged.voicemail_greeting = partial.voicemail_greeting;
+  }
+
+  if (partial.forward_calls !== undefined) {
+    merged.forward_calls = partial.forward_calls;
   }
 
   if (partial.business_hours !== undefined) {

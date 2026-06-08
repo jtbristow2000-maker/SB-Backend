@@ -120,8 +120,15 @@ export default async function SettingsPage() {
         </section>
 
         <section style={S.section}>
-          <div style={S.sectionTitle}>Voicemail greeting</div>
-          <div style={S.sectionHint}>What callers hear before leaving a message. Record your own voice — callers hear that. The typed version below is read aloud only when there&apos;s no recording.</div>
+          <div style={S.sectionTitle}>Calls &amp; voicemail</div>
+          <label style={S.checkRow}>
+            <input type="checkbox" name="forward_calls" defaultChecked={settings.forward_calls} style={{ marginTop: 2 }} />
+            <span>
+              <span style={S.checkLabel}>Ring my phone first</span>
+              <span style={S.checkHint}>On: callers ring your phone, then voicemail if you miss it. Off: callers go straight to voicemail.</span>
+            </span>
+          </label>
+          <div style={{ ...S.sectionHint, marginTop: 12 }}>Greeting — what callers hear before leaving a message. Record your own voice (callers hear that); the typed version is read aloud only when there&apos;s no recording.</div>
           {business && <VoicemailRecorder businessId={business.id} />}
           <div style={{ ...S.sectionHint, marginTop: 14, marginBottom: 6 }}>Typed fallback (used when there&apos;s no recording)</div>
           <textarea name="voicemail_greeting" defaultValue={settings.voicemail_greeting} rows={2} placeholder="Sorry we missed your call. Please leave a message after the beep." style={S.textarea} />

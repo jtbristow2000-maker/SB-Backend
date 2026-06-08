@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - "Ring my phone first" toggle (setting + UI)
+
+### Added
+- New `forward_calls` setting (default true) + a **"Ring my phone first"** toggle in Settings → Calls & voicemail. On = ring the owner then voicemail (current behavior); off = send callers straight to voicemail (no forwarding). Renamed the section to "Calls & voicemail."
+- ⏳ Server wiring (have `handleIncomingVoice` honor the toggle / go straight to voicemail) is a queued Codex task — the setting saves now and changes call behavior once that ships.
+
+### Verified
+- `npm run verify` passes: 42 test files, 157 passed, 1 skipped.
+
 ## [2026-06-08] - In-app voicemail greeting recorder (UI)
 
 ### Added
