@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Custom voicemail greeting (setting + UI)
+
+### Added
+- New **Voicemail greeting** setting + Settings field — what callers hear before leaving a message. Stored in business settings (`voicemail_greeting`); blank falls back to the default. Exported `DEFAULT_VOICEMAIL_GREETING` so the UI placeholder and the server TwiML share one source of truth.
+- ⏳ Server wiring (use the greeting in the voicemail `<Say>` TwiML, currently hardcoded in `voice.ts handleDialStatus`) is a queued Codex task — the setting persists now and takes effect on calls once that ships.
+
+### Verified
+- `npm run verify` passes: 40 test files, 149 passed, 1 skipped.
+
 ## [2026-06-08] - QA hardening: fix stale revalidation after IA restructure
 
 ### Fixed

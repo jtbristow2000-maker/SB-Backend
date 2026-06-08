@@ -28,6 +28,7 @@ export type BusinessSettings = {
   brand_color: string;
   logo_url: string;
   auto_text_message: string;
+  voicemail_greeting: string;
   business_hours: BusinessHoursSettings;
   quote_ranges: QuoteRangeSettings[];
   ai_reply: AiReplySettings;
@@ -37,6 +38,7 @@ export type BusinessSettingsUpdate = {
   brand_color?: string;
   logo_url?: string;
   auto_text_message?: string;
+  voicemail_greeting?: string;
   business_hours?: Partial<BusinessHoursSettings>;
   quote_ranges?: QuoteRangeSettings[];
   ai_reply?: Partial<AiReplySettings>;
@@ -44,6 +46,11 @@ export type BusinessSettingsUpdate = {
 
 export const DEFAULT_MISSED_CALL_AUTO_TEXT =
   "Sorry we missed your call \u2014 reply here and we'll get right back to you. \u2014 {business_name}";
+
+// Spoken to callers before they leave a voicemail (Twilio <Say>). Empty setting =
+// use this. Shared so the Settings placeholder and the server TwiML agree.
+export const DEFAULT_VOICEMAIL_GREETING =
+  "Sorry we missed your call. Please leave a message after the beep.";
 
 export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
   ai_pick_enabled: true,
@@ -59,6 +66,7 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   brand_color: "#5b5bd6",
   logo_url: "",
   auto_text_message: DEFAULT_MISSED_CALL_AUTO_TEXT,
+  voicemail_greeting: "",
   business_hours: {
     open: "09:00",
     close: "17:00",
@@ -82,6 +90,10 @@ export function getBusinessSettings(
       readNonEmptyString(raw.auto_text_message) ??
       readNonEmptyString(raw.missed_call_auto_text) ??
       DEFAULT_BUSINESS_SETTINGS.auto_text_message,
+    voicemail_greeting:
+      typeof raw.voicemail_greeting === "string"
+        ? raw.voicemail_greeting.trim()
+        : DEFAULT_BUSINESS_SETTINGS.voicemail_greeting,
     business_hours: readBusinessHours(raw.business_hours),
     quote_ranges: readQuoteRanges(raw.quote_ranges),
     ai_reply: readAiReplySettings(raw.ai_reply)
@@ -103,6 +115,10 @@ export function mergeBusinessSettingsJson(
 
   if (partial.auto_text_message !== undefined) {
     merged.auto_text_message = partial.auto_text_message;
+  }
+
+  if (partial.voicemail_greeting !== undefined) {
+    merged.voicemail_greeting = partial.voicemail_greeting;
   }
 
   if (partial.business_hours !== undefined) {

@@ -119,6 +119,12 @@ export default async function SettingsPage() {
         </section>
 
         <section style={S.section}>
+          <div style={S.sectionTitle}>Voicemail greeting</div>
+          <div style={S.sectionHint}>What callers hear before leaving a message. Leave blank for the default.</div>
+          <textarea name="voicemail_greeting" defaultValue={settings.voicemail_greeting} rows={2} placeholder="Sorry we missed your call. Please leave a message after the beep." style={S.textarea} />
+        </section>
+
+        <section style={S.section}>
           <div style={S.sectionTitle}>Business name</div>
           <div style={S.sectionHint}>Shown across your dashboard and used wherever {"{business_name}"} appears in replies.</div>
           <input

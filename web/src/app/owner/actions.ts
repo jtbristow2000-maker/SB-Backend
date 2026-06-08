@@ -497,6 +497,9 @@ export async function saveSettings(formData: FormData): Promise<void> {
     partial.auto_text_message = autoText;
   }
 
+  // Always set (blank clears it → the server uses the default voicemail greeting).
+  partial.voicemail_greeting = String(formData.get("voicemail_greeting") ?? "").trim();
+
   const open = String(formData.get("hours_open") ?? "").trim();
   const close = String(formData.get("hours_close") ?? "").trim();
   const days = formData
