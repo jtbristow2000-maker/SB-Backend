@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Password reset + email confirmation flow
+
+### Added
+- **Forgot-password flow:** "Forgot password?" on login → `/forgot` (request a reset email) → `/reset` (set a new password). Routes: `/api/auth/forgot` (`resetPasswordForEmail`, always shows "sent" so it can't leak which emails exist), `/api/auth/update-password` (`updateUser` + sign out), and a shared `/api/auth/callback` that handles both PKCE `?code` and `?token_hash` OTP links (robust across devices), establishing the recovery session.
+- **Email-confirmation handling:** when Supabase "Confirm email" is on, signup returns no session → shows a "Check your email" screen instead of a broken dashboard redirect; the confirmation link runs through the same callback. (Toggle is a Supabase dashboard setting.)
+- Shared `auth-card` styles for the standalone auth screens; login shows a "password updated" / expired-link message.
+
+### Verified
+- `npm run verify` passes: 42 test files, 160 passed, 1 skipped.
+
 ## [2026-06-08] - Invite-code gate on signup (beta safeguard)
 
 ### Added

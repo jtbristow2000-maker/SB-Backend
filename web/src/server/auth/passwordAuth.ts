@@ -240,6 +240,16 @@ export async function handlePasswordSignUp(request: NextRequest): Promise<NextRe
     ownerName: payload.ownerName,
     phone: payload.phone
   });
+
+  // When email confirmation is on, signUp returns no session — send them to a
+  // "check your email" screen instead of the (still-locked) dashboard.
+  if (!data.session) {
+    if (wantsJson(request)) {
+      return NextResponse.json({ ok: true, emailConfirmationRequired: true });
+    }
+    return NextResponse.redirect(new URL("/signup?check_email=1", request.url), { status: 303 });
+  }
+
   return authSuccess(request, payload.redirectTo);
 }
 
