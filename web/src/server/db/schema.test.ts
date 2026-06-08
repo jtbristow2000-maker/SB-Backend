@@ -9,7 +9,8 @@ import {
   type BusinessRow,
   type CustomerProfileRow,
   type Database,
-  type NumberPortRequestRow
+  type NumberPortRequestRow,
+  type VoicemailGreetingRow
 } from "./schema";
 
 describe("BACKEND-02 database contract", () => {
@@ -161,5 +162,24 @@ describe("business telephony contract", () => {
     expect(business.number_status).toBe("trial");
     expect(portRequest.business_id).toBe(business.id);
     expect(table).toBe("number_port_requests");
+  });
+});
+
+describe("voicemail greeting audio contract", () => {
+  it("declares a business-keyed audio row for recorded greetings", () => {
+    const greeting = {
+      business_id: "business_1",
+      audio_bytes: "\\x52494646",
+      content_type: "audio/wav",
+      created_at: "2026-06-08T00:00:00.000Z",
+      updated_at: "2026-06-08T00:00:00.000Z"
+    } satisfies VoicemailGreetingRow;
+
+    type Tables = keyof Database["public"]["Tables"];
+    const table: Tables = "voicemail_greetings";
+
+    expect(greeting.business_id).toBe("business_1");
+    expect(greeting.content_type).toBe("audio/wav");
+    expect(table).toBe("voicemail_greetings");
   });
 });

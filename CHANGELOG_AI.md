@@ -1,5 +1,26 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - In-app voicemail greeting recorder (UI)
+
+### Added
+- `VoicemailRecorder` in Settings → Voicemail greeting: record your voice with the mic, preview it, and save. The browser downsamples to **8 kHz mono WAV** (phone quality, ~under the server-action body limit) and saves via Codex's `setVoicemailGreetingAudio`. Recordings cap at 30s; shows the current greeting with a player + Remove; the typed greeting is reframed as the fallback used when there's no recording. (Pairs with Codex's storage/route/`<Play>` work.)
+
+### Verified
+- `npm run verify` passes: 42 test files, 157 passed, 1 skipped.
+
+## [2026-06-08] - Recorded voicemail greeting audio
+
+### Added
+- Added `voicemail_greetings` storage via migration `0008_voicemail_greetings.sql`, keyed one-to-one by `business_id`, with `audio/wav` content type and a 1 MB database constraint.
+- Added `setVoicemailGreetingAudio(businessId, base64Wav | null)` for owner-side recorder UI to save or clear a base64 WAV greeting after validation.
+- Added unauthenticated `GET /api/voicemail-greeting/[businessId]` so Twilio can fetch the stored WAV bytes as `audio/wav`.
+
+### Changed
+- Voicemail TwiML now plays recorded greeting audio with `<Play>` when present and `PUBLIC_BASE_URL` is configured; otherwise it falls back to the configured text greeting or `DEFAULT_VOICEMAIL_GREETING`.
+
+### Verified
+- `npm run verify` passes: 42 test files, 157 passed, 1 skipped.
+
 ## [2026-06-08] - Custom voicemail greeting (setting + UI)
 
 ### Added

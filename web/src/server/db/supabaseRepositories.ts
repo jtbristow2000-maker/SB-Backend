@@ -42,6 +42,11 @@ import type {
   NumberPortRequestUpdateInput
 } from "@/server/telephony/portRequests";
 import type {
+  VoicemailGreetingRepository,
+  VoicemailGreetingAudio
+} from "@/server/voicemailGreetings/repository";
+import { VOICEMAIL_GREETING_CONTENT_TYPE } from "@/server/voicemailGreetings/repository";
+import type {
   TaskCreateInput,
   TaskRepository
 } from "@/server/intake/tasks";
@@ -58,7 +63,8 @@ import type {
   MessageRow,
   NumberPortRequestRow,
   QuoteDraftRow,
-  TaskRow
+  TaskRow,
+  VoicemailGreetingRow
 } from "./schema";
 
 type SupabaseErrorLike = { message: string } | null;
@@ -69,6 +75,25 @@ function nowIso(): string {
 
 function normalizeOptionalPhone(phone?: string | null): string | null {
   return phone ? normalizePhoneNumber(phone) : null;
+}
+
+function encodeBytea(bytes: Uint8Array): string {
+  return `\\x${Buffer.from(bytes).toString("hex")}`;
+}
+
+function decodeBytea(value: string): Uint8Array {
+  const hex = value.startsWith("\\x") ? value.slice(2) : value;
+  return new Uint8Array(Buffer.from(hex, "hex"));
+}
+
+function toVoicemailGreetingAudio(row: VoicemailGreetingRow): VoicemailGreetingAudio {
+  return {
+    business_id: row.business_id,
+    bytes: decodeBytea(row.audio_bytes),
+    content_type: VOICEMAIL_GREETING_CONTENT_TYPE,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
 }
 
 function failIfError(error: SupabaseErrorLike, action: string): void {
@@ -709,6 +734,52 @@ export class SupabaseNumberPortRequestRepository implements NumberPortRequestRep
   }
 }
 
+export class SupabaseVoicemailGreetingRepository implements VoicemailGreetingRepository {
+  constructor(private readonly client: SupabaseClient<Database>) {}
+
+  async findByBusinessId(businessId: string): Promise<VoicemailGreetingAudio | null> {
+    const { data, error } = await this.client
+      .from("voicemail_greetings")
+      .select("*")
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    failIfError(error, "find voicemail greeting");
+    return data ? toVoicemailGreetingAudio(data) : null;
+  }
+
+  async upsert(input: {
+    businessId: string;
+    bytes: Uint8Array;
+    contentType?: typeof VOICEMAIL_GREETING_CONTENT_TYPE;
+  }): Promise<VoicemailGreetingAudio> {
+    const timestamp = nowIso();
+    const { data, error } = await this.client
+      .from("voicemail_greetings")
+      .upsert(
+        {
+          business_id: input.businessId,
+          audio_bytes: encodeBytea(input.bytes),
+          content_type: input.contentType ?? VOICEMAIL_GREETING_CONTENT_TYPE,
+          updated_at: timestamp
+        },
+        { onConflict: "business_id" }
+      )
+      .select("*")
+      .single();
+
+    return toVoicemailGreetingAudio(requireRow(data, error, "upsert voicemail greeting"));
+  }
+
+  async deleteByBusinessId(businessId: string): Promise<void> {
+    const { error } = await this.client
+      .from("voicemail_greetings")
+      .delete()
+      .eq("business_id", businessId);
+    failIfError(error, "delete voicemail greeting");
+  }
+}
+
 export type IntakeRepositories = {
   businessRepository: BusinessRepository;
   businessMemberRepository: BusinessMemberRepository;
@@ -720,6 +791,7 @@ export type IntakeRepositories = {
   appointmentRepository: AppointmentRepository;
   quoteDraftRepository: QuoteDraftRepository;
   numberPortRequestRepository: NumberPortRequestRepository;
+  voicemailGreetingRepository: VoicemailGreetingRepository;
 };
 
 // Return the repositories typed as their interfaces (not the concrete classes) so
@@ -737,6 +809,7 @@ export function createSupabaseRepositories(client: SupabaseClient<Database>): In
     auditEventRepository: new SupabaseAuditEventRepository(client),
     appointmentRepository: new SupabaseAppointmentRepository(client),
     quoteDraftRepository: new SupabaseQuoteDraftRepository(client),
-    numberPortRequestRepository: new SupabaseNumberPortRequestRepository(client)
+    numberPortRequestRepository: new SupabaseNumberPortRequestRepository(client),
+    voicemailGreetingRepository: new SupabaseVoicemailGreetingRepository(client)
   };
 }

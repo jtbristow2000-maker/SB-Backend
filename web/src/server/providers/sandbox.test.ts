@@ -96,4 +96,22 @@ describe("BACKEND-04 sandbox providers", () => {
     expect(twiml).not.toContain('transcribe="true"');
     expect(twiml).not.toContain("transcribeCallback=");
   });
+
+  it("builds voicemail Record TwiML with a playable greeting URL", () => {
+    const providers = createSandboxProviders();
+
+    const twiml = providers.calls.buildRecordVoicemailTwiml({
+      greeting: "Fallback text",
+      playUrl: "https://demo.example.com/api/voicemail-greeting/business_1",
+      recordingStatusCallbackUrl: "/api/webhooks/twilio/recording",
+      transcribeCallbackUrl: null,
+      maxLengthSeconds: 120
+    });
+
+    expect(twiml).toContain(
+      "<Play>https://demo.example.com/api/voicemail-greeting/business_1</Play>"
+    );
+    expect(twiml).not.toContain("<Say>");
+    expect(twiml).toContain("<Record");
+  });
 });

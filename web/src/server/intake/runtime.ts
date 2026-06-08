@@ -37,6 +37,7 @@ import { SmsIntakeService } from "./sms";
 import { type TaskRepository, InMemoryTaskRepository } from "./tasks";
 import { VoiceIntakeService } from "./voice";
 import { InMemoryNumberPortRequestRepository } from "@/server/telephony/portRequests";
+import { InMemoryVoicemailGreetingRepository } from "@/server/voicemailGreetings/repository";
 
 export type IntakeRuntime = {
   businessRepository: BusinessRepository;
@@ -50,6 +51,7 @@ export type IntakeRuntime = {
   appointmentRepository: AppointmentRepository;
   quoteDraftRepository: QuoteDraftRepository;
   numberPortRequestRepository: IntakeRepositories["numberPortRequestRepository"];
+  voicemailGreetingRepository: IntakeRepositories["voicemailGreetingRepository"];
   providers: ReturnType<typeof createSandboxProviders>;
   smsProvider: SmsProvider;
   voiceIntakeService: VoiceIntakeService;
@@ -89,7 +91,8 @@ export async function getIntakeRuntime(): Promise<IntakeRuntime> {
           auditEventRepository: new InMemoryAuditEventRepository(),
           appointmentRepository: new InMemoryAppointmentRepository(),
           quoteDraftRepository: new InMemoryQuoteDraftRepository(),
-          numberPortRequestRepository: new InMemoryNumberPortRequestRepository()
+          numberPortRequestRepository: new InMemoryNumberPortRequestRepository(),
+          voicemailGreetingRepository: new InMemoryVoicemailGreetingRepository()
         };
   if (config.persistence === "memory") {
     await bootstrapSingleTenantBusiness(repositories.businessRepository);
@@ -115,7 +118,8 @@ export function buildIntakeRuntime(
     auditEventRepository,
     appointmentRepository,
     quoteDraftRepository,
-    numberPortRequestRepository
+    numberPortRequestRepository,
+    voicemailGreetingRepository
   } = repositories;
 
   const customerProfileService = new CustomerProfileService(customerProfileRepository);
@@ -140,6 +144,7 @@ export function buildIntakeRuntime(
     taskRepository,
     auditEventRepository,
     appointmentRepository,
+    voicemailGreetingRepository,
     callProvider: providers.calls,
     extractionProvider,
     autoReplyProvider,
@@ -155,7 +160,8 @@ export function buildIntakeRuntime(
     isFastTranscriptionEnabled: () => {
       const currentConfig = getAppConfig();
       return currentConfig.fastTranscriptionEnabled && currentConfig.openAiConfigured;
-    }
+    },
+    getPublicBaseUrl: () => getAppConfig().publicBaseUrl
   });
   const smsIntakeService = new SmsIntakeService({
     businessRepository,
@@ -176,6 +182,7 @@ export function buildIntakeRuntime(
     appointmentRepository,
     quoteDraftRepository,
     numberPortRequestRepository,
+    voicemailGreetingRepository,
     providers,
     smsProvider,
     voiceIntakeService,

@@ -6,6 +6,7 @@ import { AutoReplyLevelSlider } from "@/app/owner/AutoReplyLevelSlider";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
 import { LogoUpload } from "@/app/owner/LogoUpload";
 import { UnsavedChangesGuard } from "@/app/owner/UnsavedChangesGuard";
+import { VoicemailRecorder } from "@/app/owner/VoicemailRecorder";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildBusinessNumberReadModel, type BusinessNumberReadModel } from "@/server/telephony/numberState";
@@ -120,7 +121,9 @@ export default async function SettingsPage() {
 
         <section style={S.section}>
           <div style={S.sectionTitle}>Voicemail greeting</div>
-          <div style={S.sectionHint}>What callers hear before leaving a message. Leave blank for the default.</div>
+          <div style={S.sectionHint}>What callers hear before leaving a message. Record your own voice — callers hear that. The typed version below is read aloud only when there&apos;s no recording.</div>
+          {business && <VoicemailRecorder businessId={business.id} />}
+          <div style={{ ...S.sectionHint, marginTop: 14, marginBottom: 6 }}>Typed fallback (used when there&apos;s no recording)</div>
           <textarea name="voicemail_greeting" defaultValue={settings.voicemail_greeting} rows={2} placeholder="Sorry we missed your call. Please leave a message after the beep." style={S.textarea} />
         </section>
 

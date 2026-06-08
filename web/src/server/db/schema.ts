@@ -184,6 +184,12 @@ export type NumberPortRequestRow = {
   created_at: string;
 };
 
+export type VoicemailGreetingRow = TimestampColumns & {
+  business_id: string;
+  audio_bytes: string;
+  content_type: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -245,6 +251,12 @@ export type Database = {
         Row: NumberPortRequestRow;
         Insert: Partial<NumberPortRequestRow> & Pick<NumberPortRequestRow, "business_id" | "current_number_e164">;
         Update: Partial<NumberPortRequestRow>;
+        Relationships: [];
+      };
+      voicemail_greetings: {
+        Row: VoicemailGreetingRow;
+        Insert: Partial<VoicemailGreetingRow> & Pick<VoicemailGreetingRow, "business_id" | "audio_bytes">;
+        Update: Partial<VoicemailGreetingRow>;
         Relationships: [];
       };
     };

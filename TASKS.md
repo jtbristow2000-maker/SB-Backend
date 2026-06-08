@@ -792,6 +792,10 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-06-08: Recorded voicemail greeting audio:
+  - DONE (Codex, 2026-06-08): Added `voicemail_greetings` persistence with one WAV greeting per business, validated base64 uploads capped at 1 MB, and a public `GET /api/voicemail-greeting/[businessId]` audio route for Twilio.
+  - DONE (Codex, 2026-06-08): Voicemail TwiML now prefers recorded greeting audio via `<Play>` when `PUBLIC_BASE_URL` and audio exist, otherwise falls back to `voicemail_greeting` text or `DEFAULT_VOICEMAIL_GREETING`.
+  - UI contract: Claude can call `setVoicemailGreetingAudio(businessId: string, base64Wav: string | null)` from `@/server/voicemailGreetings/actions`; `null` clears the recording.
 - 2026-06-08: Phase 3 richer customer profiles:
   - DONE (Codex, 2026-06-08): Added nullable `vehicles`, `po_box`, `preferred_contact`, and `referral_source` fields to customer profiles with Supabase migration `0007_customer_profile_details.sql`; existing address fields and `notes` remain part of the profile row.
   - DONE (Codex, 2026-06-08): Extended the customer profile repository/service and owner profile update contract so the UI can save richer details via `PATCH /api/profiles/{id}`.

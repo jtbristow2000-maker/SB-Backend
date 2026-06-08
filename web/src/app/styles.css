@@ -89,6 +89,8 @@ p {
 }
 .card-tap:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
 
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
 /* Multi-line text truncation */
 .clamp-1, .clamp-2 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp-1 { -webkit-line-clamp: 1; }

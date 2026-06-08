@@ -147,11 +147,14 @@ export class SandboxCallProvider implements CallProvider {
     const transcribeAttributes = input.transcribeCallbackUrl
       ? ` transcribe="true" transcribeCallback="${escapeXml(input.transcribeCallbackUrl)}"`
       : "";
+    const greetingNode = input.playUrl
+      ? `<Play>${escapeXml(input.playUrl)}</Play>`
+      : `<Say>${escapeXml(input.greeting)}</Say>`;
 
     return [
       '<?xml version="1.0" encoding="UTF-8"?>',
       "<Response>",
-      `<Say>${escapeXml(input.greeting)}</Say>`,
+      greetingNode,
       `<Record recordingStatusCallback="${escapeXml(input.recordingStatusCallbackUrl)}" recordingStatusCallbackEvent="completed"${transcribeAttributes} maxLength="${input.maxLengthSeconds}" />`,
       "</Response>"
     ].join("");
