@@ -5,6 +5,7 @@ import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
+import { OnboardingChecklist, type OnboardingStep } from "@/app/owner/OnboardingChecklist";
 import { buildLeadRundown, callMetaLabels } from "@/app/owner/leadRundown";
 import { fmtPhone } from "@/app/owner/format";
 
@@ -108,12 +109,43 @@ export default async function Today() {
     };
   });
 
+  // Interactive setup checklist — each step ticks itself off from real data.
+  const onboardingSteps: OnboardingStep[] = [
+    {
+      key: "number",
+      title: "Connect your business number",
+      desc: "Advertise your Snagly number as your business line — on your site, truck, and cards.",
+      note: "Set your phone's “ring before voicemail” to ~30 sec (or off) so Snagly catches the call before your carrier voicemail picks up.",
+      done: Boolean(business?.twilio_number_e164),
+      href: "/owner/settings",
+      cta: "Set up →"
+    },
+    {
+      key: "services",
+      title: "Add your services, prices & hours",
+      desc: "So quotes auto-fill and the booking tool offers the right times.",
+      done: settings.quote_ranges.length > 0,
+      href: "/owner/settings",
+      cta: "Add →"
+    },
+    {
+      key: "lead",
+      title: "Get your first lead",
+      desc: "Test it: call your Snagly number from another phone, let it ring out, and watch the lead show up right here.",
+      done: profiles.length > 0 || calls.length > 0,
+      href: "/owner/settings",
+      cta: "Find # →"
+    }
+  ];
+
   return (
     <main style={S.page}>
       <div style={S.greeting}>{greeting(tz)}</div>
       <div style={S.date}>
         {new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric" })}
       </div>
+
+      <OnboardingChecklist steps={onboardingSteps} />
 
       <div style={S.metricRow}>
         {metrics.map((m) => (

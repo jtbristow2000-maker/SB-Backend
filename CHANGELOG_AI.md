@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Interactive setup checklist on Today
+
+### Added
+- A dismissible "Get set up" checklist on the Today dashboard that tracks setup progress from real data and ticks itself off: **Connect your number** (`business.twilio_number_e164`), **Add services/prices/hours** (`quote_ranges`), **Get your first lead** (any profiles/calls). Includes the critical voicemail-timing callout under the number step, a "test it" hint, and a progress bar. Shows a "🎉 You're all set!" state when complete; dismiss persists per-browser (localStorage).
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-08] - Keep Leads as the contact list (revert)
 
 ### Changed
