@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 
-import { createAppointment, markCallbackDone, setProfileStatus } from "@/app/owner/actions";
+import { createAppointment, markCallbackDone, markLeadWon, setProfileStatus } from "@/app/owner/actions";
 
 // Compact secondary toolbar for a lead: status (auto-saves on change), mark-callback-done,
 // and a Book button that reveals the booking fields on demand — so the page isn't cluttered
@@ -61,6 +61,16 @@ export function LeadActionBar({
         <button type="button" onClick={() => setBooking((v) => !v)} style={booking ? S.btnOn : S.btn}>
           📅 {confirmedLabel ? `Book — ${confirmedLabel}` : "Book"}{booking ? " ▾" : ""}
         </button>
+
+        <form action={markLeadWon} style={S.inline}>
+          <input type="hidden" name="profileId" value={profileId} />
+          <button type="submit" style={S.btnWon}>🎉 Won</button>
+        </form>
+        <form action={setProfileStatus} style={S.inline}>
+          <input type="hidden" name="profileId" value={profileId} />
+          <input type="hidden" name="status" value="lost" />
+          <button type="submit" style={S.btnLost}>Lost</button>
+        </form>
       </div>
 
       {confirmedLabel && !booking && (
@@ -101,5 +111,7 @@ const S: Record<string, CSSProperties> = {
   bookForm: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#f6f7f9", border: "1px solid #eceef2" },
   input: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
   btnPrimary: { padding: "8px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnWon: { padding: "7px 11px", borderRadius: 9, border: "1px solid rgba(var(--positive-rgb),0.4)", background: "rgba(var(--positive-rgb),0.12)", color: "#1d6b4f", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnLost: { padding: "7px 11px", borderRadius: 9, border: "1px solid #e7c6c6", background: "#fff", color: "#b23b3b", fontWeight: 600, fontSize: 13, cursor: "pointer" },
   confirmedBanner: { marginTop: 8, padding: "8px 12px", borderRadius: 10, background: "rgba(var(--positive-rgb),0.1)", border: "1px solid rgba(var(--positive-rgb),0.2)", color: "#1d6b4f", fontSize: 13, lineHeight: 1.4 }
 };

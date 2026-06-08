@@ -90,6 +90,42 @@ export async function setProfileStatus(formData: FormData): Promise<void> {
   revalidateOwner(profileId);
 }
 
+export async function markLeadWon(formData: FormData): Promise<void> {
+  const profileId = String(formData.get("profileId") ?? "");
+  if (!profileId) return;
+
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+  try {
+    await updateProfileForOwner(
+      { customerProfileRepository: rt.customerProfileRepository, auditEventRepository: rt.auditEventRepository },
+      { businessId: business.id, profileId, updates: { status: "won" } }
+    );
+    // Won = the job's done, so mark this lead's open appointments completed.
+    const appts = await rt.appointmentRepository.list();
+    const apptDeps = {
+      appointmentRepository: rt.appointmentRepository,
+      customerProfileRepository: rt.customerProfileRepository,
+      auditEventRepository: rt.auditEventRepository
+    };
+    await Promise.all(
+      appts
+        .filter(
+          (a) =>
+            a.business_id === business.id &&
+            a.customer_profile_id === profileId &&
+            (a.status === "scheduled" || a.status === "confirmed")
+        )
+        .map((a) => updateBusinessAppointment(apptDeps, business, a.id, { status: "completed" as AppointmentStatus }))
+    );
+  } catch {
+    /* best-effort: status is what matters */
+  }
+
+  revalidateOwner(profileId);
+  revalidatePath("/owner/calendar");
+}
+
 export async function sendOwnerText(formData: FormData): Promise<void> {
   const profileId = String(formData.get("profileId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
