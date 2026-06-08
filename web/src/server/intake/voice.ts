@@ -46,10 +46,12 @@ export type IncomingVoicePayload = {
 };
 
 export type IncomingVoiceResult = {
-  status: "dial" | "business_not_found" | "owner_phone_missing";
+  status: "dial" | "voicemail" | "business_not_found";
   twiml: string;
   profile?: CustomerProfileRow;
   callRecord?: CallRecordRow;
+  task?: TaskRow;
+  auditEvent?: AuditEventRow;
 };
 
 export type DialStatus = "completed" | "no-answer" | "busy" | "failed" | string;
@@ -120,13 +122,6 @@ export class VoiceIntakeService {
       };
     }
 
-    if (!business.owner_phone_e164) {
-      return {
-        status: "owner_phone_missing",
-        twiml: this.dependencies.callProvider.buildSayTwiml("The owner phone number is not configured.")
-      };
-    }
-
     const { profile } = await this.dependencies.customerProfileService.upsertByBusinessAndPhone({
       businessId: business.id,
       phone: fromPhone,
@@ -159,6 +154,23 @@ export class VoiceIntakeService {
           from_phone_e164: fromPhone,
           to_phone_e164: toPhone
         });
+
+    const settings = getBusinessSettings(business);
+    if (settings.forward_calls === false || !business.owner_phone_e164) {
+      const voicemail = await this.prepareVoicemailRecording({
+        callRecord,
+        dialCallStatus: settings.forward_calls === false ? "forwarding-disabled" : "owner-phone-missing"
+      });
+
+      return {
+        status: "voicemail",
+        profile,
+        callRecord: voicemail.callRecord,
+        task: voicemail.task,
+        auditEvent: voicemail.auditEvent,
+        twiml: voicemail.twiml
+      };
+    }
 
     return {
       status: "dial",
@@ -197,6 +209,30 @@ export class VoiceIntakeService {
       };
     }
 
+    const voicemail = await this.prepareVoicemailRecording({
+      callRecord,
+      dialCallStatus: payload.dialCallStatus
+    });
+
+    return {
+      status: "voicemail",
+      callRecord: voicemail.callRecord,
+      task: voicemail.task,
+      auditEvent: voicemail.auditEvent,
+      twiml: voicemail.twiml
+    };
+  }
+
+  private async prepareVoicemailRecording(input: {
+    callRecord: CallRecordRow;
+    dialCallStatus: string;
+  }): Promise<{
+    callRecord: CallRecordRow;
+    task: TaskRow;
+    auditEvent?: AuditEventRow;
+    twiml: string;
+  }> {
+    const { callRecord, dialCallStatus } = input;
     const missedCallAlreadyProcessed =
       callRecord.needs_review &&
       (callRecord.call_type === "missed" || callRecord.call_type === "voicemail");
@@ -214,7 +250,7 @@ export class VoiceIntakeService {
         customer_profile_id: callRecord.customer_profile_id,
         task_type: "callback",
         title: "Call back missed caller",
-        notes: `Missed call status: ${payload.dialCallStatus}`,
+        notes: `Missed call status: ${dialCallStatus}`,
         status: "open"
       }));
     const auditEvent = missedCallAlreadyProcessed
@@ -226,7 +262,7 @@ export class VoiceIntakeService {
           event_type: "call.missed",
           event_json: {
             providerCallId: callRecord.provider_call_id,
-            dialCallStatus: payload.dialCallStatus,
+            dialCallStatus,
             taskId: task.id
           }
         });
@@ -238,7 +274,6 @@ export class VoiceIntakeService {
     const greeting = await this.buildVoicemailGreeting(callRecord.business_id);
 
     return {
-      status: "voicemail",
       callRecord: missedCall,
       task,
       auditEvent,

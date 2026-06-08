@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resetIntakeRuntimeForTests } from "@/server/intake/runtime";
+import { getIntakeRuntime, resetIntakeRuntimeForTests } from "@/server/intake/runtime";
 
 import { POST } from "./route";
 
@@ -58,6 +58,36 @@ describe("BACKEND-07 Twilio voice route", () => {
     expect(response.headers.get("content-type")).toContain("text/xml");
     expect(twiml).toContain("<Response>");
     expect(twiml).toContain('<Dial timeout="18" action="/api/webhooks/twilio/voice/status">+12133734253</Dial>');
+  });
+
+  it("returns Record TwiML with HTTP 200 when call forwarding is disabled", async () => {
+    process.env.BUSINESS_ID = "00000000-0000-4000-8000-000000000303";
+    process.env.BUSINESS_NAME = "Route Voicemail Detail Co";
+    process.env.OWNER_PHONE = "(213) 373-4253";
+    process.env.BUSINESS_PHONE = "(310) 555-0199";
+    process.env.TIMEZONE = "America/New_York";
+    resetIntakeRuntimeForTests();
+    const runtime = await getIntakeRuntime();
+    await runtime.businessRepository.updateSettings("00000000-0000-4000-8000-000000000303", {
+      forward_calls: false
+    });
+
+    const request = new NextRequest("http://localhost:3000/api/webhooks/twilio/voice", {
+      method: "POST",
+      body: new URLSearchParams({
+        From: "(949) 555-0100",
+        To: "+13105550199",
+        CallSid: "CA_ROUTE_FORWARD_OFF"
+      })
+    });
+
+    const response = await POST(request);
+    const twiml = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(twiml).toContain("<Record");
+    expect(twiml).not.toContain("<Dial");
+    expect(await runtime.taskRepository.list()).toHaveLength(1);
   });
 
   it("emits a structured webhook log with provider and business ids", async () => {

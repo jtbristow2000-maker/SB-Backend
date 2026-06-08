@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - "Ring my phone first" backend wiring
+
+### Changed
+- `handleIncomingVoice` now honors `forward_calls=false`: calls skip owner dialing and return voicemail `<Record>` TwiML directly.
+- Missing `owner_phone_e164` now also takes a voicemail instead of returning an owner-phone configuration error.
+- Shared the missed-call voicemail setup between straight-to-voicemail and no-answer dial status paths, including callback task creation, audit logging, and delayed auto-reply scheduling.
+- The Twilio voice webhook now returns HTTP 200 for both valid `Dial` and valid direct-voicemail TwiML responses.
+
+### Verified
+- `npm run verify` passes: 42 test files, 160 passed, 1 skipped.
+
 ## [2026-06-08] - "Ring my phone first" toggle (setting + UI)
 
 ### Added

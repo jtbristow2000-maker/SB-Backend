@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     });
 
     return new NextResponse(result.twiml, {
-      status: result.status === "dial" ? 200 : 404,
+      status: result.status === "business_not_found" ? 404 : 200,
       headers: {
         "content-type": "text/xml; charset=utf-8"
       }
