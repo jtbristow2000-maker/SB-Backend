@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Settings tidy: Signature + consolidated replies block
+
+### Changed
+- Renamed the "Reply sign-off" field to **Signature** (label only; the `ai_sign_off` field is unchanged).
+- Moved the **Missed-call auto-text** into the **AI & Replies** section (top of the block) so all reply settings live together, instead of a separate section.
+
+### Verified
+- `npm run verify` passes: 40 test files, 149 passed, 1 skipped.
+
 ## [2026-06-08] - Unsaved-changes guard on Settings
 
 ### Added
