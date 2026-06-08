@@ -1,5 +1,6 @@
 import type { BusinessRepository } from "@/server/business/bootstrap";
-import { getBusinessSettings } from "@/server/business/settings";
+import type { AppointmentRepository } from "@/server/intake/appointments";
+import { sendMissedCallAutoReply } from "@/server/messages/autoReply";
 import type { CustomerProfileRepository } from "@/server/customerProfiles/repository";
 import type { CustomerProfileService } from "@/server/customerProfiles/service";
 import type {
@@ -12,6 +13,7 @@ import type {
 import { normalizePhoneNumber } from "@/server/phone/normalize";
 import { resolveBusinessByInboundPhone } from "@/server/telephony/routing";
 import type {
+  AutoReplyProvider,
   CallProvider,
   ExtractionProvider,
   SmsProvider,
@@ -29,7 +31,7 @@ export const RECORDING_WEBHOOK_URL = "/api/webhooks/twilio/recording";
 export const TRANSCRIPTION_CALLBACK_URL = RECORDING_WEBHOOK_URL;
 export const OWNER_DIAL_TIMEOUT_SECONDS = 18;
 export const VOICEMAIL_MAX_LENGTH_SECONDS = 120;
-const MISSED_CALL_AUTO_TEXT_MESSAGE_PREFIX = "missed-call-auto-text";
+export const MISSED_CALL_AUTO_REPLY_TIMEOUT_MS = 75_000;
 
 export type IncomingVoicePayload = {
   from: string;
@@ -78,13 +80,17 @@ export type VoiceIntakeDependencies = {
   messageRepository: MessageRepository;
   taskRepository: TaskRepository;
   auditEventRepository: AuditEventRepository;
+  appointmentRepository: AppointmentRepository;
   callProvider: CallProvider;
   extractionProvider: ExtractionProvider;
+  autoReplyProvider: AutoReplyProvider;
   transcriptionProvider: TranscriptionProvider;
   smsProvider: SmsProvider;
   isSmsSendingEnabled: () => boolean;
   isAiExtractionEnabled: () => boolean;
+  isAiReplyEnabled: () => boolean;
   isFastTranscriptionEnabled: () => boolean;
+  scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
 };
 
 export class VoiceIntakeService {
@@ -190,7 +196,6 @@ export class VoiceIntakeService {
       call_type: callRecord.call_type === "voicemail" ? "voicemail" : "missed",
       needs_review: true
     });
-    const business = await this.dependencies.businessRepository.findById(callRecord.business_id);
     const existingTask = callRecord.customer_profile_id
       ? await this.dependencies.taskRepository.findOpenCallbackTask(callRecord.customer_profile_id)
       : null;
@@ -217,110 +222,9 @@ export class VoiceIntakeService {
             taskId: task.id
           }
         });
-    const autoText = this.buildMissedCallAutoText({
-      businessName: business?.name ?? "our team",
-      settingsJson: business?.settings_json ?? {}
-    });
-    const smsSendingEnabled = this.dependencies.isSmsSendingEnabled();
-    const autoTextProviderMessageId = this.buildMissedCallAutoTextMessageId(callRecord);
-    const existingOutboundMessage =
-      await this.dependencies.messageRepository.findByProviderMessageId(
-        callRecord.business_id,
-        autoTextProviderMessageId
-      );
-    let outboundMessage = existingOutboundMessage
-      ? await this.dependencies.messageRepository.update(existingOutboundMessage.id, {
-          customer_profile_id: callRecord.customer_profile_id,
-          provider: this.dependencies.smsProvider.providerName,
-          provider_message_id: autoTextProviderMessageId,
-          direction: "outbound",
-          channel: "sms",
-          from_phone_e164: callRecord.to_phone_e164,
-          to_phone_e164: callRecord.from_phone_e164,
-          body: autoText,
-          status: existingOutboundMessage.status,
-          sent_at: existingOutboundMessage.sent_at
-        })
-      : await this.dependencies.messageRepository.create({
-          business_id: callRecord.business_id,
-          customer_profile_id: callRecord.customer_profile_id,
-          provider: this.dependencies.smsProvider.providerName,
-          provider_message_id: autoTextProviderMessageId,
-          direction: "outbound",
-          channel: "sms",
-          from_phone_e164: callRecord.to_phone_e164,
-          to_phone_e164: callRecord.from_phone_e164,
-          body: autoText,
-          status: "queued",
-          sent_at: null
-        });
 
-    if (!existingOutboundMessage && smsSendingEnabled && callRecord.from_phone_e164) {
-      try {
-        const smsResult = await this.dependencies.smsProvider.sendMessage({
-          businessId: callRecord.business_id,
-          to: callRecord.from_phone_e164,
-          from: callRecord.to_phone_e164 ?? undefined,
-          body: autoText
-        });
-        if (smsResult.networkCallsMade) {
-          outboundMessage = await this.dependencies.messageRepository.update(outboundMessage.id, {
-            status: "sent",
-            sent_at: new Date().toISOString()
-          });
-          await this.dependencies.auditEventRepository.create({
-            business_id: callRecord.business_id,
-            customer_profile_id: callRecord.customer_profile_id,
-            actor: "system",
-            event_type: "message.auto_text.sent",
-            event_json: {
-              messageId: outboundMessage.id,
-              providerCallId: callRecord.provider_call_id
-            }
-          });
-        } else {
-          await this.dependencies.auditEventRepository.create({
-            business_id: callRecord.business_id,
-            customer_profile_id: callRecord.customer_profile_id,
-            actor: "system",
-            event_type: "message.auto_text.queued",
-            event_json: {
-              messageId: outboundMessage.id,
-              providerCallId: callRecord.provider_call_id,
-              smsSendingEnabled: true,
-              networkCallsMade: false
-            }
-          });
-        }
-      } catch (error) {
-        outboundMessage = await this.dependencies.messageRepository.update(outboundMessage.id, {
-          status: "failed",
-          sent_at: null
-        });
-        await this.dependencies.auditEventRepository.create({
-          business_id: callRecord.business_id,
-          customer_profile_id: callRecord.customer_profile_id,
-          actor: "system",
-          event_type: "message.auto_text.failed",
-          event_json: {
-            messageId: outboundMessage.id,
-            providerCallId: callRecord.provider_call_id,
-            error: error instanceof Error ? error.message : "unknown"
-          }
-        });
-      }
-    } else if (!existingOutboundMessage) {
-      await this.dependencies.auditEventRepository.create({
-        business_id: callRecord.business_id,
-        customer_profile_id: callRecord.customer_profile_id,
-        actor: "system",
-        event_type: "message.auto_text.queued",
-        event_json: {
-          messageId: outboundMessage.id,
-          providerCallId: callRecord.provider_call_id,
-          smsSendingEnabled: false
-        }
-      });
+    if (!missedCallAlreadyProcessed) {
+      this.scheduleMissedCallAutoReplyTimeout(missedCall.id);
     }
 
     return {
@@ -337,23 +241,6 @@ export class VoiceIntakeService {
         maxLengthSeconds: VOICEMAIL_MAX_LENGTH_SECONDS
       })
     };
-  }
-
-  private buildMissedCallAutoText(input: {
-    businessName: string;
-    settingsJson: unknown;
-  }): string {
-    const template = getBusinessSettings({
-      settings_json: input.settingsJson as JsonValue
-    }).auto_text_message;
-
-    return template.replaceAll("{business_name}", input.businessName);
-  }
-
-  private buildMissedCallAutoTextMessageId(callRecord: CallRecordRow): string {
-    return `${MISSED_CALL_AUTO_TEXT_MESSAGE_PREFIX}:${
-      callRecord.provider_call_id ?? callRecord.id
-    }`;
   }
 
   async handleRecording(payload: RecordingPayload): Promise<RecordingResult> {
@@ -391,10 +278,42 @@ export class VoiceIntakeService {
         ? await this.extractVoicemailSuggestions(updated, transcript)
         : updated;
 
+    if (transcript) {
+      await this.sendMissedCallAutoReplySafe(enriched.id, "transcript");
+    }
+
     return {
       status: "updated",
       callRecord: enriched
     };
+  }
+
+  private scheduleMissedCallAutoReplyTimeout(callRecordId: string): void {
+    const schedule = this.dependencies.scheduleAutoReplyTimeout ?? defaultAutoReplyTimeoutScheduler;
+    schedule(() => {
+      void this.sendMissedCallAutoReplySafe(callRecordId, "timeout");
+    }, MISSED_CALL_AUTO_REPLY_TIMEOUT_MS);
+  }
+
+  private async sendMissedCallAutoReplySafe(
+    callRecordId: string,
+    reason: "transcript" | "timeout"
+  ): Promise<void> {
+    try {
+      await sendMissedCallAutoReply(this.dependencies, {
+        callRecordId,
+        reason
+      });
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          event: "missed_call.auto_reply_send_failed",
+          call_record_id: callRecordId,
+          reason,
+          error: error instanceof Error ? error.message : "unknown"
+        })
+      );
+    }
   }
 
   private async transcribeRecordingSafe(
@@ -505,4 +424,9 @@ function buildExtractedJson(extraction: VoicemailExtractionResult): JsonValue {
     service_requested: extraction.service_requested,
     summary: extraction.summary
   };
+}
+
+function defaultAutoReplyTimeoutScheduler(callback: () => void, delayMs: number): void {
+  const timer = setTimeout(callback, delayMs);
+  timer.unref?.();
 }

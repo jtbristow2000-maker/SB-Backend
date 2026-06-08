@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import type { ExtractionProvider, SmsProvider } from "@/server/providers";
+import type { AutoReplyProvider, ExtractionProvider, SmsProvider } from "@/server/providers";
 
-import { hasConfiguredExtractionProvider, selectExtractionProvider, selectSmsProvider } from "./runtime";
+import {
+  hasConfiguredExtractionProvider,
+  selectAutoReplyProvider,
+  selectExtractionProvider,
+  selectSmsProvider
+} from "./runtime";
 
 const sandboxProvider: ExtractionProvider = {
   providerName: "sandbox",
@@ -27,6 +32,19 @@ const sandboxSmsProvider: SmsProvider = {
       status: "logged",
       action: "sms.inbound.logged_only",
       networkCallsMade: false
+    };
+  }
+};
+
+const sandboxAutoReplyProvider: AutoReplyProvider = {
+  providerName: "sandbox",
+  async generateMissedCallReply() {
+    return {
+      provider: "sandbox",
+      status: "logged",
+      action: "ai.auto_reply.logged_only",
+      networkCallsMade: false,
+      body: null
     };
   }
 };
@@ -83,6 +101,42 @@ describe("intake runtime extraction provider selection", () => {
 
     expect(provider.providerName).toBe("sandbox");
     expect(hasConfiguredExtractionProvider(config, env)).toBe(false);
+  });
+});
+
+describe("intake runtime auto-reply provider selection", () => {
+  it("selects OpenAI auto replies when explicitly configured", () => {
+    const env: NodeJS.ProcessEnv = {
+      NODE_ENV: "test",
+      EXTRACTION_PROVIDER: "openai",
+      OPENAI_API_KEY: "openai-test-key"
+    };
+    const config = {
+      aiExtractionEnabled: true,
+      anthropicConfigured: false,
+      openAiConfigured: true
+    };
+
+    const provider = selectAutoReplyProvider(config, sandboxAutoReplyProvider, env);
+
+    expect(provider.providerName).toBe("openai");
+  });
+
+  it("keeps auto replies on the sandbox provider when AI is disabled", () => {
+    const env: NodeJS.ProcessEnv = {
+      NODE_ENV: "test",
+      EXTRACTION_PROVIDER: "openai",
+      OPENAI_API_KEY: "openai-test-key"
+    };
+    const config = {
+      aiExtractionEnabled: false,
+      anthropicConfigured: false,
+      openAiConfigured: true
+    };
+
+    const provider = selectAutoReplyProvider(config, sandboxAutoReplyProvider, env);
+
+    expect(provider).toBe(sandboxAutoReplyProvider);
   });
 });
 

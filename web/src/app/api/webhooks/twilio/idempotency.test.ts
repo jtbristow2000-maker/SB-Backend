@@ -112,16 +112,8 @@ describe("BACKEND-13 Twilio webhook idempotency", () => {
     const auditEvents = await runtime.auditEventRepository.list();
     expect(calls).toHaveLength(1);
     expect(tasks).toHaveLength(1);
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toMatchObject({
-      direction: "outbound",
-      status: "queued",
-      provider_message_id: "missed-call-auto-text:CA_IDEMPOTENT_STATUS"
-    });
-    expect(auditEvents.map((event) => event.event_type)).toEqual([
-      "call.missed",
-      "message.auto_text.queued"
-    ]);
+    expect(messages).toHaveLength(0);
+    expect(auditEvents.map((event) => event.event_type)).toEqual(["call.missed"]);
   });
 
   it("updates repeated recording webhooks in place", async () => {
@@ -142,12 +134,19 @@ describe("BACKEND-13 Twilio webhook idempotency", () => {
 
     const runtime = await getIntakeRuntime();
     const calls = await runtime.callRecordRepository.list();
+    const messages = await runtime.messageRepository.list();
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
       call_type: "voicemail",
       recording_url: "https://api.twilio.test/recording.wav",
       transcript: "First transcript.",
       needs_review: true
+    });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      provider_message_id: "missed-call-auto-text:CA_IDEMPOTENT_RECORDING",
+      direction: "outbound",
+      status: "draft"
     });
   });
 

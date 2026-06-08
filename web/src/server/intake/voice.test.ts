@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { bootstrapSingleTenantBusiness, InMemoryBusinessRepository } from "@/server/business/bootstrap";
 import { InMemoryCustomerProfileRepository } from "@/server/customerProfiles/repository";
 import { CustomerProfileService } from "@/server/customerProfiles/service";
 import {
+  type AutoReplyInput,
+  type AutoReplyProvider,
   createSandboxProviders,
   type ExtractionProvider,
   type SmsProvider,
@@ -16,10 +18,16 @@ import {
 } from "@/server/providers";
 
 import { InMemoryAuditEventRepository } from "./auditEvents";
+import { InMemoryAppointmentRepository } from "./appointments";
 import { InMemoryCallRecordRepository } from "./callRecords";
 import { InMemoryMessageRepository } from "./messages";
 import { InMemoryTaskRepository } from "./tasks";
-import { OWNER_DIAL_TIMEOUT_SECONDS, VOICE_STATUS_ACTION_URL, VoiceIntakeService } from "./voice";
+import {
+  MISSED_CALL_AUTO_REPLY_TIMEOUT_MS,
+  OWNER_DIAL_TIMEOUT_SECONDS,
+  VOICE_STATUS_ACTION_URL,
+  VoiceIntakeService
+} from "./voice";
 
 describe("BACKEND-07 voice intake service", () => {
   function createFakeExtractionProvider(input: {
@@ -92,15 +100,42 @@ describe("BACKEND-07 voice intake service", () => {
     };
   }
 
+  function createFakeAutoReplyProvider(input: {
+    body?: string;
+    calls: AutoReplyInput[];
+    throws?: boolean;
+  }): AutoReplyProvider {
+    return {
+      providerName: "fake",
+      async generateMissedCallReply(payload) {
+        input.calls.push(payload);
+        if (input.throws) {
+          throw new Error("fake auto-reply failure");
+        }
+
+        return {
+          provider: "fake",
+          status: "completed",
+          action: "ai.auto_reply.fake",
+          networkCallsMade: false,
+          body: input.body ?? `AI level ${payload.level} reply from ${payload.businessName}`
+        };
+      }
+    };
+  }
+
   async function setupService(
     options: {
       smsSendingEnabled?: boolean;
       smsThrows?: boolean;
       smsProvider?: SmsProvider;
       aiExtractionEnabled?: boolean;
+      aiReplyEnabled?: boolean;
       extractionProvider?: ExtractionProvider;
+      autoReplyProvider?: AutoReplyProvider;
       fastTranscriptionEnabled?: boolean;
       transcriptionProvider?: TranscriptionProvider;
+      scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
     } = {}
   ) {
     const providerLogs: SandboxProviderLog[] = [];
@@ -118,6 +153,7 @@ describe("BACKEND-07 voice intake service", () => {
     const callRecordRepository = new InMemoryCallRecordRepository();
     const messageRepository = new InMemoryMessageRepository();
     const taskRepository = new InMemoryTaskRepository();
+    const appointmentRepository = new InMemoryAppointmentRepository();
     const auditEventRepository = new InMemoryAuditEventRepository();
     const providers = createSandboxProviders((entry) => providerLogs.push(entry));
     const service = new VoiceIntakeService({
@@ -128,8 +164,10 @@ describe("BACKEND-07 voice intake service", () => {
       messageRepository,
       taskRepository,
       auditEventRepository,
+      appointmentRepository,
       callProvider: providers.calls,
       extractionProvider: options.extractionProvider ?? providers.extraction,
+      autoReplyProvider: options.autoReplyProvider ?? providers.autoReply,
       transcriptionProvider: options.transcriptionProvider ?? providers.transcription,
       smsProvider:
         options.smsProvider ??
@@ -138,7 +176,9 @@ describe("BACKEND-07 voice intake service", () => {
           : providers.sms),
       isSmsSendingEnabled: () => options.smsSendingEnabled ?? false,
       isAiExtractionEnabled: () => options.aiExtractionEnabled ?? false,
-      isFastTranscriptionEnabled: () => options.fastTranscriptionEnabled ?? false
+      isAiReplyEnabled: () => options.aiReplyEnabled ?? false,
+      isFastTranscriptionEnabled: () => options.fastTranscriptionEnabled ?? false,
+      scheduleAutoReplyTimeout: options.scheduleAutoReplyTimeout
     });
 
     return {
@@ -147,6 +187,7 @@ describe("BACKEND-07 voice intake service", () => {
       callRecordRepository,
       messageRepository,
       taskRepository,
+      appointmentRepository,
       auditEventRepository,
       providerLogs,
       service
@@ -228,7 +269,10 @@ describe("BACKEND-07 voice intake service", () => {
   });
 
   it("creates callback task and voicemail Record TwiML for missed dial calls", async () => {
-    const { callRecordRepository, messageRepository, taskRepository, auditEventRepository, providerLogs, service } = await setupService();
+    const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+    const { callRecordRepository, messageRepository, taskRepository, auditEventRepository, providerLogs, service } = await setupService({
+      scheduleAutoReplyTimeout: (callback, delayMs) => scheduled.push({ callback, delayMs })
+    });
     await service.handleIncomingVoice({
       from: "(949) 555-0100",
       to: "+13105550199",
@@ -257,24 +301,15 @@ describe("BACKEND-07 voice intake service", () => {
       task_type: "callback",
       status: "open"
     });
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toMatchObject({
-      direction: "outbound",
-      channel: "sms",
-      status: "queued",
-      to_phone_e164: "+19495550100"
-    });
-    expect(messages[0].body).toContain("Sorry we missed your call");
+    expect(messages).toHaveLength(0);
     expect(providerLogs).toHaveLength(0);
-    expect(auditEvents).toHaveLength(2);
+    expect(auditEvents).toHaveLength(1);
     expect(auditEvents[0]).toMatchObject({
       actor: "system",
       event_type: "call.missed"
     });
-    expect(auditEvents[1]).toMatchObject({
-      actor: "system",
-      event_type: "message.auto_text.queued"
-    });
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].delayMs).toBe(MISSED_CALL_AUTO_REPLY_TIMEOUT_MS);
   });
 
   it("omits Twilio transcription attributes when fast transcription is enabled", async () => {
@@ -310,6 +345,10 @@ describe("BACKEND-07 voice intake service", () => {
       callSid: "CA_AUTOTEXT_ON",
       dialCallStatus: "busy"
     });
+    await service.handleRecording({
+      callSid: "CA_AUTOTEXT_ON",
+      transcript: "Hi, I need a detail this week."
+    });
 
     const messages = await messageRepository.list();
     const auditEvents = await auditEventRepository.list();
@@ -334,6 +373,10 @@ describe("BACKEND-07 voice intake service", () => {
     await service.handleDialStatus({
       callSid: "CA_AUTOTEXT_REAL_SEND",
       dialCallStatus: "busy"
+    });
+    await service.handleRecording({
+      callSid: "CA_AUTOTEXT_REAL_SEND",
+      transcript: "Hi, I need a detail this week."
     });
 
     const messages = await messageRepository.list();
@@ -360,10 +403,24 @@ describe("BACKEND-07 voice intake service", () => {
       callSid: "CA_SETTINGS_AUTOTEXT",
       dialCallStatus: "no-answer"
     });
+    await service.handleRecording({
+      callSid: "CA_SETTINGS_AUTOTEXT",
+      transcript: "Hi, please text me back."
+    });
 
     const messages = await messageRepository.list();
     expect(messages).toHaveLength(1);
-    expect(messages[0].body).toBe("Thanks for calling Detail Test Co. We will text you soon.");
+    expect(messages[0]).toMatchObject({
+      body: "Thanks for calling Detail Test Co. We will text you soon.",
+      status: "draft",
+      media_json: {
+        kind: "missed_call_auto_reply",
+        draft: true,
+        reason: "transcript",
+        ai_generated: false,
+        auto_reply_level: 0
+      }
+    });
   });
 
   it("does not break missed-call flow when auto-text provider send fails", async () => {
@@ -381,6 +438,10 @@ describe("BACKEND-07 voice intake service", () => {
       callSid: "CA_AUTOTEXT_FAIL",
       dialCallStatus: "failed"
     });
+    await service.handleRecording({
+      callSid: "CA_AUTOTEXT_FAIL",
+      transcript: "Hi, I need a detail this week."
+    });
 
     const messages = await messageRepository.list();
     const auditEvents = await auditEventRepository.list();
@@ -389,6 +450,174 @@ describe("BACKEND-07 voice intake service", () => {
     expect(messages[0].status).toBe("failed");
     expect(messages[0].sent_at).toBeNull();
     expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.failed");
+  });
+
+  it("generates level-aware AI replies after voicemail transcripts", async () => {
+    for (const level of [0, 1, 2, 3]) {
+      const autoReplyCalls: AutoReplyInput[] = [];
+      const extractionCalls: VoicemailExtractionInput[] = [];
+      const autoReplyProvider = createFakeAutoReplyProvider({
+        calls: autoReplyCalls,
+        body: `AI level ${level} reply`
+      });
+      const { businessRepository, messageRepository, service } = await setupService({
+        aiExtractionEnabled: true,
+        aiReplyEnabled: true,
+        autoReplyProvider,
+        extractionProvider: createFakeExtractionProvider({
+          calls: extractionCalls,
+          result: {
+            caller_name: "Shaw",
+            requested_datetime: "Saturday",
+            service_requested: "full detail",
+            summary: "Shaw wants a full detail Saturday."
+          }
+        })
+      });
+      await businessRepository.updateSettings("00000000-0000-4000-8000-000000000201", {
+        auto_text_message: "Thanks for calling {business_name}. We will text you soon.",
+        quote_ranges: [{ service: "full detail", low: 120, high: 180 }],
+        ai_reply: {
+          auto_reply_level: level,
+          formality: 3,
+          warmth: 4,
+          custom_note: "Ask about monthly maintenance.",
+          sign_off: "Mike"
+        }
+      });
+      await service.handleIncomingVoice({
+        from: "(949) 555-0100",
+        to: "+13105550199",
+        callSid: `CA_AI_REPLY_LEVEL_${level}`
+      });
+      await service.handleDialStatus({
+        callSid: `CA_AI_REPLY_LEVEL_${level}`,
+        dialCallStatus: "no-answer"
+      });
+      await service.handleRecording({
+        callSid: `CA_AI_REPLY_LEVEL_${level}`,
+        transcript: "Hi, this is Shaw. Can I get a full detail Saturday?"
+      });
+
+      const messages = await messageRepository.list();
+      expect(extractionCalls).toHaveLength(1);
+      expect(messages).toHaveLength(1);
+      if (level === 0) {
+        expect(autoReplyCalls).toHaveLength(0);
+        expect(messages[0]).toMatchObject({
+          body: "Thanks for calling Detail Test Co. We will text you soon.",
+          status: "draft",
+          media_json: {
+            ai_generated: false,
+            auto_reply_level: 0,
+            price_label: null,
+            service_requested: "full detail"
+          }
+        });
+      } else {
+        expect(autoReplyCalls).toHaveLength(1);
+        expect(autoReplyCalls[0]).toMatchObject({
+          businessName: "Detail Test Co",
+          customerName: "Shaw",
+          level,
+          tone: { formality: 3, warmth: 4 },
+          customNote: "Ask about monthly maintenance.",
+          signOff: "Mike"
+        });
+        expect(autoReplyCalls[0].serviceRequested).toBe(level >= 2 ? "full detail" : null);
+        expect(autoReplyCalls[0].priceLabel).toBe(level >= 2 ? "$120–$180" : null);
+        expect(autoReplyCalls[0].openSlots).toHaveLength(level >= 2 ? 2 : 0);
+        expect(messages[0]).toMatchObject({
+          body: `AI level ${level} reply`,
+          status: "draft",
+          media_json: {
+            ai_generated: true,
+            auto_reply_level: level,
+            service_requested: "full detail",
+            price_label: level >= 2 ? "$120–$180" : null
+          }
+        });
+      }
+    }
+  });
+
+  it("falls back to a template reply after the no-voicemail timeout", async () => {
+    const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+    const { messageRepository, service } = await setupService({
+      scheduleAutoReplyTimeout: (callback, delayMs) => scheduled.push({ callback, delayMs })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUTOTEXT_TIMEOUT"
+    });
+    await service.handleDialStatus({
+      callSid: "CA_AUTOTEXT_TIMEOUT",
+      dialCallStatus: "no-answer"
+    });
+
+    expect(await messageRepository.list()).toHaveLength(0);
+    scheduled[0].callback();
+    await vi.waitFor(async () => expect(await messageRepository.list()).toHaveLength(1));
+
+    const messages = await messageRepository.list();
+    expect(messages[0]).toMatchObject({
+      status: "draft",
+      body: "Sorry we missed your call — reply here and we'll get right back to you. — Detail Test Co",
+      media_json: {
+        kind: "missed_call_auto_reply",
+        draft: true,
+        reason: "timeout",
+        ai_generated: false,
+        auto_reply_level: 0
+      }
+    });
+  });
+
+  it("falls back to the saved template when AI replies are disabled", async () => {
+    const autoReplyCalls: AutoReplyInput[] = [];
+    const { businessRepository, messageRepository, service } = await setupService({
+      aiExtractionEnabled: true,
+      aiReplyEnabled: false,
+      autoReplyProvider: createFakeAutoReplyProvider({ calls: autoReplyCalls }),
+      extractionProvider: createFakeExtractionProvider({
+        calls: [],
+        result: {
+          caller_name: "Shaw",
+          requested_datetime: "Saturday",
+          service_requested: "full detail",
+          summary: "Shaw wants a detail."
+        }
+      })
+    });
+    await businessRepository.updateSettings("00000000-0000-4000-8000-000000000201", {
+      auto_text_message: "Thanks for calling {business_name}. We will text you soon.",
+      ai_reply: { auto_reply_level: 3 }
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AI_REPLY_DISABLED"
+    });
+    await service.handleDialStatus({
+      callSid: "CA_AI_REPLY_DISABLED",
+      dialCallStatus: "no-answer"
+    });
+    await service.handleRecording({
+      callSid: "CA_AI_REPLY_DISABLED",
+      transcript: "Hi, this is Shaw. I need a full detail."
+    });
+
+    const messages = await messageRepository.list();
+    expect(autoReplyCalls).toHaveLength(0);
+    expect(messages[0]).toMatchObject({
+      body: "Thanks for calling Detail Test Co. We will text you soon.",
+      status: "draft",
+      media_json: {
+        ai_generated: false,
+        auto_reply_level: 3
+      }
+    });
   });
 
   it("attaches recording first and transcript later to the existing call", async () => {

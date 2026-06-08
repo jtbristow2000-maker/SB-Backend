@@ -1,4 +1,7 @@
 import type {
+  AutoReplyInput,
+  AutoReplyProvider,
+  AutoReplyResult,
   CallProvider,
   DialTwimlInput,
   ExtractionProvider,
@@ -234,12 +237,37 @@ export class SandboxExtractionProvider implements ExtractionProvider {
   }
 }
 
+export class SandboxAutoReplyProvider implements AutoReplyProvider {
+  readonly providerName = "sandbox";
+
+  constructor(private readonly logger: SandboxLogger = defaultLogger) {}
+
+  async generateMissedCallReply(input: AutoReplyInput): Promise<AutoReplyResult> {
+    this.logger({
+      provider: "sandbox",
+      action: "ai.auto_reply.logged_only",
+      businessId: input.businessId,
+      details: {
+        level: input.level,
+        transcriptLength: input.transcript?.length ?? 0,
+        slotCount: input.openSlots.length
+      }
+    });
+
+    return {
+      ...logged("ai.auto_reply.logged_only"),
+      body: null
+    };
+  }
+}
+
 export function createSandboxProviders(logger?: SandboxLogger) {
   return {
     sms: new SandboxSmsProvider(logger),
     calls: new SandboxCallProvider(logger),
     transcription: new SandboxTranscriptionProvider(logger),
     storage: new SandboxStorageProvider(logger),
-    extraction: new SandboxExtractionProvider(logger)
+    extraction: new SandboxExtractionProvider(logger),
+    autoReply: new SandboxAutoReplyProvider(logger)
   };
 }
