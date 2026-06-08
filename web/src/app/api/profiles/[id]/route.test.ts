@@ -211,6 +211,7 @@ describe("BACKEND-15 GET /api/profiles/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(body.profile.id).toBe(profile.id);
+    expect(body.first_time_customer).toBe(true);
     expect(body.open_task).toEqual({
       id: openTask.id,
       task_type: "callback",
@@ -371,10 +372,14 @@ describe("BACKEND-16 PATCH /api/profiles/[id]", () => {
           status: "contacted",
           notes: "Owner called back.",
           email: "sarah@example.test",
+          vehicles: "2019 Tahoe; wife's Civic",
           address_line1: "123 Main St",
+          po_box: "PO Box 44",
           city: "Los Angeles",
           state: "CA",
-          postal_code: "90001"
+          postal_code: "90001",
+          preferred_contact: "text",
+          referral_source: "Neighbor referral"
         },
         "profile-detail-test-key"
       ),
@@ -391,10 +396,14 @@ describe("BACKEND-16 PATCH /api/profiles/[id]", () => {
       status: "contacted",
       notes: "Owner called back.",
       email: "sarah@example.test",
+      vehicles: "2019 Tahoe; wife's Civic",
       address_line1: "123 Main St",
+      po_box: "PO Box 44",
       city: "Los Angeles",
       state: "CA",
-      postal_code: "90001"
+      postal_code: "90001",
+      preferred_contact: "text",
+      referral_source: "Neighbor referral"
     });
     expect(profiles[0]).toMatchObject(body.profile);
     expect(auditEvents).toHaveLength(1);
@@ -411,7 +420,11 @@ describe("BACKEND-16 PATCH /api/profiles/[id]", () => {
         status: { from: "new", to: "contacted" },
         notes: { from: "Initial note", to: "Owner called back." },
         email: { from: null, to: "sarah@example.test" },
-        address_line1: { from: null, to: "123 Main St" }
+        vehicles: { from: null, to: "2019 Tahoe; wife's Civic" },
+        address_line1: { from: null, to: "123 Main St" },
+        po_box: { from: null, to: "PO Box 44" },
+        preferred_contact: { from: null, to: "text" },
+        referral_source: { from: null, to: "Neighbor referral" }
       }
     });
   });

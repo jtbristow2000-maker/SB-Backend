@@ -15,6 +15,7 @@ export type QuoteDraftStatus = "draft" | "reviewed" | "sent" | "accepted" | "dec
 export type BusinessMemberRole = "owner" | "staff";
 export type NumberStatus = "none" | "trial" | "active" | "porting" | "ported";
 export type NumberPortRequestStatus = "collecting" | "submitted" | "completed" | "rejected";
+export type PreferredContactMethod = "call" | "text" | "email";
 
 export const BACKEND_02_TABLES = [
   "businesses",
@@ -63,11 +64,15 @@ export type CustomerProfileRow = TimestampColumns & {
   display_name: string | null;
   phone_e164: string | null;
   email: string | null;
+  vehicles: string | null;
   address_line1: string | null;
   address_line2: string | null;
+  po_box: string | null;
   city: string | null;
   state: string | null;
   postal_code: string | null;
+  preferred_contact: PreferredContactMethod | null;
+  referral_source: string | null;
   source: string | null;
   status: string;
   summary: string | null;

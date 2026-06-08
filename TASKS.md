@@ -792,6 +792,10 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-06-08: Phase 3 richer customer profiles:
+  - DONE (Codex, 2026-06-08): Added nullable `vehicles`, `po_box`, `preferred_contact`, and `referral_source` fields to customer profiles with Supabase migration `0007_customer_profile_details.sql`; existing address fields and `notes` remain part of the profile row.
+  - DONE (Codex, 2026-06-08): Extended the customer profile repository/service and owner profile update contract so the UI can save richer details via `PATCH /api/profiles/{id}`.
+  - DONE (Codex, 2026-06-08): Added derived `first_time_customer` to the profile detail read model based on whether the profile has completed appointments.
 - 2026-06-07: AI-driven missed-call auto-replies:
   - DONE (Codex, 2026-06-07): Missed-call auto-replies now wait for voicemail transcription before composing, with a 75-second template fallback timeout when no transcript arrives.
   - DONE (Codex, 2026-06-07): Added level-aware reply composition using `getBusinessSettings(business).ai_reply.auto_reply_level`, tone settings, custom note/sign-off, quote ranges, and open-slot suggestions.

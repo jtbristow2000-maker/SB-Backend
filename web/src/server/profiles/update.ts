@@ -1,17 +1,21 @@
 import type { CustomerProfileRepository } from "@/server/customerProfiles/repository";
 import type { AuditEventRepository } from "@/server/intake/auditEvents";
-import type { CustomerProfileRow, JsonValue } from "@/server/db/schema";
+import type { CustomerProfileRow, JsonValue, PreferredContactMethod } from "@/server/db/schema";
 
 export const PROFILE_UPDATE_FIELDS = [
   "display_name",
   "status",
   "notes",
   "email",
+  "vehicles",
   "address_line1",
   "address_line2",
+  "po_box",
   "city",
   "state",
-  "postal_code"
+  "postal_code",
+  "preferred_contact",
+  "referral_source"
 ] as const;
 
 export type ProfileUpdateField = (typeof PROFILE_UPDATE_FIELDS)[number];
@@ -20,11 +24,15 @@ export type ProfileUpdateInput = {
   status?: string;
   notes?: string | null;
   email?: string | null;
+  vehicles?: string | null;
   address_line1?: string | null;
   address_line2?: string | null;
+  po_box?: string | null;
   city?: string | null;
   state?: string | null;
   postal_code?: string | null;
+  preferred_contact?: PreferredContactMethod | null;
+  referral_source?: string | null;
 };
 
 export type ProfileUpdateValidation =
@@ -69,7 +77,8 @@ export function validateProfileUpdatePayload(payload: unknown): ProfileUpdateVal
     .filter(
       ([field, value]) =>
         (value !== null && typeof value !== "string") ||
-        (field === "status" && value === null)
+        (field === "status" && value === null) ||
+        (field === "preferred_contact" && !isPreferredContactValue(value))
     )
     .map(([field]) => field);
 
@@ -83,6 +92,10 @@ export function validateProfileUpdatePayload(payload: unknown): ProfileUpdateVal
   }
 
   return { ok: true, updates: Object.fromEntries(entries) as ProfileUpdateInput };
+}
+
+function isPreferredContactValue(value: unknown): boolean {
+  return value === null || value === "call" || value === "text" || value === "email";
 }
 
 export async function updateProfileForOwner(

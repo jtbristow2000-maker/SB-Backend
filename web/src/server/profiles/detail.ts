@@ -54,6 +54,7 @@ export type ProfileDetailResponse = {
   appointments: AppointmentRow[];
   quote_drafts: QuoteDraftRow[];
   customer_replied: boolean;
+  first_time_customer: boolean;
 };
 
 export type ProfileDetailInput = {
@@ -88,13 +89,22 @@ export function buildProfileDetail(input: ProfileDetailInput): ProfileDetailResp
     calls.filter((call) => call.call_type === "missed" || call.call_type === "voicemail")
   )[0] ?? null;
 
+  const linkedAppointments = selectLinkedAppointments(
+    input.businessId,
+    profile.id,
+    input.appointments ?? []
+  );
+
   return {
     profile,
     timeline: buildTimeline(calls, messages),
     open_task: selectOpenCallbackTask(input.businessId, profile.id, input.tasks),
-    appointments: selectLinkedAppointments(input.businessId, profile.id, input.appointments ?? []),
+    appointments: linkedAppointments,
     quote_drafts: selectLinkedQuoteDrafts(input.businessId, profile.id, input.quoteDrafts ?? []),
-    customer_replied: hasCustomerRepliedSinceCall(messages, latestMissedOrVoicemailCall)
+    customer_replied: hasCustomerRepliedSinceCall(messages, latestMissedOrVoicemailCall),
+    first_time_customer: !linkedAppointments.some(
+      (appointment) => appointment.status === "completed"
+    )
   };
 }
 

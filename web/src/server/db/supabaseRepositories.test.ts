@@ -94,11 +94,15 @@ describeSupabase("BACKEND-19 Supabase repository contract", () => {
         display_name: "Persistent Caller",
         phone_e164: "+12128675309",
         email: null,
+        vehicles: "2019 Tahoe",
         address_line1: null,
         address_line2: null,
+        po_box: null,
         city: null,
         state: null,
         postal_code: null,
+        preferred_contact: "text",
+        referral_source: "Google",
         source: "incoming_call",
         status: "new",
         summary: null,
@@ -131,7 +135,10 @@ describeSupabase("BACKEND-19 Supabase repository contract", () => {
         "+12128675309"
       )).toMatchObject({
         id: profile.id,
-        display_name: "Persistent Caller"
+        display_name: "Persistent Caller",
+        vehicles: "2019 Tahoe",
+        preferred_contact: "text",
+        referral_source: "Google"
       });
       expect(getBusinessSettings(businessWithSettings)).toMatchObject({
         auto_text_message: "Thanks for calling {business_name}. We will reply soon.",
