@@ -2,10 +2,17 @@ import { randomUUID } from "node:crypto";
 
 import type { CustomerProfileRow } from "@/server/db/schema";
 
+type CustomerProfileOptionalCreateFields =
+  | "vehicles"
+  | "po_box"
+  | "preferred_contact"
+  | "referral_source";
+
 export type CustomerProfileCreateInput = Omit<
   CustomerProfileRow,
-  "id" | "created_at" | "updated_at"
->;
+  "id" | "created_at" | "updated_at" | CustomerProfileOptionalCreateFields
+> &
+  Partial<Pick<CustomerProfileRow, CustomerProfileOptionalCreateFields>>;
 
 export type CustomerProfileUpdateInput = Partial<
   Omit<CustomerProfileRow, "id" | "business_id" | "phone_e164" | "created_at">
@@ -60,6 +67,10 @@ export class InMemoryCustomerProfileRepository implements CustomerProfileReposit
     const timestamp = nowIso();
     const profile: CustomerProfileRow = {
       ...input,
+      vehicles: input.vehicles ?? null,
+      po_box: input.po_box ?? null,
+      preferred_contact: input.preferred_contact ?? null,
+      referral_source: input.referral_source ?? null,
       id: randomUUID(),
       created_at: timestamp,
       updated_at: timestamp

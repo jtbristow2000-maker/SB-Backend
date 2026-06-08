@@ -12,12 +12,22 @@ describe("BACKEND-05 CustomerProfileService", () => {
       businessId: "business_1",
       phone: "(213) 373-4253",
       displayName: "Taylor Customer",
-      source: "missed_call"
+      source: "missed_call",
+      vehicles: "2019 Tahoe",
+      poBox: "PO Box 44",
+      preferredContact: "text",
+      referralSource: "Google"
     });
 
     expect(result.created).toBe(true);
     expect(result.profile.phone_e164).toBe("+12133734253");
     expect(result.profile.business_id).toBe("business_1");
+    expect(result.profile).toMatchObject({
+      vehicles: "2019 Tahoe",
+      po_box: "PO Box 44",
+      preferred_contact: "text",
+      referral_source: "Google"
+    });
   });
 
   it("upserts by business and normalized phone to prevent duplicates", async () => {

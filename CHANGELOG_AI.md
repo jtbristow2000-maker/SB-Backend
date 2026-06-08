@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Richer customer profile fields
+
+### Added
+- Added nullable customer profile fields for `vehicles`, `po_box`, `preferred_contact`, and `referral_source`, plus the existing address and notes fields are now part of the owner-editable profile contract.
+- Added Supabase migration `0007_customer_profile_details.sql` with an idempotent preferred-contact constraint for `call`, `text`, or `email`.
+- Added `first_time_customer` to the profile detail read model, derived from whether the profile has any completed appointments.
+
+### Changed
+- Extended customer profile create/upsert/update paths for both in-memory and Supabase-backed repositories so richer profile details round-trip through the same repository interfaces.
+- Extended `PATCH /api/profiles/{id}` validation to accept the new owner-editable fields and reject unsupported `preferred_contact` values.
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-07] - AI-driven delayed missed-call auto-replies
 
 ### Added

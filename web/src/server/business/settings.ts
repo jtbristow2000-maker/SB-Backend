@@ -26,6 +26,7 @@ export type AiReplySettings = {
 
 export type BusinessSettings = {
   brand_color: string;
+  logo_url: string;
   auto_text_message: string;
   business_hours: BusinessHoursSettings;
   quote_ranges: QuoteRangeSettings[];
@@ -34,6 +35,7 @@ export type BusinessSettings = {
 
 export type BusinessSettingsUpdate = {
   brand_color?: string;
+  logo_url?: string;
   auto_text_message?: string;
   business_hours?: Partial<BusinessHoursSettings>;
   quote_ranges?: QuoteRangeSettings[];
@@ -55,6 +57,7 @@ export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
 
 export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   brand_color: "#5b5bd6",
+  logo_url: "",
   auto_text_message: DEFAULT_MISSED_CALL_AUTO_TEXT,
   business_hours: {
     open: "09:00",
@@ -74,6 +77,7 @@ export function getBusinessSettings(
 
   return {
     brand_color: readHexColor(raw.brand_color) ?? DEFAULT_BUSINESS_SETTINGS.brand_color,
+    logo_url: typeof raw.logo_url === "string" ? raw.logo_url.trim() : DEFAULT_BUSINESS_SETTINGS.logo_url,
     auto_text_message:
       readNonEmptyString(raw.auto_text_message) ??
       readNonEmptyString(raw.missed_call_auto_text) ??
@@ -92,6 +96,9 @@ export function mergeBusinessSettingsJson(
 
   if (partial.brand_color !== undefined) {
     merged.brand_color = partial.brand_color;
+  }
+  if (partial.logo_url !== undefined) {
+    merged.logo_url = partial.logo_url;
   }
 
   if (partial.auto_text_message !== undefined) {

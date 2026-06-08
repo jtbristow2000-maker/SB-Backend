@@ -7,6 +7,7 @@ import { getOwnerBusinessContext } from "@/server/business/current";
 
 import { AutoRefresh } from "./AutoRefresh";
 import { OwnerNav } from "./OwnerNav";
+import { BrandLogo } from "./BrandLogo";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -42,7 +43,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
       {/* Desktop sidebar */}
       <aside className="owner-sidebar">
         <div className="owner-brand">
-          <div className="owner-logo">{(business?.name || "B").charAt(0).toUpperCase()}</div>
+          <BrandLogo logoUrl={settings.logo_url} letter={(business?.name || "B").charAt(0).toUpperCase()} className="owner-logo" />
           <div>
             <div className="owner-brand-name">{business?.name || "Business Hub"}</div>
             <div className="owner-brand-sub">Owner Dashboard</div>
@@ -75,7 +76,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
       {/* Mobile top bar */}
       <header className="owner-topbar">
         <div className="owner-topbar-brand">
-          <span className="owner-logo owner-logo-sm">{(business?.name || "B").charAt(0).toUpperCase()}</span>
+          <BrandLogo logoUrl={settings.logo_url} letter={(business?.name || "B").charAt(0).toUpperCase()} className="owner-logo owner-logo-sm" />
           <span>{business?.name || "Business Hub"}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>

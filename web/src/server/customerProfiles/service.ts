@@ -1,6 +1,6 @@
 import type { CountryCode } from "libphonenumber-js";
 
-import type { CustomerProfileRow } from "@/server/db/schema";
+import type { CustomerProfileRow, PreferredContactMethod } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
 
 import {
@@ -14,11 +14,15 @@ export type CustomerProfileUpsertInput = {
   defaultCountry?: CountryCode;
   displayName?: string | null;
   email?: string | null;
+  vehicles?: string | null;
   addressLine1?: string | null;
   addressLine2?: string | null;
+  poBox?: string | null;
   city?: string | null;
   state?: string | null;
   postalCode?: string | null;
+  preferredContact?: PreferredContactMethod | null;
+  referralSource?: string | null;
   source?: string | null;
   status?: string;
   summary?: string | null;
@@ -48,11 +52,15 @@ export class CustomerProfileService {
           display_name: input.displayName ?? null,
           phone_e164: phoneE164,
           email: input.email ?? null,
+          vehicles: input.vehicles ?? null,
           address_line1: input.addressLine1 ?? null,
           address_line2: input.addressLine2 ?? null,
+          po_box: input.poBox ?? null,
           city: input.city ?? null,
           state: input.state ?? null,
           postal_code: input.postalCode ?? null,
+          preferred_contact: input.preferredContact ?? null,
+          referral_source: input.referralSource ?? null,
           source: input.source ?? null,
           status: input.status ?? "new",
           summary: input.summary ?? null,
@@ -79,11 +87,15 @@ export class CustomerProfileService {
     const profile = await this.repository.update(profileToUpdate.id, {
       display_name: input.displayName ?? profileToUpdate.display_name,
       email: input.email ?? profileToUpdate.email,
+      vehicles: input.vehicles ?? profileToUpdate.vehicles,
       address_line1: input.addressLine1 ?? profileToUpdate.address_line1,
       address_line2: input.addressLine2 ?? profileToUpdate.address_line2,
+      po_box: input.poBox ?? profileToUpdate.po_box,
       city: input.city ?? profileToUpdate.city,
       state: input.state ?? profileToUpdate.state,
       postal_code: input.postalCode ?? profileToUpdate.postal_code,
+      preferred_contact: input.preferredContact ?? profileToUpdate.preferred_contact,
+      referral_source: input.referralSource ?? profileToUpdate.referral_source,
       source: input.source ?? profileToUpdate.source,
       status: input.status ?? profileToUpdate.status,
       summary: input.summary ?? profileToUpdate.summary,

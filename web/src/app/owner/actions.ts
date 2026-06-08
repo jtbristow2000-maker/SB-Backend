@@ -462,6 +462,7 @@ export async function saveSettings(formData: FormData): Promise<void> {
   if (/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
     partial.brand_color = brandColor.toLowerCase();
   }
+  partial.logo_url = String(formData.get("logo_url") ?? "").trim();
 
   const autoText = String(formData.get("auto_text_message") ?? "").trim();
   if (autoText) {
