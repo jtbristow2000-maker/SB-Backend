@@ -13,6 +13,7 @@ import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 import { fmtPhone, readExtracted, type Extracted } from "@/app/owner/format";
 import { parseInboundConfirmation } from "@/app/owner/inboundParser";
 import { saveCustomerDetails } from "@/app/owner/actions";
+import { detectVehicle, detectPreferredContact } from "@/app/owner/leadRundown";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -172,6 +173,30 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     .filter(Boolean)
     .join("\n");
 
+  // Auto-fill the Customer-details panel from the voicemail + this lead's full history
+  // (every transcript/summary + every inbound text). These are editable suggestions —
+  // the field shows the detected value until the owner reviews and Saves it. We only
+  // pre-fill the high-confidence signals (the vehicle, an explicit contact preference);
+  // address / referral are almost never spoken on a voicemail, so they stay blank.
+  const historyText = [
+    ...detailCalls.map((c) => `${c.call.transcript ?? ""} ${c.call.ai_summary ?? ""}`),
+    ...messages
+      .filter(
+        (m) =>
+          (!business || m.business_id === business.id) &&
+          m.customer_profile_id === profile.id &&
+          m.direction === "inbound"
+      )
+      .map((m) => m.body ?? "")
+  ].join(" ");
+  const detectedVehicle = detectVehicle(historyText);
+  const detectedContact = detectPreferredContact(historyText);
+  const vehiclesValue = profile.vehicles || detectedVehicle || "";
+  const contactValue = profile.preferred_contact || detectedContact || "";
+  const autoFilled = Boolean(
+    (!profile.vehicles && detectedVehicle) || (!profile.preferred_contact && detectedContact)
+  );
+
   return (
     <main style={S.shell}>
       <MarkLeadRead id={profile.id} activity={profile.last_contact_at} />
@@ -205,17 +230,20 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       />
 
       <details style={S.detailsBox}>
-        <summary style={S.detailsSummary}>👤 Customer details</summary>
+        <summary style={S.detailsSummary}>👤 Customer details{autoFilled ? " ✨" : ""}</summary>
         <form action={saveCustomerDetails} style={S.detailsForm}>
           <input type="hidden" name="profileId" value={profile.id} />
+          {autoFilled && (
+            <div style={S.autoHint}>✨ Pre-filled from the voicemail — review and Save to keep it.</div>
+          )}
           <label style={S.fieldLabel}>Vehicle(s)
-            <input name="vehicles" defaultValue={profile.vehicles ?? ""} placeholder="e.g. 2019 Tahoe; wife's Civic" style={S.fieldInput} autoComplete="off" />
+            <input name="vehicles" defaultValue={vehiclesValue} placeholder="e.g. 2019 Tahoe; wife's Civic" style={S.fieldInput} autoComplete="off" />
           </label>
           <label style={S.fieldLabel}>Address / PO box
             <input name="po_box" defaultValue={profile.po_box ?? ""} placeholder="123 Main St / PO Box 45" style={S.fieldInput} autoComplete="off" />
           </label>
           <label style={S.fieldLabel}>Preferred contact
-            <select name="preferred_contact" defaultValue={profile.preferred_contact ?? ""} style={S.fieldInput}>
+            <select name="preferred_contact" defaultValue={contactValue} style={S.fieldInput}>
               <option value="">No preference</option>
               <option value="call">Call</option>
               <option value="text">Text</option>
@@ -338,7 +366,8 @@ const S: Record<string, CSSProperties> = {
   detailsForm: { display: "flex", flexDirection: "column", gap: 10, padding: "2px 14px 14px" },
   fieldLabel: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, fontWeight: 700, color: "#3c414b" },
   fieldInput: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit" },
-  detailsSave: { alignSelf: "flex-start", padding: "9px 14px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }
+  detailsSave: { alignSelf: "flex-start", padding: "9px 14px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  autoHint: { fontSize: 12, color: "#3a3a9a", background: "rgba(var(--brand-rgb),0.08)", padding: "8px 11px", borderRadius: 8, lineHeight: 1.4, marginBottom: 2 }
 };
 
 function bubbleWrap(out: boolean): CSSProperties {

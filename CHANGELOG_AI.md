@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Auto-fill customer details from the voicemail
+
+### Added
+- The lead detail "Customer details" panel now pre-fills **Vehicle(s)** and **Preferred contact** from the voicemail transcript(s), AI summaries, and inbound texts across the lead's full history — shown as editable suggestions until the owner reviews and Saves them.
+- Added `detectPreferredContact` (conservative: only explicit "text me / email me / call is best" phrasing, never a generic "call me back" closer) and exported the existing `detectVehicle` from `leadRundown.ts`.
+- A ✨ marker on the panel header + an inline "Pre-filled from the voicemail" hint when a field was auto-suggested. Address / referral stay blank (rarely spoken on a voicemail).
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-08] - Richer customer profile fields
 
 ### Added
