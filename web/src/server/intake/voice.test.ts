@@ -22,6 +22,7 @@ import { InMemoryAppointmentRepository } from "./appointments";
 import { InMemoryCallRecordRepository } from "./callRecords";
 import { InMemoryMessageRepository } from "./messages";
 import { InMemoryTaskRepository } from "./tasks";
+import { InMemoryVoicemailGreetingRepository } from "@/server/voicemailGreetings/repository";
 import {
   MISSED_CALL_AUTO_REPLY_TIMEOUT_MS,
   OWNER_DIAL_TIMEOUT_SECONDS,
@@ -151,6 +152,7 @@ describe("BACKEND-07 voice intake service", () => {
       autoReplyProvider?: AutoReplyProvider;
       fastTranscriptionEnabled?: boolean;
       transcriptionProvider?: TranscriptionProvider;
+      publicBaseUrl?: string | null;
       scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
     } = {}
   ) {
@@ -170,6 +172,7 @@ describe("BACKEND-07 voice intake service", () => {
     const messageRepository = new InMemoryMessageRepository();
     const taskRepository = new InMemoryTaskRepository();
     const appointmentRepository = new InMemoryAppointmentRepository();
+    const voicemailGreetingRepository = new InMemoryVoicemailGreetingRepository();
     const auditEventRepository = new InMemoryAuditEventRepository();
     const providers = createSandboxProviders((entry) => providerLogs.push(entry));
     const service = new VoiceIntakeService({
@@ -181,6 +184,7 @@ describe("BACKEND-07 voice intake service", () => {
       taskRepository,
       auditEventRepository,
       appointmentRepository,
+      voicemailGreetingRepository,
       callProvider: providers.calls,
       extractionProvider: options.extractionProvider ?? providers.extraction,
       autoReplyProvider: options.autoReplyProvider ?? providers.autoReply,
@@ -194,6 +198,7 @@ describe("BACKEND-07 voice intake service", () => {
       isAiExtractionEnabled: () => options.aiExtractionEnabled ?? false,
       isAiReplyEnabled: () => options.aiReplyEnabled ?? false,
       isFastTranscriptionEnabled: () => options.fastTranscriptionEnabled ?? false,
+      getPublicBaseUrl: () => options.publicBaseUrl ?? null,
       scheduleAutoReplyTimeout: options.scheduleAutoReplyTimeout
     });
 
@@ -204,6 +209,7 @@ describe("BACKEND-07 voice intake service", () => {
       messageRepository,
       taskRepository,
       appointmentRepository,
+      voicemailGreetingRepository,
       auditEventRepository,
       providerLogs,
       service
@@ -345,6 +351,54 @@ describe("BACKEND-07 voice intake service", () => {
     expect(result.twiml).toContain('recordingStatusCallback="/api/webhooks/twilio/recording"');
     expect(result.twiml).not.toContain('transcribe="true"');
     expect(result.twiml).not.toContain("transcribeCallback=");
+  });
+
+  it("uses the configured voicemail greeting text when no audio greeting exists", async () => {
+    const { businessRepository, service } = await setupService();
+    await businessRepository.updateSettings("00000000-0000-4000-8000-000000000201", {
+      voicemail_greeting: "Thanks for calling Detail Test Co. Leave us the details."
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_TEXT_GREETING"
+    });
+
+    const result = await service.handleDialStatus({
+      callSid: "CA_TEXT_GREETING",
+      dialCallStatus: "no-answer"
+    });
+
+    expect(result.twiml).toContain(
+      "<Say>Thanks for calling Detail Test Co. Leave us the details.</Say>"
+    );
+    expect(result.twiml).not.toContain("<Play>");
+  });
+
+  it("plays the recorded voicemail greeting audio when it exists and a public URL is configured", async () => {
+    const { service, voicemailGreetingRepository } = await setupService({
+      publicBaseUrl: "https://demo.example.com"
+    });
+    await voicemailGreetingRepository.upsert({
+      businessId: "00000000-0000-4000-8000-000000000201",
+      bytes: new Uint8Array([82, 73, 70, 70, 4, 0, 0, 0, 87, 65, 86, 69])
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUDIO_GREETING"
+    });
+
+    const result = await service.handleDialStatus({
+      callSid: "CA_AUDIO_GREETING",
+      dialCallStatus: "no-answer"
+    });
+
+    expect(result.twiml).toContain(
+      "<Play>https://demo.example.com/api/voicemail-greeting/00000000-0000-4000-8000-000000000201</Play>"
+    );
+    expect(result.twiml).not.toContain("<Say>");
+    expect(result.twiml).toContain("<Record");
   });
 
   it("keeps missed-call auto-text queued when sandbox provider does not transmit", async () => {

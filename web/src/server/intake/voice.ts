@@ -1,4 +1,5 @@
 import type { BusinessRepository } from "@/server/business/bootstrap";
+import { DEFAULT_VOICEMAIL_GREETING, getBusinessSettings } from "@/server/business/settings";
 import type { AppointmentRepository } from "@/server/intake/appointments";
 import { sendMissedCallAutoReply } from "@/server/messages/autoReply";
 import type {
@@ -16,6 +17,7 @@ import type {
 } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
 import { resolveBusinessByInboundPhone } from "@/server/telephony/routing";
+import type { VoicemailGreetingRepository } from "@/server/voicemailGreetings/repository";
 import type {
   AutoReplyProvider,
   CallProvider,
@@ -85,6 +87,7 @@ export type VoiceIntakeDependencies = {
   taskRepository: TaskRepository;
   auditEventRepository: AuditEventRepository;
   appointmentRepository: AppointmentRepository;
+  voicemailGreetingRepository: VoicemailGreetingRepository;
   callProvider: CallProvider;
   extractionProvider: ExtractionProvider;
   autoReplyProvider: AutoReplyProvider;
@@ -94,6 +97,7 @@ export type VoiceIntakeDependencies = {
   isAiExtractionEnabled: () => boolean;
   isAiReplyEnabled: () => boolean;
   isFastTranscriptionEnabled: () => boolean;
+  getPublicBaseUrl?: () => string | null;
   scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
 };
 
@@ -231,13 +235,16 @@ export class VoiceIntakeService {
       this.scheduleMissedCallAutoReplyTimeout(missedCall.id);
     }
 
+    const greeting = await this.buildVoicemailGreeting(callRecord.business_id);
+
     return {
       status: "voicemail",
       callRecord: missedCall,
       task,
       auditEvent,
       twiml: this.dependencies.callProvider.buildRecordVoicemailTwiml({
-        greeting: "Sorry we missed your call. Please leave a message after the beep.",
+        greeting: greeting.text,
+        playUrl: greeting.playUrl,
         recordingStatusCallbackUrl: RECORDING_WEBHOOK_URL,
         transcribeCallbackUrl: this.dependencies.isFastTranscriptionEnabled()
           ? null
@@ -245,6 +252,42 @@ export class VoiceIntakeService {
         maxLengthSeconds: VOICEMAIL_MAX_LENGTH_SECONDS
       })
     };
+  }
+
+  private async buildVoicemailGreeting(
+    businessId: string
+  ): Promise<{ text: string; playUrl: string | null }> {
+    const business = await this.dependencies.businessRepository.findById(businessId);
+    const settings = getBusinessSettings(business);
+    const text = settings.voicemail_greeting || DEFAULT_VOICEMAIL_GREETING;
+    const baseUrl = this.dependencies.getPublicBaseUrl?.() ?? null;
+
+    if (!baseUrl) {
+      return { text, playUrl: null };
+    }
+
+    try {
+      const greeting = await this.dependencies.voicemailGreetingRepository.findByBusinessId(
+        businessId
+      );
+      if (!greeting) {
+        return { text, playUrl: null };
+      }
+
+      return {
+        text,
+        playUrl: new URL(`/api/voicemail-greeting/${businessId}`, baseUrl).toString()
+      };
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          event: "voicemail.greeting_audio_lookup_failed",
+          business_id: businessId,
+          error: error instanceof Error ? error.message : "unknown"
+        })
+      );
+      return { text, playUrl: null };
+    }
   }
 
   async handleRecording(payload: RecordingPayload): Promise<RecordingResult> {
