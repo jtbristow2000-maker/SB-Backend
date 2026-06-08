@@ -51,8 +51,6 @@ export default async function Today() {
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })
     : [];
 
-  const replied = callbacks.filter((c) => c.customer_replied).length;
-  const voicemails = calls.filter((c) => c.transcript || c.call_type === "voicemail").length;
   // Compare calendar days in the business timezone (en-CA → YYYY-MM-DD).
   const dayKey = (d: Date) =>
     new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -63,6 +61,12 @@ export default async function Today() {
   const weekAgoMs = Date.now() - 7 * 24 * 3600 * 1000;
   const inWeek = (iso: string | null | undefined) => Boolean(iso) && new Date(iso as string).getTime() >= weekAgoMs;
   const bizAppts = appointments.filter((a) => !business || a.business_id === business.id);
+  const bookedToday = bizAppts.filter(
+    (a) => dayKey(new Date(a.scheduled_start_at)) === todayKey && a.status !== "cancelled" && a.status !== "no_show"
+  ).length;
+  const voicemailsToday = calls.filter(
+    (c) => c.started_at && dayKey(new Date(c.started_at)) === todayKey && (c.transcript || c.call_type === "voicemail")
+  ).length;
   const weekly = [
     { label: "New leads", value: profiles.filter((p) => (!business || p.business_id === business.id) && inWeek(p.last_contact_at)).length },
     { label: "Calls", value: calls.filter((c) => inWeek(c.started_at)).length },
@@ -70,11 +74,14 @@ export default async function Today() {
     { label: "Completed", value: bizAppts.filter((a) => a.status === "completed" && inWeek(a.scheduled_start_at)).length }
   ];
 
+  // Top row = a "right now / today" snapshot, distinct from the weekly rollup below.
+  // (Dropped the redundant all-time "Voicemails" ≈ Callbacks, and the confusing
+  // "Replied — waiting on you" 0 — replies now surface as a badge in Needs Attention.)
   const metrics = [
-    { label: "Callbacks waiting", value: callbacks.length, accent: "var(--brand)", icon: "📞", href: "/owner" },
-    { label: "Replied — waiting on you", value: replied, accent: "var(--positive)", icon: "💬", href: "/owner" },
-    { label: "Voicemails", value: voicemails, accent: "#c77d14", icon: "🎙️", href: "/owner/leads" },
-    { label: "Calls today", value: callsToday, accent: "#3a7bd0", icon: "📆", href: "/owner/leads" }
+    { label: "Callbacks waiting", value: callbacks.length, tint: "rgba(var(--brand-rgb),0.13)", icon: "📞", href: "/owner" },
+    { label: "Booked today", value: bookedToday, tint: "rgba(var(--positive-rgb),0.14)", icon: "📅", href: "/owner/calendar" },
+    { label: "Calls today", value: callsToday, tint: "rgba(58,123,208,0.14)", icon: "📈", href: "/owner/leads" },
+    { label: "Voicemails today", value: voicemailsToday, tint: "rgba(199,125,20,0.14)", icon: "🎙️", href: "/owner/leads" }
   ];
 
   const settings = getBusinessSettings(business);
@@ -110,8 +117,8 @@ export default async function Today() {
 
       <div style={S.metricRow}>
         {metrics.map((m) => (
-          <Link key={m.label} href={m.href} style={S.metricCard}>
-            <div style={metricChip(m.accent)}>{m.icon}</div>
+          <Link key={m.label} href={m.href} className="card card-tap" style={S.metricCard}>
+            <div style={metricChip(m.tint)}>{m.icon}</div>
             <div style={S.metricValue}>{m.value}</div>
             <div style={S.metricLabel}>{m.label}</div>
           </Link>
@@ -121,7 +128,7 @@ export default async function Today() {
       <div style={S.sectionLabel}>THIS WEEK</div>
       <div style={S.weekRow}>
         {weekly.map((w) => (
-          <div key={w.label} style={S.weekCard}>
+          <div key={w.label} className="card" style={S.weekCard}>
             <div style={S.weekValue}>{w.value}</div>
             <div style={S.weekLabel}>{w.label}</div>
           </div>
@@ -135,7 +142,7 @@ export default async function Today() {
         </div>
       ) : (
         <div>
-          <div style={S.attentionScroll}>
+          <div className="scroll-soft" style={S.attentionScroll}>
             <LeadList items={attentionItems} />
           </div>
           <Link href="/owner" style={S.viewAll}>View all {callbacks.length} callbacks →</Link>
@@ -146,23 +153,23 @@ export default async function Today() {
 }
 
 const S = {
-  page: { maxWidth: 860, margin: "0 auto", padding: "30px 28px 48px", color: "#1e2026", fontFamily: "Segoe UI, system-ui, sans-serif" } as CSSProperties,
-  greeting: { fontSize: 26, fontWeight: 700, color: "#15171b" } as CSSProperties,
-  date: { color: "#8a909c", fontSize: 13, marginTop: 2 } as CSSProperties,
-  metricRow: { display: "flex", gap: 14, flexWrap: "wrap", marginTop: 20 } as CSSProperties,
-  metricCard: { flex: "1 1 170px", minWidth: 160, background: "#fff", border: "1px solid #eceef2", borderRadius: 14, padding: "16px 16px 14px", boxShadow: "0 1px 3px rgba(17,21,28,0.05)", position: "relative", textDecoration: "none", color: "inherit" } as CSSProperties,
-  metricValue: { fontSize: 30, fontWeight: 700, color: "#15171b", lineHeight: 1.1 } as CSSProperties,
-  metricLabel: { fontSize: 12, color: "#8a909c", marginTop: 4 } as CSSProperties,
-  sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "26px 0 10px" } as CSSProperties,
-  empty: { padding: "24px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", color: "#3c414b", fontSize: 14 } as CSSProperties,
-  attentionScroll: { maxHeight: 520, overflowY: "auto", paddingRight: 6 } as CSSProperties,
+  page: { maxWidth: 880, margin: "0 auto", padding: "34px 28px 56px", color: "#1e2026", fontFamily: "'Segoe UI', system-ui, sans-serif" } as CSSProperties,
+  greeting: { fontSize: 28, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.6px" } as CSSProperties,
+  date: { color: "var(--muted)", fontSize: 13, marginTop: 3, fontWeight: 500 } as CSSProperties,
+  metricRow: { display: "flex", gap: 14, flexWrap: "wrap", marginTop: 22 } as CSSProperties,
+  metricCard: { flex: "1 1 170px", minWidth: 160, padding: "18px 17px 16px", position: "relative" } as CSSProperties,
+  metricValue: { fontSize: 32, fontWeight: 800, color: "var(--ink)", lineHeight: 1.05, letterSpacing: "-0.5px" } as CSSProperties,
+  metricLabel: { fontSize: 12, color: "var(--muted)", marginTop: 5, fontWeight: 600 } as CSSProperties,
+  sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: "var(--muted)", margin: "30px 0 11px", textTransform: "uppercase" } as CSSProperties,
+  empty: { padding: "26px 20px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", color: "#3c414b", fontSize: 14, lineHeight: 1.55 } as CSSProperties,
+  attentionScroll: { maxHeight: 540, overflowY: "auto", padding: "2px 8px 2px 2px" } as CSSProperties,
   weekRow: { display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 6 } as CSSProperties,
-  weekCard: { flex: "1 1 120px", minWidth: 110, background: "#fff", border: "1px solid #eceef2", borderRadius: 12, padding: "12px 14px", boxShadow: "0 1px 3px rgba(17,21,28,0.05)" } as CSSProperties,
-  weekValue: { fontSize: 22, fontWeight: 800, color: "#15171b", lineHeight: 1.1 } as CSSProperties,
-  weekLabel: { fontSize: 12, color: "#8a909c", marginTop: 3 } as CSSProperties,
-  viewAll: { display: "inline-block", marginTop: 8, color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" } as CSSProperties
+  weekCard: { flex: "1 1 120px", minWidth: 110, padding: "14px 15px" } as CSSProperties,
+  weekValue: { fontSize: 23, fontWeight: 800, color: "var(--ink)", lineHeight: 1.05, letterSpacing: "-0.4px" } as CSSProperties,
+  weekLabel: { fontSize: 12, color: "var(--muted)", marginTop: 3, fontWeight: 500 } as CSSProperties,
+  viewAll: { display: "inline-block", marginTop: 12, color: "var(--brand)", fontWeight: 700, fontSize: 13, textDecoration: "none" } as CSSProperties
 };
 
-function metricChip(accent: string): CSSProperties {
-  return { position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: 9, background: `${accent}1a`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 };
+function metricChip(tint: string): CSSProperties {
+  return { position: "absolute", top: 15, right: 15, width: 32, height: 32, borderRadius: 10, background: tint, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 };
 }

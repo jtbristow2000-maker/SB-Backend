@@ -121,9 +121,9 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
         filtered.map((lead) => {
           const h = handlingSummary(lead, tz);
           return (
-            <Link key={lead.id} href={`/owner/${lead.id}`} style={S.row}>
+            <Link key={lead.id} href={`/owner/${lead.id}`} className="card card-tap" style={S.row}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                <strong style={{ color: "#15171b", fontSize: 15 }}>
+                <strong style={{ color: "var(--ink)", fontSize: 15 }}>
                   {lead.display_name || fmtPhone(lead.phone_e164)}
                 </strong>
                 <span style={statusBadge(effectiveStatus(lead))}>{effectiveStatus(lead)}</span>
@@ -142,8 +142,8 @@ const S: Record<string, CSSProperties> = {
   search: { width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid #d8dce3", fontSize: 15, marginBottom: 10 },
   chips: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 },
   count: { fontSize: 12, color: "#8a909c", marginBottom: 8 },
-  empty: { marginTop: 8, padding: "22px 16px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#8a909c" },
-  row: { display: "block", textDecoration: "none", padding: "13px 15px", marginBottom: 9, borderRadius: 13, background: "#fff", border: "1px solid #eceef2", boxShadow: "0 1px 3px rgba(17,21,28,0.05)" },
+  empty: { marginTop: 8, padding: "22px 16px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "var(--muted)" },
+  row: { display: "block", padding: "13px 15px", marginBottom: 9 },
   handling: { fontSize: 13, fontWeight: 600, marginTop: 5 },
   phoneMeta: { color: "#8a909c", fontSize: 12.5, marginTop: 2 }
 };
@@ -163,16 +163,25 @@ function chipStyle(active: boolean): CSSProperties {
 
 function statusBadge(status: string): CSSProperties {
   const s = status || "new";
-  const color =
-    s === "won" ? "var(--positive)" : s === "booked" ? "var(--brand)" : s === "lost" ? "#b23b3b" : s === "contacted" ? "#c77d14" : "#8a909c";
+  // [text color, tint bg] — explicit rgba tints so brand/positive tokens render a
+  // background (a `var(--brand)1a` string is invalid CSS and showed no fill before).
+  const map: Record<string, [string, string]> = {
+    won: ["var(--positive)", "rgba(var(--positive-rgb),0.16)"],
+    booked: ["#3a3a9a", "rgba(var(--brand-rgb),0.14)"],
+    lost: ["#b23b3b", "rgba(178,59,59,0.13)"],
+    contacted: ["#9a6210", "rgba(199,125,20,0.15)"],
+    new: ["#6b7280", "rgba(138,144,156,0.16)"]
+  };
+  const [color, background] = map[s] ?? map.new;
   return {
     fontSize: 11,
     fontWeight: 700,
     color,
-    background: `${color}1a`,
+    background,
     padding: "3px 9px",
     borderRadius: 999,
     textTransform: "capitalize",
-    whiteSpace: "nowrap"
+    whiteSpace: "nowrap",
+    letterSpacing: 0.2
   };
 }

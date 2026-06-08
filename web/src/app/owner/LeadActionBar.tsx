@@ -108,7 +108,7 @@ const S: Record<string, CSSProperties> = {
   select: { padding: "7px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff", color: "#1e2026", cursor: "pointer" },
   btn: { padding: "7px 11px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#3c414b", fontWeight: 600, fontSize: 13, cursor: "pointer" },
   btnOn: { padding: "7px 11px", borderRadius: 9, border: "1px solid var(--brand)", background: "rgba(var(--brand-rgb),0.1)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
-  bookForm: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#f6f7f9", border: "1px solid #eceef2" },
+  bookForm: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#f6f7f9", border: "1px solid var(--border)" },
   input: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
   btnPrimary: { padding: "8px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   btnWon: { padding: "7px 11px", borderRadius: 9, border: "1px solid rgba(var(--positive-rgb),0.4)", background: "rgba(var(--positive-rgb),0.12)", color: "#1d6b4f", fontWeight: 700, fontSize: 13, cursor: "pointer" },

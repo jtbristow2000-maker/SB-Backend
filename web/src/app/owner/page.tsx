@@ -100,9 +100,9 @@ const S: Record<string, CSSProperties> = {
   shell: { maxWidth: 720, margin: "0 auto", padding: "26px 20px 48px", fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1e2026" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" },
   eyebrow: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c" },
-  h1: { margin: "4px 0 2px", fontSize: 26 },
-  sub: { color: "#8a909c", fontSize: 13 },
-  empty: { marginTop: 28, padding: "28px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", textAlign: "center", color: "#3c414b" },
+  h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
+  sub: { color: "var(--muted)", fontSize: 13 },
+  empty: { marginTop: 28, padding: "30px 20px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "#3c414b" },
   linkBtn: { padding: "8px 12px", borderRadius: 10, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" },
   footer: { marginTop: 26, color: "#8a909c", fontSize: 12 }
 };
