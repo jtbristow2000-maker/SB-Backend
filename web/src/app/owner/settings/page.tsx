@@ -67,6 +67,12 @@ export default async function SettingsPage() {
         </section>
 
         <section style={S.section}>
+          <div style={S.sectionTitle}>Brand logo <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+          <div style={S.sectionHint}>Paste an image URL — it shows in your dashboard header. Leave blank to use your initial.</div>
+          <input name="logo_url" defaultValue={settings.logo_url} placeholder="https://…/logo.png" style={S.textInput} autoComplete="off" />
+        </section>
+
+        <section style={S.section}>
           <div style={S.sectionTitle}>Missed-call auto-text</div>
           <div style={S.sectionHint}>Texted to a caller you miss. Use {"{business_name}"} to insert your name.</div>
           <textarea name="auto_text_message" defaultValue={settings.auto_text_message} rows={3} style={S.textarea} />
