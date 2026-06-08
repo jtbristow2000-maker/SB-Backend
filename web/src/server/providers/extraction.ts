@@ -144,13 +144,17 @@ export class OpenAIExtractionProvider implements ExtractionProvider {
 export function buildExtractionPrompt(input: VoicemailExtractionInput): string {
   return [
     "Return JSON with exactly these keys:",
-    '{ "caller_name": string|null, "requested_datetime": string|null, "service_requested": string|null, "summary": string|null }',
+    '{ "caller_name": string|null, "requested_datetime": string|null, "service_requested": string|null, "summary": string|null, "vehicle": string|null, "preferred_contact": "call"|"text"|"email"|null, "address": string|null, "referral_source": string|null }',
     "",
     "Rules:",
     "- Use null when a detail is not stated.",
     "- requested_datetime should preserve relative language if no exact date is known, e.g. \"Saturday\".",
     "- summary must be one short plain-English sentence for the business owner.",
-    "- Do not invent names, dates, services, addresses, prices, or commitments.",
+    "- vehicle must be the caller's stated vehicle or vehicle description, e.g. \"2019 Tahoe\" or \"lifted truck\".",
+    "- preferred_contact must be null unless the caller clearly states they prefer call, text, or email. A generic \"call me back\" does not count.",
+    "- address should be the spoken service location, mailing address, or PO box exactly enough for the owner to recognize it.",
+    "- referral_source should be how the caller heard about the business, only when explicitly mentioned.",
+    "- Do not invent names, dates, services, vehicles, addresses, referral sources, prices, or commitments.",
     "",
     `Business timezone: ${input.timezone ?? "unknown"}`,
     `Voicemail transcript: ${input.transcript}`
@@ -168,7 +172,11 @@ export function parseExtractionJson(text: string): VoicemailExtractionResult | n
     caller_name: stringOrNull(parsed.caller_name),
     requested_datetime: stringOrNull(parsed.requested_datetime),
     service_requested: stringOrNull(parsed.service_requested),
-    summary: stringOrNull(parsed.summary)
+    summary: stringOrNull(parsed.summary),
+    vehicle: stringOrNull(parsed.vehicle),
+    preferred_contact: preferredContactOrNull(parsed.preferred_contact),
+    address: stringOrNull(parsed.address),
+    referral_source: stringOrNull(parsed.referral_source)
   };
 }
 
@@ -185,6 +193,10 @@ function extractJsonObject(text: string): string | null {
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function preferredContactOrNull(value: unknown): "call" | "text" | "email" | null {
+  return value === "call" || value === "text" || value === "email" ? value : null;
 }
 
 // ---------------------------------------------------------------------------

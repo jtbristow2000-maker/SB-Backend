@@ -1,13 +1,17 @@
 import type { BusinessRepository } from "@/server/business/bootstrap";
 import type { AppointmentRepository } from "@/server/intake/appointments";
 import { sendMissedCallAutoReply } from "@/server/messages/autoReply";
-import type { CustomerProfileRepository } from "@/server/customerProfiles/repository";
+import type {
+  CustomerProfileRepository,
+  CustomerProfileUpdateInput
+} from "@/server/customerProfiles/repository";
 import type { CustomerProfileService } from "@/server/customerProfiles/service";
 import type {
   AuditEventRow,
   CallRecordRow,
   CustomerProfileRow,
   JsonValue,
+  PreferredContactMethod,
   TaskRow
 } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
@@ -370,7 +374,7 @@ export class VoiceIntakeService {
         needs_review: true
       });
 
-      await this.applyExtractedCallerName(callRecord, extraction);
+      await this.applyExtractedProfileDetailsSafe(callRecord, extraction);
       await this.dependencies.auditEventRepository.create({
         business_id: callRecord.business_id,
         customer_profile_id: callRecord.customer_profile_id,
@@ -397,23 +401,38 @@ export class VoiceIntakeService {
     }
   }
 
-  private async applyExtractedCallerName(
+  private async applyExtractedProfileDetailsSafe(
     callRecord: CallRecordRow,
     extraction: VoicemailExtractionResult
   ): Promise<void> {
-    if (!callRecord.customer_profile_id || !extraction.caller_name) {
+    if (!callRecord.customer_profile_id) {
       return;
     }
 
-    const profiles = await this.dependencies.customerProfileRepository.list();
-    const profile = profiles.find((candidate) => candidate.id === callRecord.customer_profile_id);
-    if (!profile || profile.display_name?.trim()) {
-      return;
-    }
+    try {
+      const profiles = await this.dependencies.customerProfileRepository.list();
+      const profile = profiles.find((candidate) => candidate.id === callRecord.customer_profile_id);
+      if (!profile) {
+        return;
+      }
 
-    await this.dependencies.customerProfileRepository.update(profile.id, {
-      display_name: extraction.caller_name
-    });
+      const updates = buildExtractedProfileUpdates(profile, extraction);
+      if (Object.keys(updates).length === 0) {
+        return;
+      }
+
+      await this.dependencies.customerProfileRepository.update(profile.id, updates);
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          event: "voicemail.profile_enrichment_failed",
+          business_id: callRecord.business_id,
+          call_record_id: callRecord.id,
+          customer_profile_id: callRecord.customer_profile_id,
+          error: error instanceof Error ? error.message : "unknown"
+        })
+      );
+    }
   }
 }
 
@@ -422,8 +441,61 @@ function buildExtractedJson(extraction: VoicemailExtractionResult): JsonValue {
     caller_name: extraction.caller_name,
     requested_datetime: extraction.requested_datetime,
     service_requested: extraction.service_requested,
-    summary: extraction.summary
+    summary: extraction.summary,
+    vehicle: extraction.vehicle,
+    preferred_contact: extraction.preferred_contact,
+    address: extraction.address,
+    referral_source: extraction.referral_source
   };
+}
+
+function buildExtractedProfileUpdates(
+  profile: CustomerProfileRow,
+  extraction: VoicemailExtractionResult
+): CustomerProfileUpdateInput {
+  const updates: CustomerProfileUpdateInput = {};
+
+  setIfBlank(updates, profile, "display_name", extraction.caller_name);
+  setIfBlank(updates, profile, "vehicles", extraction.vehicle);
+  setIfBlank(updates, profile, "referral_source", extraction.referral_source);
+
+  if (isPreferredContact(extraction.preferred_contact)) {
+    setIfBlank(updates, profile, "preferred_contact", extraction.preferred_contact);
+  }
+
+  const address = extraction.address?.trim() || null;
+  if (address) {
+    const addressField = isPoBox(address) ? "po_box" : "address_line1";
+    setIfBlank(updates, profile, addressField, address);
+  }
+
+  return updates;
+}
+
+function setIfBlank<K extends keyof CustomerProfileRow>(
+  updates: CustomerProfileUpdateInput,
+  profile: CustomerProfileRow,
+  field: K,
+  value: CustomerProfileRow[K] | null | undefined
+): void {
+  if (typeof value !== "string" || !value.trim()) {
+    return;
+  }
+
+  const existing = profile[field];
+  if (typeof existing === "string" && existing.trim()) {
+    return;
+  }
+
+  (updates as Record<K, CustomerProfileRow[K]>)[field] = value.trim() as CustomerProfileRow[K];
+}
+
+function isPreferredContact(value: unknown): value is PreferredContactMethod {
+  return value === "call" || value === "text" || value === "email";
+}
+
+function isPoBox(value: string): boolean {
+  return /^\s*(p\.?\s*o\.?\s*box|post\s+office\s+box)\b/i.test(value);
 }
 
 function defaultAutoReplyTimeoutScheduler(callback: () => void, delayMs: number): void {

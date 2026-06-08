@@ -31,15 +31,31 @@ import {
 
 describe("BACKEND-07 voice intake service", () => {
   function createFakeExtractionProvider(input: {
-    result: VoicemailExtractionResult;
+    result: Partial<VoicemailExtractionResult>;
     calls: VoicemailExtractionInput[];
   }): ExtractionProvider {
     return {
       providerName: "fake",
       async extractVoicemailDetails(payload) {
         input.calls.push(payload);
-        return input.result;
+        return voicemailExtractionResult(input.result);
       }
+    };
+  }
+
+  function voicemailExtractionResult(
+    overrides: Partial<VoicemailExtractionResult>
+  ): VoicemailExtractionResult {
+    return {
+      caller_name: null,
+      requested_datetime: null,
+      service_requested: null,
+      summary: null,
+      vehicle: null,
+      preferred_contact: null,
+      address: null,
+      referral_source: null,
+      ...overrides
     };
   }
 
@@ -666,7 +682,11 @@ describe("BACKEND-07 voice intake service", () => {
         caller_name: "Shaw",
         requested_datetime: "Saturday",
         service_requested: "full exterior and interior detail",
-        summary: "Shaw wants a full exterior and interior detail on Saturday."
+        summary: "Shaw wants a full exterior and interior detail on Saturday.",
+        vehicle: "2019 Tahoe",
+        preferred_contact: "text",
+        address: "123 Main Street",
+        referral_source: "Google"
       }
     });
     const {
@@ -702,12 +722,108 @@ describe("BACKEND-07 voice intake service", () => {
         caller_name: "Shaw",
         requested_datetime: "Saturday",
         service_requested: "full exterior and interior detail",
-        summary: "Shaw wants a full exterior and interior detail on Saturday."
+        summary: "Shaw wants a full exterior and interior detail on Saturday.",
+        vehicle: "2019 Tahoe",
+        preferred_contact: "text",
+        address: "123 Main Street",
+        referral_source: "Google"
       },
       needs_review: true
     });
     expect(profiles[0].display_name).toBe("Shaw");
+    expect(profiles[0]).toMatchObject({
+      vehicles: "2019 Tahoe",
+      preferred_contact: "text",
+      address_line1: "123 Main Street",
+      referral_source: "Google"
+    });
     expect(auditEvents.map((event) => event.event_type)).toContain("voicemail.ai_extracted");
+  });
+
+  it("fills only empty profile fields from voicemail extraction and maps PO boxes", async () => {
+    const extractionCalls: VoicemailExtractionInput[] = [];
+    const { customerProfileRepository, service } = await setupService({
+      aiExtractionEnabled: true,
+      extractionProvider: createFakeExtractionProvider({
+        calls: extractionCalls,
+        result: {
+          caller_name: "New AI Name",
+          vehicle: "lifted truck",
+          preferred_contact: "email",
+          address: "PO Box 123",
+          referral_source: "neighbor referral",
+          summary: "Caller left richer profile details."
+        }
+      })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AI_PROFILE_EMPTY"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_AI_PROFILE_EMPTY",
+      transcript:
+        "Hi, this is New AI Name. I have a lifted truck, prefer email, my PO Box is 123, and my neighbor referred me."
+    });
+
+    const profiles = await customerProfileRepository.list();
+    expect(extractionCalls).toHaveLength(1);
+    expect(profiles[0]).toMatchObject({
+      display_name: "New AI Name",
+      vehicles: "lifted truck",
+      preferred_contact: "email",
+      po_box: "PO Box 123",
+      referral_source: "neighbor referral"
+    });
+    expect(profiles[0].address_line1).toBeNull();
+  });
+
+  it("does not overwrite owner-entered profile fields with voicemail extraction", async () => {
+    const extractionCalls: VoicemailExtractionInput[] = [];
+    const { customerProfileRepository, service } = await setupService({
+      aiExtractionEnabled: true,
+      extractionProvider: createFakeExtractionProvider({
+        calls: extractionCalls,
+        result: {
+          caller_name: "AI Name",
+          vehicle: "new vehicle",
+          preferred_contact: "text",
+          address: "456 AI Street",
+          referral_source: "radio ad",
+          summary: "AI found alternate profile details."
+        }
+      })
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AI_PROFILE_PRESERVE"
+    });
+    const [profile] = await customerProfileRepository.list();
+    await customerProfileRepository.update(profile.id, {
+      display_name: "Owner Name",
+      vehicles: "owner vehicle",
+      preferred_contact: "call",
+      address_line1: "123 Owner Street",
+      referral_source: "owner source"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_AI_PROFILE_PRESERVE",
+      transcript: "Hi, this is AI Name with a new vehicle at 456 AI Street. Please text me."
+    });
+
+    const profiles = await customerProfileRepository.list();
+    expect(extractionCalls).toHaveLength(1);
+    expect(profiles[0]).toMatchObject({
+      display_name: "Owner Name",
+      vehicles: "owner vehicle",
+      preferred_contact: "call",
+      address_line1: "123 Owner Street",
+      referral_source: "owner source"
+    });
   });
 
   it("fast-transcribes recording-ready callbacks and then runs AI extraction", async () => {

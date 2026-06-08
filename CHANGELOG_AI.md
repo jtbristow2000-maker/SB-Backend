@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - AI fills richer customer profile details
+
+### Added
+- Extended voicemail extraction output with `vehicle`, `preferred_contact`, `address`, and `referral_source`, with prompt rules requiring explicit transcript evidence and no invented details.
+- Added guarded intake persistence that copies extracted profile details into blank customer profile fields only: `vehicle` -> `vehicles`, PO-box-like addresses -> `po_box`, other addresses -> `address_line1`, plus `preferred_contact` and `referral_source`.
+
+### Changed
+- Kept owner-entered profile values authoritative by skipping any extracted field when the profile already has a value.
+- Dropped unsupported preferred-contact values before persistence so the `call`/`text`/`email` database constraint is respected.
+
+### Verified
+- `npm run verify` passes: 40 test files, 149 passed, 1 skipped.
+
 ## [2026-06-08] - Logo file upload (drag & drop) in Settings
 
 ### Added
