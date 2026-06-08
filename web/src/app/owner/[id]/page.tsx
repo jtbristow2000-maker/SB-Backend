@@ -12,6 +12,7 @@ import { LeadActionBar } from "@/app/owner/LeadActionBar";
 import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 import { fmtPhone, readExtracted, type Extracted } from "@/app/owner/format";
 import { parseInboundConfirmation } from "@/app/owner/inboundParser";
+import { saveCustomerDetails } from "@/app/owner/actions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -83,7 +84,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const { profile, open_task, customer_replied, timeline } = detail;
+  const { profile, open_task, customer_replied, timeline, first_time_customer } = detail;
 
   // Calls come from the shared buildProfileDetail timeline (the same projection
   // /api/profiles/{id} returns) so the screen and the read API can't drift. The
@@ -179,7 +180,10 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       <header style={{ marginTop: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <h1 style={S.h1}>{profile.display_name || fmtPhone(profile.phone_e164)}</h1>
-          {customer_replied && <span style={S.replied}>Replied</span>}
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+            {first_time_customer && <span style={S.firstTime}>⭐ First-time</span>}
+            {customer_replied && <span style={S.replied}>Replied</span>}
+          </div>
         </div>
         <div style={S.sub}>
           {fmtPhone(profile.phone_e164)}
@@ -199,6 +203,31 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         prefilledStart={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.datetimeLocal : undefined}
         confirmedLabel={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : undefined}
       />
+
+      <details style={S.detailsBox}>
+        <summary style={S.detailsSummary}>👤 Customer details</summary>
+        <form action={saveCustomerDetails} style={S.detailsForm}>
+          <input type="hidden" name="profileId" value={profile.id} />
+          <label style={S.fieldLabel}>Vehicle(s)
+            <input name="vehicles" defaultValue={profile.vehicles ?? ""} placeholder="e.g. 2019 Tahoe; wife's Civic" style={S.fieldInput} autoComplete="off" />
+          </label>
+          <label style={S.fieldLabel}>Address / PO box
+            <input name="po_box" defaultValue={profile.po_box ?? ""} placeholder="123 Main St / PO Box 45" style={S.fieldInput} autoComplete="off" />
+          </label>
+          <label style={S.fieldLabel}>Preferred contact
+            <select name="preferred_contact" defaultValue={profile.preferred_contact ?? ""} style={S.fieldInput}>
+              <option value="">No preference</option>
+              <option value="call">Call</option>
+              <option value="text">Text</option>
+              <option value="email">Email</option>
+            </select>
+          </label>
+          <label style={S.fieldLabel}>How did you hear about us?
+            <input name="referral_source" defaultValue={profile.referral_source ?? ""} placeholder="e.g. Google, referral, truck sign" style={S.fieldInput} autoComplete="off" />
+          </label>
+          <button type="submit" style={S.detailsSave}>Save details</button>
+        </form>
+      </details>
 
       <div style={S.paneTitle}>CONVERSATION</div>
       {convo.length === 0 ? (
@@ -302,7 +331,14 @@ const S: Record<string, CSSProperties> = {
   bubbleMeta: { marginTop: 3, fontSize: 11, color: "#8a909c" },
   footer: { marginTop: 18, color: "#8a909c", fontSize: 12, lineHeight: 1.5 },
   jobRow: { display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", padding: "10px 12px", marginBottom: 7, borderRadius: 10, background: "#fff", border: "1px solid #eceef2", fontSize: 13.5 },
-  jobMeta: { color: "#8a909c", fontSize: 12.5, whiteSpace: "nowrap" }
+  jobMeta: { color: "#8a909c", fontSize: 12.5, whiteSpace: "nowrap" },
+  firstTime: { fontSize: 11, fontWeight: 700, color: "#8a5a0c", background: "rgba(199,125,20,0.14)", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" },
+  detailsBox: { marginTop: 12, border: "1px solid #eceef2", borderRadius: 12, background: "#fff" },
+  detailsSummary: { cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: "#15171b", padding: "11px 14px" },
+  detailsForm: { display: "flex", flexDirection: "column", gap: 10, padding: "2px 14px 14px" },
+  fieldLabel: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, fontWeight: 700, color: "#3c414b" },
+  fieldInput: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit" },
+  detailsSave: { alignSelf: "flex-start", padding: "9px 14px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }
 };
 
 function bubbleWrap(out: boolean): CSSProperties {

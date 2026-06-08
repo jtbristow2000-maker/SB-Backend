@@ -126,6 +126,34 @@ export async function markLeadWon(formData: FormData): Promise<void> {
   revalidatePath("/owner/calendar");
 }
 
+export async function saveCustomerDetails(formData: FormData): Promise<void> {
+  const profileId = String(formData.get("profileId") ?? "");
+  if (!profileId) return;
+
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+  const pc = String(formData.get("preferred_contact") ?? "").trim();
+  try {
+    await updateProfileForOwner(
+      { customerProfileRepository: rt.customerProfileRepository, auditEventRepository: rt.auditEventRepository },
+      {
+        businessId: business.id,
+        profileId,
+        updates: {
+          vehicles: String(formData.get("vehicles") ?? "").trim() || null,
+          po_box: String(formData.get("po_box") ?? "").trim() || null,
+          preferred_contact: pc === "call" || pc === "text" || pc === "email" ? pc : null,
+          referral_source: String(formData.get("referral_source") ?? "").trim() || null
+        }
+      }
+    );
+  } catch {
+    /* best-effort */
+  }
+
+  revalidateOwner(profileId);
+}
+
 export async function sendOwnerText(formData: FormData): Promise<void> {
   const profileId = String(formData.get("profileId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
