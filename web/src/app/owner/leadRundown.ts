@@ -12,6 +12,7 @@ export type LeadRundown = {
   wants: string | null;
   when: string | null;
   quote: string | null;
+  vehicle: string | null;
 };
 
 export function buildLeadRundown(
@@ -40,7 +41,17 @@ export function buildLeadRundown(
     }
   }
 
-  return { summary, wants, when, quote: quotePriceLabel(wants, ranges) };
+  const vehicle = detectVehicle(
+    profileCalls.map((c) => `${c.transcript ?? ""} ${c.ai_summary ?? ""}`).join(" ")
+  );
+  return { summary, wants, when, quote: quotePriceLabel(wants, ranges), vehicle };
+}
+
+const VEHICLE_RE =
+  /\b(lifted truck|pickup truck|work van|sports car|pickup|minivan|crossover|hatchback|sedan|suv|truck|van|jeep|tesla|coupe|wagon)\b/i;
+function detectVehicle(text: string): string | null {
+  const m = VEHICLE_RE.exec(text);
+  return m ? m[1].toLowerCase() : null;
 }
 
 // Time of the most recent call + voicemail length, for the lead-card sub-line.

@@ -56,7 +56,8 @@ export default async function OwnerCallbacks() {
       lastActivity: it.last_contact_at,
       rundown: buildLeadRundown(it.id, calls, settings.quote_ranges),
       callTimeLabel: m.timeLabel,
-      voicemailLabel: m.vmLabel
+      voicemailLabel: m.vmLabel,
+      status: it.status
     };
   });
 

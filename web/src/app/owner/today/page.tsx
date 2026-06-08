@@ -96,7 +96,8 @@ export default async function Today() {
       lastActivity: c.last_contact_at,
       rundown: buildLeadRundown(c.id, calls, settings.quote_ranges),
       callTimeLabel: m.timeLabel,
-      voicemailLabel: m.vmLabel
+      voicemailLabel: m.vmLabel,
+      status: c.status
     };
   });
 
