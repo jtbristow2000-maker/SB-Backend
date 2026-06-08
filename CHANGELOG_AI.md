@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Unsaved-changes guard on Settings
+
+### Added
+- Settings now warns before you leave with unsaved edits. `UnsavedChangesGuard` covers both hard navigation (tab close / reload / URL) via `beforeunload` and in-app navigation (clicking a sidebar tab) via a capture-phase link interceptor, since the App Router has no built-in route block. "Dirty" is detected by comparing the form's serialized fields to a baseline captured on mount and re-captured on save — so it catches text, sliders, color, quote rows, and the logo (a hidden field) alike.
+
+### Verified
+- `npm run verify` passes: 40 test files, 149 passed, 1 skipped.
+
 ## [2026-06-08] - AI fills richer customer profile details
 
 ### Added
