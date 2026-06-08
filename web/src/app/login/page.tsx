@@ -7,15 +7,16 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_login: "That email or password didn't match. Please try again.",
   email_and_password_required: "Please enter your email and password.",
   supabase_auth_not_configured: "Login isn't fully configured yet — check your environment settings.",
+  link_expired: "That link expired or was already used. Request a new reset link.",
   setup: "We're finishing your account setup. Give it a moment and try again."
 };
 
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string; redirectTo?: string }>;
+  searchParams: Promise<{ error?: string; redirectTo?: string; reset?: string }>;
 }) {
-  const { error, redirectTo: rawRedirectTo } = await searchParams;
+  const { error, redirectTo: rawRedirectTo, reset } = await searchParams;
   const redirectTo = rawRedirectTo?.startsWith("/") ? rawRedirectTo : "/owner/today";
   const errorMessage = error ? ERROR_MESSAGES[error] ?? "Please check your email and password." : null;
 
@@ -24,6 +25,7 @@ export default async function LoginPage({
       <section style={S.card}>
         <div style={S.eyebrow}>Owner login</div>
         <h1 style={S.h1}>Sign in to your dashboard</h1>
+        {reset && <div style={S.ok}>Password updated — sign in with your new password.</div>}
         {errorMessage && <div style={S.error}>{errorMessage}</div>}
 
         <form action="/api/auth/sign-in" method="post" style={S.form}>
@@ -42,6 +44,7 @@ export default async function LoginPage({
               style={S.input}
             />
           </label>
+          <Link href="/forgot" style={S.forgot}>Forgot password?</Link>
           <button type="submit" style={S.primary}>Sign in</button>
           <div style={S.signup}>
             <div style={S.signupText}>First time here? Set up your business in a minute.</div>
@@ -84,6 +87,8 @@ const S: Record<string, CSSProperties> = {
     fontSize: 13,
     fontWeight: 700
   },
+  ok: { marginBottom: 12, padding: "9px 11px", borderRadius: 10, background: "rgba(31,157,107,0.1)", color: "#1d6b4f", fontSize: 13, fontWeight: 600 },
+  forgot: { alignSelf: "flex-end", color: "#5b5bd6", fontSize: 12.5, textDecoration: "none", fontWeight: 600, marginTop: -4 },
   form: { display: "flex", flexDirection: "column", gap: 12 },
   label: { display: "flex", flexDirection: "column", gap: 5, fontSize: 13, fontWeight: 700 },
   input: { padding: "11px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 15 },

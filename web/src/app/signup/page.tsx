@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import { authCard } from "@/app/auth-card";
+
 import { SignupForm } from "./SignupForm";
 
 export const dynamic = "force-dynamic";
@@ -19,12 +23,27 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function SignupPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string; redirectTo?: string }>;
+  searchParams: Promise<{ error?: string; redirectTo?: string; check_email?: string }>;
 }) {
-  const { error, redirectTo: rawRedirectTo } = await searchParams;
+  const { error, redirectTo: rawRedirectTo, check_email: checkEmail } = await searchParams;
   const redirectTo = rawRedirectTo?.startsWith("/") ? rawRedirectTo : "/owner/today";
   const errorMessage = error ? ERROR_MESSAGES[error] ?? ERROR_MESSAGES.signup_failed : null;
   const inviteRequired = Boolean(process.env.SIGNUP_INVITE_CODE);
+
+  if (checkEmail) {
+    return (
+      <main style={authCard.shell}>
+        <section style={authCard.card}>
+          <div style={authCard.eyebrow}>Almost there</div>
+          <h1 style={authCard.h1}>Check your email</h1>
+          <div style={authCard.ok}>
+            We sent a confirmation link to your email. Click it to verify your account, then sign in.
+          </div>
+          <Link href="/login" style={authCard.secondary}>Back to sign in</Link>
+        </section>
+      </main>
+    );
+  }
 
   return <SignupForm errorMessage={errorMessage} redirectTo={redirectTo} inviteRequired={inviteRequired} />;
 }
