@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - In-app voicemail greeting recorder (UI)
+
+### Added
+- `VoicemailRecorder` in Settings → Voicemail greeting: record your voice with the mic, preview it, and save. The browser downsamples to **8 kHz mono WAV** (phone quality, ~under the server-action body limit) and saves via Codex's `setVoicemailGreetingAudio`. Recordings cap at 30s; shows the current greeting with a player + Remove; the typed greeting is reframed as the fallback used when there's no recording. (Pairs with Codex's storage/route/`<Play>` work.)
+
+### Verified
+- `npm run verify` passes: 42 test files, 157 passed, 1 skipped.
+
 ## [2026-06-08] - Recorded voicemail greeting audio
 
 ### Added
