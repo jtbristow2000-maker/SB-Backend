@@ -39,12 +39,13 @@ export default async function Today() {
   const context = await getOwnerBusinessContext();
   const rt = context?.rt ?? null;
   const business = context?.business ?? null;
-  const [profiles, calls, messages, tasks] = rt ? await Promise.all([
+  const [profiles, calls, messages, tasks, appointments] = rt ? await Promise.all([
     rt.customerProfileRepository.list(),
     rt.callRecordRepository.list(),
     rt.messageRepository.list(),
-    rt.taskRepository.list()
-  ]) : [[], [], [], []];
+    rt.taskRepository.list(),
+    rt.appointmentRepository.list()
+  ]) : [[], [], [], [], []];
   const tz = business?.timezone || FALLBACK_TZ;
   const callbacks = business
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })
@@ -57,6 +58,17 @@ export default async function Today() {
     new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
   const todayKey = dayKey(new Date());
   const callsToday = calls.filter((c) => c.started_at && dayKey(new Date(c.started_at)) === todayKey).length;
+
+  // "This week" performance — a rolling 7-day window.
+  const weekAgoMs = Date.now() - 7 * 24 * 3600 * 1000;
+  const inWeek = (iso: string | null | undefined) => Boolean(iso) && new Date(iso as string).getTime() >= weekAgoMs;
+  const bizAppts = appointments.filter((a) => !business || a.business_id === business.id);
+  const weekly = [
+    { label: "New leads", value: profiles.filter((p) => (!business || p.business_id === business.id) && inWeek(p.last_contact_at)).length },
+    { label: "Calls", value: calls.filter((c) => inWeek(c.started_at)).length },
+    { label: "Jobs booked", value: bizAppts.filter((a) => inWeek(a.scheduled_start_at) && a.status !== "cancelled" && a.status !== "no_show").length },
+    { label: "Completed", value: bizAppts.filter((a) => a.status === "completed" && inWeek(a.scheduled_start_at)).length }
+  ];
 
   const metrics = [
     { label: "Callbacks waiting", value: callbacks.length, accent: "var(--brand)", icon: "📞", href: "/owner" },
@@ -105,6 +117,16 @@ export default async function Today() {
         ))}
       </div>
 
+      <div style={S.sectionLabel}>THIS WEEK</div>
+      <div style={S.weekRow}>
+        {weekly.map((w) => (
+          <div key={w.label} style={S.weekCard}>
+            <div style={S.weekValue}>{w.value}</div>
+            <div style={S.weekLabel}>{w.label}</div>
+          </div>
+        ))}
+      </div>
+
       <div style={S.sectionLabel}>NEEDS ATTENTION</div>
       {attentionItems.length === 0 ? (
         <div style={S.empty}>
@@ -133,6 +155,10 @@ const S = {
   sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#8a909c", margin: "26px 0 10px" } as CSSProperties,
   empty: { padding: "24px 18px", borderRadius: 14, background: "#fff", border: "1px solid #eceef2", color: "#3c414b", fontSize: 14 } as CSSProperties,
   attentionScroll: { maxHeight: 520, overflowY: "auto", paddingRight: 6 } as CSSProperties,
+  weekRow: { display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 6 } as CSSProperties,
+  weekCard: { flex: "1 1 120px", minWidth: 110, background: "#fff", border: "1px solid #eceef2", borderRadius: 12, padding: "12px 14px", boxShadow: "0 1px 3px rgba(17,21,28,0.05)" } as CSSProperties,
+  weekValue: { fontSize: 22, fontWeight: 800, color: "#15171b", lineHeight: 1.1 } as CSSProperties,
+  weekLabel: { fontSize: 12, color: "#8a909c", marginTop: 3 } as CSSProperties,
   viewAll: { display: "inline-block", marginTop: 8, color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" } as CSSProperties
 };
 

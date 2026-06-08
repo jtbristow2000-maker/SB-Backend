@@ -118,3 +118,35 @@ export interface ExtractionProvider {
     input: VoicemailExtractionInput
   ): Promise<VoicemailExtractionResult | null>;
 }
+
+export type AutoReplyLevel = 1 | 2 | 3;
+
+export type AutoReplyToneInput = {
+  formality: number;
+  warmth: number;
+};
+
+export type AutoReplyInput = {
+  businessId: string;
+  businessName: string;
+  customerName?: string | null;
+  transcript?: string | null;
+  callerSummary?: string | null;
+  requestedDatetime?: string | null;
+  serviceRequested?: string | null;
+  priceLabel?: string | null;
+  openSlots: string[];
+  level: AutoReplyLevel;
+  tone: AutoReplyToneInput;
+  customNote?: string | null;
+  signOff?: string | null;
+};
+
+export type AutoReplyResult = ProviderActionResult & {
+  body: string | null;
+};
+
+export interface AutoReplyProvider {
+  readonly providerName: string;
+  generateMissedCallReply(input: AutoReplyInput): Promise<AutoReplyResult>;
+}

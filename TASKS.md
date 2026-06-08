@@ -792,6 +792,10 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-06-07: AI-driven missed-call auto-replies:
+  - DONE (Codex, 2026-06-07): Missed-call auto-replies now wait for voicemail transcription before composing, with a 75-second template fallback timeout when no transcript arrives.
+  - DONE (Codex, 2026-06-07): Added level-aware reply composition using `getBusinessSettings(business).ai_reply.auto_reply_level`, tone settings, custom note/sign-off, quote ranges, and open-slot suggestions.
+  - DONE (Codex, 2026-06-07): Added sandbox-safe Anthropic/OpenAI auto-reply providers. AI replies remain disabled unless AI provider gating and keys are configured; SMS-off stores the composed auto-reply as a `draft` message in the conversation.
 - 2026-06-05: Twilio call-capture concurrency coverage:
   - DONE (Codex, 2026-06-05): Added a signed-webhook burst test that runs 50 distinct calls through the realistic voice -> status -> recording-ready -> transcription lifecycle and asserts one persisted call/profile/task/auto-text per caller.
   - DONE (Codex, 2026-06-05): Added an idempotency-under-race test that posts the same incoming voice webhook 10 times concurrently and asserts a single call/profile record.

@@ -15,9 +15,12 @@ import {
 } from "@/server/db/supabaseRepositories";
 import { getSupabaseServerClient } from "@/server/db/supabaseClient";
 import {
+  AnthropicAutoReplyProvider,
   AnthropicExtractionProvider,
   createSandboxProviders,
+  type AutoReplyProvider,
   type ExtractionProvider,
+  OpenAIAutoReplyProvider,
   OpenAIExtractionProvider,
   OpenAITranscriptionProvider,
   type SmsProvider,
@@ -127,6 +130,7 @@ export function buildIntakeRuntime(
         })
       : providers.transcription;
   const extractionProvider = selectExtractionProvider(config, providers.extraction);
+  const autoReplyProvider = selectAutoReplyProvider(config, providers.autoReply);
   const voiceIntakeService = new VoiceIntakeService({
     businessRepository,
     customerProfileRepository,
@@ -135,12 +139,17 @@ export function buildIntakeRuntime(
     messageRepository,
     taskRepository,
     auditEventRepository,
+    appointmentRepository,
     callProvider: providers.calls,
     extractionProvider,
+    autoReplyProvider,
     transcriptionProvider,
     smsProvider,
     isSmsSendingEnabled: () => getAppConfig().smsSendingEnabled,
     isAiExtractionEnabled: () => {
+      return hasConfiguredExtractionProvider(getAppConfig());
+    },
+    isAiReplyEnabled: () => {
       return hasConfiguredExtractionProvider(getAppConfig());
     },
     isFastTranscriptionEnabled: () => {
@@ -228,6 +237,39 @@ export function selectExtractionProvider(
 
   if (config.openAiConfigured && env.OPENAI_API_KEY) {
     return new OpenAIExtractionProvider({ apiKey: env.OPENAI_API_KEY });
+  }
+
+  return sandboxProvider;
+}
+
+export function selectAutoReplyProvider(
+  config: ExtractionRuntimeConfig,
+  sandboxProvider: AutoReplyProvider,
+  env: NodeJS.ProcessEnv = process.env
+): AutoReplyProvider {
+  if (!config.aiExtractionEnabled) {
+    return sandboxProvider;
+  }
+
+  const requestedProvider = parseExtractionProvider(env.EXTRACTION_PROVIDER);
+  if (requestedProvider === "openai") {
+    return config.openAiConfigured && env.OPENAI_API_KEY
+      ? new OpenAIAutoReplyProvider({ apiKey: env.OPENAI_API_KEY })
+      : sandboxProvider;
+  }
+
+  if (requestedProvider === "anthropic") {
+    return config.anthropicConfigured && env.ANTHROPIC_API_KEY
+      ? new AnthropicAutoReplyProvider({ apiKey: env.ANTHROPIC_API_KEY })
+      : sandboxProvider;
+  }
+
+  if (config.anthropicConfigured && env.ANTHROPIC_API_KEY) {
+    return new AnthropicAutoReplyProvider({ apiKey: env.ANTHROPIC_API_KEY });
+  }
+
+  if (config.openAiConfigured && env.OPENAI_API_KEY) {
+    return new OpenAIAutoReplyProvider({ apiKey: env.OPENAI_API_KEY });
   }
 
   return sandboxProvider;

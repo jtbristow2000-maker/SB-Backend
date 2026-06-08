@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-07] - AI-driven delayed missed-call auto-replies
+
+### Added
+- Added a delayed missed-call auto-reply flow that waits for voicemail transcription, or a 75-second fallback timeout, before composing the response.
+- Added level-aware AI reply generation for per-business `ai_reply.auto_reply_level` settings: template fallback at level 0, personalized AI at level 1, service/open-time context at level 2, and full service/price/time context at level 3.
+- Added Anthropic/OpenAI auto-reply providers behind the existing AI-provider gating, plus sandbox-safe fallback behavior when AI is disabled or unconfigured.
+- Added server-side open-slot suggestions for reply composition using business hours and existing appointments.
+
+### Changed
+- Missed-call auto-text messages are no longer created at dial-status time; they are created after transcription or timeout.
+- When SMS sending is disabled, the composed auto-reply is saved as a `draft` message with metadata instead of being dropped or reported as sent.
+
+### Verified
+- `npx tsc --noEmit` passes.
+- `npx vitest run` (38 files, 143 tests, 1 skipped) passes.
+
 ## [2026-06-05] - Batch demo-lead seeding in the Simulator
 
 ### Added

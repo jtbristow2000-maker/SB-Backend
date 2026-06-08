@@ -110,6 +110,17 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     .filter((a) => !business || a.business_id === business.id)
     .map((a) => ({ start: a.scheduled_start_at, end: a.scheduled_end_at }));
 
+  // This lead's finished/past appointments — a quick job history on the contact.
+  const nowMs = Date.now();
+  const pastJobs = appointments
+    .filter(
+      (a) =>
+        (!business || a.business_id === business.id) &&
+        a.customer_profile_id === profile.id &&
+        (a.status === "completed" || new Date(a.scheduled_start_at).getTime() < nowMs)
+    )
+    .sort((a, b) => (a.scheduled_start_at < b.scheduled_start_at ? 1 : -1));
+
   // Latest voicemail with a transcript — feeds the AI composer + booking notes.
   const heroCall =
     detailCalls.find((c) => c.call.transcript) ??
@@ -251,6 +262,20 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         />
       )}
 
+      {pastJobs.length > 0 && (
+        <>
+          <div style={S.paneTitle}>PAST JOBS</div>
+          <div>
+            {pastJobs.map((a) => (
+              <div key={a.id} style={S.jobRow}>
+                <span>{a.service_requested || a.title || "Appointment"}</span>
+                <span style={S.jobMeta}>{fmtTime(a.scheduled_start_at, tz)}{a.status === "completed" ? " · ✓ done" : ""}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <footer style={S.footer}>
         Texts send from your business number. You can also tap <strong>Call back</strong> or{" "}
         <strong>Text</strong> above to use your phone directly.
@@ -275,7 +300,9 @@ const S: Record<string, CSSProperties> = {
   textOk: { marginTop: 14, marginBottom: 2, fontSize: 11.5, fontWeight: 600, color: "#1d6b4f" },
   textWarn: { marginTop: 14, padding: "9px 12px", borderRadius: 10, background: "rgba(199,125,20,0.12)", color: "#8a5a0c", fontSize: 12, fontWeight: 600, lineHeight: 1.5 },
   bubbleMeta: { marginTop: 3, fontSize: 11, color: "#8a909c" },
-  footer: { marginTop: 18, color: "#8a909c", fontSize: 12, lineHeight: 1.5 }
+  footer: { marginTop: 18, color: "#8a909c", fontSize: 12, lineHeight: 1.5 },
+  jobRow: { display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", padding: "10px 12px", marginBottom: 7, borderRadius: 10, background: "#fff", border: "1px solid #eceef2", fontSize: 13.5 },
+  jobMeta: { color: "#8a909c", fontSize: 12.5, whiteSpace: "nowrap" }
 };
 
 function bubbleWrap(out: boolean): CSSProperties {
