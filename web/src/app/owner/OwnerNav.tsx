@@ -8,30 +8,30 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/owner/today", label: "Today", icon: "📊" },
-  { href: "/owner", label: "Callbacks", icon: "📞" },
   { href: "/owner/leads", label: "Leads", icon: "👥" },
   { href: "/owner/calendar", label: "Schedule", icon: "📅" }
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/owner/today") {
-    return pathname === "/owner/today";
-  }
-  if (href === "/owner/leads") {
-    return pathname === "/owner/leads";
+    return pathname === "/owner/today" || pathname === "/owner";
   }
   if (href === "/owner/calendar") {
     return pathname === "/owner/calendar";
   }
-  // Callbacks tab stays active on the list AND on a lead detail page (/owner/<id>),
-  // but not on the other top-level tabs.
-  return (
-    pathname === "/owner" ||
-    (pathname.startsWith("/owner/") &&
-      pathname !== "/owner/today" &&
-      pathname !== "/owner/leads" &&
-      pathname !== "/owner/calendar")
-  );
+  // Leads tab covers the pipeline directory AND an individual lead detail (/owner/<id>),
+  // but not the other top-level routes (Today / Schedule / Settings / Simulator).
+  if (href === "/owner/leads") {
+    return (
+      pathname === "/owner/leads" ||
+      (pathname.startsWith("/owner/") &&
+        pathname !== "/owner/today" &&
+        pathname !== "/owner/calendar" &&
+        pathname !== "/owner/settings" &&
+        pathname !== "/owner/simulator")
+    );
+  }
+  return false;
 }
 
 export function OwnerNav({ variant }: { variant: "sidebar" | "tabbar" }) {
