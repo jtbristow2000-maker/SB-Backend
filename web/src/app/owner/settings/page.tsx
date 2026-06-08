@@ -4,6 +4,7 @@ import { saveSettings } from "@/app/owner/actions";
 import { PhoneNumberSection } from "@/app/owner/PhoneNumberSection";
 import { AutoReplyLevelSlider } from "@/app/owner/AutoReplyLevelSlider";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
+import { LogoUpload } from "@/app/owner/LogoUpload";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildBusinessNumberReadModel, type BusinessNumberReadModel } from "@/server/telephony/numberState";
@@ -68,8 +69,8 @@ export default async function SettingsPage() {
 
         <section style={S.section}>
           <div style={S.sectionTitle}>Brand logo <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
-          <div style={S.sectionHint}>Paste an image URL — it shows in your dashboard header. Leave blank to use your initial.</div>
-          <input name="logo_url" defaultValue={settings.logo_url} placeholder="https://…/logo.png" style={S.textInput} autoComplete="off" />
+          <div style={S.sectionHint}>Drag in a logo file (or paste a URL) — it shows in your dashboard header. Leave blank to use your initial.</div>
+          <LogoUpload initial={settings.logo_url} />
         </section>
 
         <section style={S.section}>

@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Logo file upload (drag & drop) in Settings
+
+### Added
+- Settings → Brand logo now has a **drag-and-drop / click-to-choose file uploader** (`LogoUpload`). The image is downscaled in the browser to a ~256px PNG data URL (SVGs kept as vector) and stored in the existing `logo_url` setting — no file storage/backend needed, so it round-trips through `saveSettings` like any other field. Live preview, remove button, size/type guards, and a "paste a URL" fallback. (Completes logo Option B without Codex/Supabase Storage.)
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-08] - Interactive setup checklist on Today
 
 ### Added
