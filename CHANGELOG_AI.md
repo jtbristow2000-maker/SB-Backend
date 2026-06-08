@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Keep Leads as the contact list (revert)
+
+### Changed
+- Reverted the Leads page + directory to the compact contact-list view (name + status badge, "how this lead's been handled" line, phone) — it works better as a contact list than the info-card grid. The Callbacks→Today merge, the removed Callbacks tab, and the "Opened" status all stay.
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-08] - Retire Callbacks page; Leads becomes the pipeline (MAJOR)
 
 > **Restore point:** branch `with-callbacks-page` (+ its Vercel preview) is the last
