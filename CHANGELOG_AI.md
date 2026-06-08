@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Settings: AI & Replies moved to the top
+
+### Changed
+- Moved the **AI & Replies** block to the top of Settings (first section in the form) — it's the core setting of the app, so it leads instead of sitting below business name / brand / hours / quote ranges.
+
+### Verified
+- `npm run verify` passes: 40 test files, 149 passed, 1 skipped.
+
 ## [2026-06-08] - Settings tidy: Signature + consolidated replies block
 
 ### Changed

@@ -49,60 +49,6 @@ export default async function SettingsPage() {
       <form id="settings-form" action={saveSettings} style={S.form}>
         <UnsavedChangesGuard formId="settings-form" />
         <section style={S.section}>
-          <div style={S.sectionTitle}>Business name</div>
-          <div style={S.sectionHint}>Shown across your dashboard and used wherever {"{business_name}"} appears in replies.</div>
-          <input
-            name="business_name"
-            defaultValue={business?.name ?? ""}
-            placeholder="e.g. Riverside Auto Detailing"
-            autoComplete="organization"
-            style={S.textInput}
-          />
-        </section>
-
-        <section style={S.section}>
-          <div style={S.sectionTitle}>Brand color</div>
-          <div style={S.sectionHint}>Used across buttons, highlights, and your logo.</div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="color" name="brand_color" defaultValue={settings.brand_color} style={S.color} aria-label="Brand color" />
-            <span style={S.mono}>{settings.brand_color}</span>
-          </div>
-        </section>
-
-        <section style={S.section}>
-          <div style={S.sectionTitle}>Brand logo <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
-          <div style={S.sectionHint}>Drag in a logo file (or paste a URL) — it shows in your dashboard header. Leave blank to use your initial.</div>
-          <LogoUpload initial={settings.logo_url} />
-        </section>
-
-        <section style={S.section}>
-          <div style={S.sectionTitle}>Business hours</div>
-          <div style={S.sectionHint}>Used to suggest open appointment times in replies.</div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-            <label style={S.inlineLabel}>
-              Open <input type="time" name="hours_open" defaultValue={settings.business_hours.open} style={S.time} />
-            </label>
-            <label style={S.inlineLabel}>
-              Close <input type="time" name="hours_close" defaultValue={settings.business_hours.close} style={S.time} />
-            </label>
-          </div>
-          <div style={S.days}>
-            {DAYS.map((d) => (
-              <label key={d.value} style={S.dayChip}>
-                <input type="checkbox" name="days" value={d.value} defaultChecked={settings.business_hours.days.includes(d.value)} />{" "}
-                {d.label}
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section style={S.section}>
-          <div style={S.sectionTitle}>Quote ranges</div>
-          <div style={S.sectionHint}>Optional. A suggested reply can include a price range when a service matches.</div>
-          <QuoteRangesEditor initial={settings.quote_ranges} />
-        </section>
-
-        <section style={S.section}>
           <div style={S.sectionTitle}>AI &amp; Replies</div>
           <div style={S.sectionHint}>Customize how the AI drafts and personalizes your suggested replies. Each business sets their own.</div>
 
@@ -170,6 +116,60 @@ export default async function SettingsPage() {
             <div style={S.sectionHint}>Added to every draft before the signature. e.g. &ldquo;Ask about our monthly maintenance plan!&rdquo;</div>
             <input name="ai_custom_note" defaultValue={settings.ai_reply.custom_note} placeholder="e.g. Ask about our monthly maintenance plan!" style={S.textInput} autoComplete="off" />
           </div>
+        </section>
+
+        <section style={S.section}>
+          <div style={S.sectionTitle}>Business name</div>
+          <div style={S.sectionHint}>Shown across your dashboard and used wherever {"{business_name}"} appears in replies.</div>
+          <input
+            name="business_name"
+            defaultValue={business?.name ?? ""}
+            placeholder="e.g. Riverside Auto Detailing"
+            autoComplete="organization"
+            style={S.textInput}
+          />
+        </section>
+
+        <section style={S.section}>
+          <div style={S.sectionTitle}>Brand color</div>
+          <div style={S.sectionHint}>Used across buttons, highlights, and your logo.</div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="color" name="brand_color" defaultValue={settings.brand_color} style={S.color} aria-label="Brand color" />
+            <span style={S.mono}>{settings.brand_color}</span>
+          </div>
+        </section>
+
+        <section style={S.section}>
+          <div style={S.sectionTitle}>Brand logo <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+          <div style={S.sectionHint}>Drag in a logo file (or paste a URL) — it shows in your dashboard header. Leave blank to use your initial.</div>
+          <LogoUpload initial={settings.logo_url} />
+        </section>
+
+        <section style={S.section}>
+          <div style={S.sectionTitle}>Business hours</div>
+          <div style={S.sectionHint}>Used to suggest open appointment times in replies.</div>
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={S.inlineLabel}>
+              Open <input type="time" name="hours_open" defaultValue={settings.business_hours.open} style={S.time} />
+            </label>
+            <label style={S.inlineLabel}>
+              Close <input type="time" name="hours_close" defaultValue={settings.business_hours.close} style={S.time} />
+            </label>
+          </div>
+          <div style={S.days}>
+            {DAYS.map((d) => (
+              <label key={d.value} style={S.dayChip}>
+                <input type="checkbox" name="days" value={d.value} defaultChecked={settings.business_hours.days.includes(d.value)} />{" "}
+                {d.label}
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section style={S.section}>
+          <div style={S.sectionTitle}>Quote ranges</div>
+          <div style={S.sectionHint}>Optional. A suggested reply can include a price range when a service matches.</div>
+          <QuoteRangesEditor initial={settings.quote_ranges} />
         </section>
 
         <button type="submit" style={S.save}>Save settings</button>
