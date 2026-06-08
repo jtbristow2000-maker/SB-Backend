@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 const ERROR_MESSAGES: Record<string, string> = {
   email_and_password_required: "Please fill in your email and a password.",
   signups_disabled: "New sign-ups are turned off right now.",
+  invalid_invite: "That invite code isn't valid — check it and try again.",
   email_taken: "An account with that email already exists — try signing in instead.",
   weak_password: "Your password needs to be at least 6 characters.",
   invalid_email: "That doesn't look like a valid email address.",
@@ -23,6 +24,7 @@ export default async function SignupPage({
   const { error, redirectTo: rawRedirectTo } = await searchParams;
   const redirectTo = rawRedirectTo?.startsWith("/") ? rawRedirectTo : "/owner/today";
   const errorMessage = error ? ERROR_MESSAGES[error] ?? ERROR_MESSAGES.signup_failed : null;
+  const inviteRequired = Boolean(process.env.SIGNUP_INVITE_CODE);
 
-  return <SignupForm errorMessage={errorMessage} redirectTo={redirectTo} />;
+  return <SignupForm errorMessage={errorMessage} redirectTo={redirectTo} inviteRequired={inviteRequired} />;
 }

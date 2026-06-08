@@ -14,6 +14,7 @@ export type AuthPayload = {
   businessName: string | null;
   ownerName: string | null;
   phone: string | null;
+  inviteCode: string | null;
 };
 
 function cleanRedirect(value: unknown): string | null {
@@ -65,7 +66,8 @@ export async function readPayload(request: NextRequest): Promise<AuthPayload | n
       redirectTo: cleanRedirect(record.redirectTo),
       businessName: readRecordText(record, "business_name", "businessName"),
       ownerName: readRecordText(record, "owner_name", "ownerName"),
-      phone: readRecordText(record, "phone")
+      phone: readRecordText(record, "phone"),
+      inviteCode: readRecordText(record, "invite_code", "inviteCode")
     };
   }
 
@@ -78,7 +80,8 @@ export async function readPayload(request: NextRequest): Promise<AuthPayload | n
     redirectTo: cleanRedirect(form.get("redirectTo")),
     businessName: readFormText(form, "business_name"),
     ownerName: readFormText(form, "owner_name"),
-    phone: readFormText(form, "phone")
+    phone: readFormText(form, "phone"),
+    inviteCode: readFormText(form, "invite_code")
   };
 }
 
@@ -214,6 +217,12 @@ export async function handlePasswordSignUp(request: NextRequest): Promise<NextRe
   const payload = await readPayload(request);
   if (!payload?.email || !payload.password) {
     return authError(request, "email_and_password_required", 400, "/signup");
+  }
+
+  // Optional invite gate: when SIGNUP_INVITE_CODE is set, only a matching code can register.
+  const requiredInvite = cleanOptionalText(process.env.SIGNUP_INVITE_CODE);
+  if (requiredInvite && payload.inviteCode !== requiredInvite) {
+    return authError(request, "invalid_invite", 403, "/signup");
   }
 
   const supabase = await createSupabaseRequestClient();
