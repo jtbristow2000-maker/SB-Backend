@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Lead cards become a glanceable info grid
+
+### Changed
+- Replaced the compact lead list + hover preview with a responsive **grid of info cards**. Each card now shows inline what used to live in the hover: name + vehicle, status pill, the AI summary, 🔧 Wants / 📅 Asked for / 💰 Quote, and the voicemail snippet — so the dashboard reads at a glance with no hover required (Today's Needs Attention + Callbacks).
+- Removed the voicemail-length / call-time line from the card (per request — not needed at the glance level; still on the lead page).
+- Added `.clamp-1` / `.clamp-2` line-clamp utilities so summaries/snippets stay tidy.
+
+### Fixed
+- Voicemail snippet no longer double-wraps in quotes (the snippet already carries its own quotes).
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-08] - Premium UI pass + dashboard metric rework
 
 ### Added
