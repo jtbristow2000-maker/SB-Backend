@@ -23,8 +23,16 @@ import { savePortRequest, submitPortRequest } from "@/server/telephony/porting";
 import { activateBusinessNumber } from "@/server/telephony/provisioning";
 
 function revalidateOwner(profileId?: string): void {
-  revalidatePath("/owner");
   revalidatePath("/owner/today");
+  revalidatePath("/owner/leads");
+  if (profileId) revalidatePath(`/owner/${profileId}`);
+}
+
+// Appointment changes also touch the calendar + a lead's booked status across views.
+function revalidateSchedule(profileId?: string | null): void {
+  revalidatePath("/owner/calendar");
+  revalidatePath("/owner/today");
+  revalidatePath("/owner/leads");
   if (profileId) revalidatePath(`/owner/${profileId}`);
 }
 
@@ -362,11 +370,7 @@ export async function createAppointment(formData: FormData): Promise<void> {
     // Never let auto-apologies block or break the actual booking
   }
 
-  revalidatePath("/owner/calendar");
-  revalidatePath("/owner/today");
-  if (profileId) {
-    revalidatePath(`/owner/${profileId}`);
-  }
+  revalidateSchedule(profileId);
 }
 
 export async function setAppointmentStatus(formData: FormData): Promise<void> {
@@ -394,7 +398,7 @@ export async function setAppointmentStatus(formData: FormData): Promise<void> {
     /* appointment may have been reset */
   }
 
-  revalidatePath("/owner/calendar");
+  revalidateSchedule();
 }
 
 export async function updateAppointment(formData: FormData): Promise<void> {
@@ -447,9 +451,7 @@ export async function updateAppointment(formData: FormData): Promise<void> {
     /* appointment may have been reset */
   }
 
-  revalidatePath("/owner/calendar");
-  revalidatePath("/owner/today");
-  if (existing.customer_profile_id) revalidatePath(`/owner/${existing.customer_profile_id}`);
+  revalidateSchedule(existing.customer_profile_id);
 }
 
 export async function deleteAppointment(formData: FormData): Promise<void> {
@@ -475,9 +477,7 @@ export async function deleteAppointment(formData: FormData): Promise<void> {
     /* appointment may have been reset */
   }
 
-  revalidatePath("/owner/calendar");
-  revalidatePath("/owner/today");
-  if (existing?.customer_profile_id) revalidatePath(`/owner/${existing.customer_profile_id}`);
+  revalidateSchedule(existing?.customer_profile_id);
 }
 
 export async function saveSettings(formData: FormData): Promise<void> {
