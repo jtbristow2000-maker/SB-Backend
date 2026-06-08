@@ -500,6 +500,9 @@ export async function saveSettings(formData: FormData): Promise<void> {
   // Always set (blank clears it → the server uses the default voicemail greeting).
   partial.voicemail_greeting = String(formData.get("voicemail_greeting") ?? "").trim();
 
+  // Unchecked checkbox submits nothing → callers go straight to voicemail.
+  partial.forward_calls = formData.get("forward_calls") === "on";
+
   const open = String(formData.get("hours_open") ?? "").trim();
   const close = String(formData.get("hours_close") ?? "").trim();
   const days = formData
