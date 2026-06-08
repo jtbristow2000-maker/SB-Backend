@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - QA hardening: fix stale revalidation after IA restructure
+
+### Fixed
+- Lead actions (reply, mark contacted, won/lost, save customer details, callback done) revalidated the dead `/owner` redirect and Today, but **not `/owner/leads`** — so the contact list went stale after acting on a lead. `revalidateOwner` now busts `/owner/today` + `/owner/leads` (+ the lead detail), and a shared `revalidateSchedule` helper does calendar + today + leads + lead detail for all appointment actions (create/status/update/delete) — `setAppointmentStatus` previously only refreshed the calendar.
+
+### Verified
+- Audited the core path (call → capture → AI profile-fill → draft → book → text): actions sound, inbound routing matches the connected toll-free, settings round-trip every field, reply degrades to a saved draft + warning when texting is off. `npm run verify` passes: 40 files, 149 passed, 1 skipped.
+
 ## [2026-06-08] - Settings: AI & Replies moved to the top
 
 ### Changed
