@@ -232,7 +232,11 @@ export class SandboxExtractionProvider implements ExtractionProvider {
       caller_name: null,
       requested_datetime: null,
       service_requested: null,
-      summary: input.transcript.trim().slice(0, 120) || null
+      summary: input.transcript.trim().slice(0, 120) || null,
+      vehicle: null,
+      preferred_contact: null,
+      address: null,
+      referral_source: null
     };
   }
 }

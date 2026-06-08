@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { OpenAIExtractionProvider } from "./extraction";
+import { OpenAIExtractionProvider, parseExtractionJson } from "./extraction";
 
 describe("OpenAIExtractionProvider", () => {
   it("parses JSON chat completion output into voicemail extraction fields", async () => {
@@ -17,7 +17,11 @@ describe("OpenAIExtractionProvider", () => {
                   caller_name: "Shaw",
                   requested_datetime: "Saturday",
                   service_requested: "full exterior and interior detail",
-                  summary: "Shaw wants a full detail on Saturday."
+                  summary: "Shaw wants a full detail on Saturday.",
+                  vehicle: "2019 Tahoe",
+                  preferred_contact: "text",
+                  address: "123 Main Street",
+                  referral_source: "Google"
                 })
               }
             }
@@ -45,7 +49,11 @@ describe("OpenAIExtractionProvider", () => {
       caller_name: "Shaw",
       requested_datetime: "Saturday",
       service_requested: "full exterior and interior detail",
-      summary: "Shaw wants a full detail on Saturday."
+      summary: "Shaw wants a full detail on Saturday.",
+      vehicle: "2019 Tahoe",
+      preferred_contact: "text",
+      address: "123 Main Street",
+      referral_source: "Google"
     });
     expect(calls).toHaveLength(1);
     expect(String(calls[0].input)).toBe("https://api.openai.com/v1/chat/completions");
@@ -61,5 +69,31 @@ describe("OpenAIExtractionProvider", () => {
     expect(body.model).toBe("test-openai-model");
     expect(body.response_format).toEqual({ type: "json_object" });
     expect(body.messages.at(-1)?.content).toContain("Voicemail transcript:");
+  });
+
+  it("drops unsupported preferred contact values while preserving stated profile details", () => {
+    const result = parseExtractionJson(
+      JSON.stringify({
+        caller_name: "Jess",
+        requested_datetime: "Friday morning",
+        service_requested: "wash and wax",
+        summary: "Jess wants a wash and wax Friday morning.",
+        vehicle: "lifted truck",
+        preferred_contact: "fax",
+        address: "PO Box 123",
+        referral_source: "neighbor"
+      })
+    );
+
+    expect(result).toEqual({
+      caller_name: "Jess",
+      requested_datetime: "Friday morning",
+      service_requested: "wash and wax",
+      summary: "Jess wants a wash and wax Friday morning.",
+      vehicle: "lifted truck",
+      preferred_contact: null,
+      address: "PO Box 123",
+      referral_source: "neighbor"
+    });
   });
 });

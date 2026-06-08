@@ -1,3 +1,5 @@
+import type { PreferredContactMethod } from "@/server/db/schema";
+
 export type ProviderActionStatus = "logged" | "skipped" | "completed";
 
 export type ProviderActionResult = {
@@ -110,6 +112,10 @@ export type VoicemailExtractionResult = {
   requested_datetime: string | null;
   service_requested: string | null;
   summary: string | null;
+  vehicle: string | null;
+  preferred_contact: PreferredContactMethod | null;
+  address: string | null;
+  referral_source: string | null;
 };
 
 export interface ExtractionProvider {
