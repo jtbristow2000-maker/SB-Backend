@@ -78,7 +78,7 @@ export default async function Today() {
   // (Dropped the redundant all-time "Voicemails" ≈ Callbacks, and the confusing
   // "Replied — waiting on you" 0 — replies now surface as a badge in Needs Attention.)
   const metrics = [
-    { label: "Callbacks waiting", value: callbacks.length, tint: "rgba(var(--brand-rgb),0.13)", icon: "📞", href: "/owner" },
+    { label: "Callbacks waiting", value: callbacks.length, tint: "rgba(var(--brand-rgb),0.13)", icon: "📞", href: "/owner/leads" },
     { label: "Booked today", value: bookedToday, tint: "rgba(var(--positive-rgb),0.14)", icon: "📅", href: "/owner/calendar" },
     { label: "Calls today", value: callsToday, tint: "rgba(58,123,208,0.14)", icon: "📈", href: "/owner/leads" },
     { label: "Voicemails today", value: voicemailsToday, tint: "rgba(199,125,20,0.14)", icon: "🎙️", href: "/owner/leads" }
@@ -88,7 +88,7 @@ export default async function Today() {
   // Needs Attention = only what still needs YOU: brand-new leads you haven't
   // responded to, or existing customers who've replied back. Once you've
   // responded (and they haven't written back) it drops off here — it still
-  // lives on the Callbacks page. Replies-waiting float to the top.
+  // lives on the Leads page. Replies-waiting float to the top.
   const attentionCallbacks = callbacks
     .filter((c) => c.customer_replied || !RESPONDED_STATUSES.has(c.status))
     .sort((a, b) => Number(b.customer_replied) - Number(a.customer_replied));
@@ -145,7 +145,7 @@ export default async function Today() {
           <div className="scroll-soft" style={S.attentionScroll}>
             <LeadList items={attentionItems} />
           </div>
-          <Link href="/owner" style={S.viewAll}>View all {callbacks.length} callbacks →</Link>
+          <Link href="/owner/leads" style={S.viewAll}>View all {callbacks.length} leads →</Link>
         </div>
       )}
     </main>

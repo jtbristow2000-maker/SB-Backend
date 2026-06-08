@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Retire Callbacks page; Leads becomes the pipeline (MAJOR)
+
+> **Restore point:** branch `with-callbacks-page` (+ its Vercel preview) is the last
+> version that still has the standalone Callbacks screen, if we ever want it back.
+
+### Changed
+- **Removed the standalone Callbacks screen.** It duplicated Today's Needs Attention. `/owner` now redirects to `/owner/today`, and the sidebar/tab nav drops the Callbacks tab (now: Today · Leads · Schedule). A lead detail's back link + the Today metric/links point at Leads.
+- **Leads is now the full pipeline**, rendered with the same glanceable info cards as Today (name + vehicle, status, summary, Wants/Asked-for/Quote, snippet) instead of the old one-line directory rows. Booked leads show a "✅ Booked · <when>" line; stage filter chips (All · New · Contacted · Booked · Won · Lost) remain.
+- Extracted a shared `LeadCard` component + `useReadMap` hook so Today and Leads can't visually drift.
+
+### Added
+- **"Opened" status** — a brand-new lead the owner has viewed (but not yet contacted) shows an "Opened" pill instead of "New" (derived from local view history; per-browser, no backend change).
+
+### Verified
+- `npm run verify` passes: 40 test files, 146 passed, 1 skipped.
+
 ## [2026-06-08] - Lead cards become a glanceable info grid
 
 ### Changed

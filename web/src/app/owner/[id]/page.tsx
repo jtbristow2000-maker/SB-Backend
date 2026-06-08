@@ -79,7 +79,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   if (!detail) {
     return (
       <main style={S.shell}>
-        <Link href="/owner" style={S.back}>← Callbacks</Link>
+        <Link href="/owner/leads" style={S.back}>← Leads</Link>
         <div style={S.empty}>Lead not found. It may have been reset.</div>
       </main>
     );
@@ -200,7 +200,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   return (
     <main style={S.shell}>
       <MarkLeadRead id={profile.id} activity={profile.last_contact_at} />
-      <Link href="/owner" style={S.back}>← Callbacks</Link>
+      <Link href="/owner/leads" style={S.back}>← Leads</Link>
 
       <header style={{ marginTop: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
