@@ -5,7 +5,7 @@ import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
-import { buildLeadRundown } from "@/app/owner/leadRundown";
+import { buildLeadRundown, callMetaLabels } from "@/app/owner/leadRundown";
 import { fmtPhone } from "@/app/owner/format";
 
 export const dynamic = "force-dynamic";
@@ -73,15 +73,20 @@ export default async function Today() {
   const attentionCallbacks = callbacks
     .filter((c) => c.customer_replied || !RESPONDED_STATUSES.has(c.status))
     .sort((a, b) => Number(b.customer_replied) - Number(a.customer_replied));
-  const attentionItems: LeadListItem[] = attentionCallbacks.map((c) => ({
-    id: c.id,
-    name: c.display_name || fmtPhone(c.phone_e164),
-    snippet: outcomeSnippet(c),
-    customerReplied: c.customer_replied,
-    responded: RESPONDED_STATUSES.has(c.status),
-    lastActivity: c.last_contact_at,
-    rundown: buildLeadRundown(c.id, calls, settings.quote_ranges)
-  }));
+  const attentionItems: LeadListItem[] = attentionCallbacks.map((c) => {
+    const m = callMetaLabels(c.id, calls, tz);
+    return {
+      id: c.id,
+      name: c.display_name || fmtPhone(c.phone_e164),
+      snippet: outcomeSnippet(c),
+      customerReplied: c.customer_replied,
+      responded: RESPONDED_STATUSES.has(c.status),
+      lastActivity: c.last_contact_at,
+      rundown: buildLeadRundown(c.id, calls, settings.quote_ranges),
+      callTimeLabel: m.timeLabel,
+      voicemailLabel: m.vmLabel
+    };
+  });
 
   return (
     <main style={S.page}>

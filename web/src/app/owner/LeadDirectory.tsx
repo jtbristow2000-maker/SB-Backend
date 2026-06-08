@@ -82,6 +82,15 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
     });
   }, [leads, query, status]);
 
+  const counts = useMemo(() => {
+    const m: Record<string, number> = { all: leads.length, new: 0, contacted: 0, booked: 0, won: 0, lost: 0 };
+    for (const l of leads) {
+      const s = effectiveStatus(l);
+      m[s] = (m[s] ?? 0) + 1;
+    }
+    return m;
+  }, [leads]);
+
   if (leads.length === 0) {
     return <div style={S.empty}>No leads yet. New callers and texters will appear here automatically.</div>;
   }
@@ -99,6 +108,7 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
         {STATUS_FILTERS.map((s) => (
           <button key={s} type="button" onClick={() => setStatus(s)} style={chipStyle(s === status)}>
             {s === "all" ? "All" : s[0].toUpperCase() + s.slice(1)}
+            <span style={{ opacity: 0.7, marginLeft: 5 }}>{counts[s] ?? 0}</span>
           </button>
         ))}
       </div>

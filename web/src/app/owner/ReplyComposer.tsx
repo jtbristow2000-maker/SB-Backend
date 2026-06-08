@@ -48,12 +48,34 @@ function candidateHours(hours: BusinessHoursSettings): number[] {
   const picks = [clamp(openH + 1), clamp(14)];
   return picks.filter((h, i) => picks.indexOf(h) === i);
 }
-// Where to start looking, based on what the caller asked for.
+// Where to start looking, based on what the caller asked for — lands the first
+// offered slots on the day they actually requested when they name one.
+const REQ_DAY_RE: [number, RegExp][] = [
+  [0, /\bsun(day)?\b/], [1, /\bmon(day)?\b/], [2, /\btue(s|sday)?\b/], [3, /\bwed(nesday)?\b/],
+  [4, /\bthu(r|rs|rsday)?\b/], [5, /\bfri(day)?\b/], [6, /\bsat(urday)?\b/]
+];
 function startOffsetFor(requested: string): number {
   const t = requested.toLowerCase();
+  for (const [dow, re] of REQ_DAY_RE) {
+    if (re.test(t)) {
+      const today = startOfDay(new Date()).getDay();
+      let diff = (dow - today + 7) % 7;
+      if (diff === 0) diff = 7; // named today's weekday → next week's occurrence
+      if (/next week/.test(t) && diff < 7) diff += 7;
+      return diff;
+    }
+  }
   if (/next week/.test(t)) return 7;
   if (/tomorrow/.test(t)) return 1;
+  if (/\b(today|asap|as soon as|right away|now)\b/.test(t)) return 0;
   return 1;
+}
+// Put morning/afternoon slots first when the caller hinted at a time of day.
+function orderHoursByRequest(slotHours: number[], requested: string): number[] {
+  const t = requested.toLowerCase();
+  if (/morning/.test(t)) return [...slotHours].sort((a, b) => a - b);
+  if (/(afternoon|evening|night|after\s)/.test(t)) return [...slotHours].sort((a, b) => b - a);
+  return slotHours;
 }
 function computeSlots(busy: Busy[], hours: BusinessHoursSettings, requested: string): string[] {
   const intervals = busy.map((b) => {
@@ -61,7 +83,7 @@ function computeSlots(busy: Busy[], hours: BusinessHoursSettings, requested: str
     const e = b.end ? new Date(b.end).getTime() : s + 3_600_000;
     return [s, e] as const;
   });
-  const slotHours = candidateHours(hours);
+  const slotHours = orderHoursByRequest(candidateHours(hours), requested);
   const workDays = hours.days && hours.days.length ? hours.days : [0, 1, 2, 3, 4, 5, 6];
   const out: string[] = [];
   const base = startOfDay(new Date());
