@@ -132,13 +132,16 @@ export function CalendarViews({ events, legend = [] }: { events: CalendarEvent[]
 
   const go = (dir: number) => {
     setAnchor((prev) => {
+      const now = new Date();
       if (view === "month") {
         const x = new Date(prev);
         x.setDate(1);
         x.setMonth(x.getMonth() + dir);
-        return x;
+        const curMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return x < curMonth ? curMonth : x;
       }
-      return addDays(prev, dir * 7);
+      const x = addDays(prev, dir * 7);
+      return startOfWeek(x) < startOfWeek(now) ? startOfWeek(now) : x;
     });
   };
 
@@ -148,6 +151,12 @@ export function CalendarViews({ events, legend = [] }: { events: CalendarEvent[]
       : view === "week"
         ? weekLabel(startOfWeek(anchor))
         : "Upcoming";
+
+  // The schedule never needs to go back in time — block navigating before the current week/month.
+  const canGoBack =
+    view === "month"
+      ? new Date(anchor.getFullYear(), anchor.getMonth(), 1) > new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      : startOfWeek(anchor) > startOfWeek(new Date());
 
   return (
     <div>
@@ -161,7 +170,7 @@ export function CalendarViews({ events, legend = [] }: { events: CalendarEvent[]
         </div>
         {view !== "agenda" && (
           <div style={S.nav}>
-            <button type="button" onClick={() => go(-1)} style={S.navBtn} aria-label="Previous">‹</button>
+            <button type="button" onClick={() => go(-1)} disabled={!canGoBack} style={{ ...S.navBtn, opacity: canGoBack ? 1 : 0.35, cursor: canGoBack ? "pointer" : "default" }} aria-label="Previous">‹</button>
             <button type="button" onClick={() => setAnchor(new Date())} style={S.navToday}>Today</button>
             <button type="button" onClick={() => go(1)} style={S.navBtn} aria-label="Next">›</button>
           </div>

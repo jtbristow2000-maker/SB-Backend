@@ -20,6 +20,8 @@ export type LeadListItem = {
   responded: boolean;
   lastActivity: string | null;
   rundown?: LeadRundown;
+  callTimeLabel?: string | null;
+  voicemailLabel?: string | null;
 };
 
 export function LeadList({ items }: { items: LeadListItem[] }) {
@@ -78,6 +80,11 @@ export function LeadList({ items }: { items: LeadListItem[] }) {
               </div>
             </div>
             <div style={S.meta}>{it.snippet}</div>
+            {(it.voicemailLabel || it.callTimeLabel) && (
+              <div style={S.subMeta}>
+                {[it.voicemailLabel ? `🎙️ ${it.voicemailLabel}` : null, it.callTimeLabel].filter(Boolean).join(" · ")}
+              </div>
+            )}
           </Link>
         );
       })}
@@ -149,6 +156,7 @@ const S: Record<string, CSSProperties> = {
   replied: { fontSize: 11, fontWeight: 700, color: "#9a6210", background: "rgba(199,125,20,0.14)", padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" },
   responded: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.14)", padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" },
   meta: { color: "#3c414b", fontSize: 13, marginTop: 3 },
+  subMeta: { color: "#9aa0b3", fontSize: 11.5, marginTop: 3 },
   hoverCard: { position: "fixed", width: 288, maxWidth: "calc(100vw - 16px)", background: "#fff", border: "1px solid #e3e6ec", borderRadius: 12, boxShadow: "0 8px 28px rgba(17,21,28,0.18)", padding: "11px 13px", fontSize: 13, lineHeight: 1.45, color: "#1e2026", zIndex: 900 },
   hoverName: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontWeight: 700, fontSize: 14, marginBottom: 5 },
   hoverRow: { marginTop: 3 },

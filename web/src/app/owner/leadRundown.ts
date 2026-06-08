@@ -42,3 +42,30 @@ export function buildLeadRundown(
 
   return { summary, wants, when, quote: quotePriceLabel(wants, ranges) };
 }
+
+// Time of the most recent call + voicemail length, for the lead-card sub-line.
+export function callMetaLabels(
+  profileId: string,
+  calls: CallRecordRow[],
+  tz: string
+): { timeLabel: string | null; vmLabel: string | null } {
+  const profileCalls = calls
+    .filter((c) => c.customer_profile_id === profileId)
+    .sort((a, b) => {
+      const at = a.started_at ?? a.created_at ?? "";
+      const bt = b.started_at ?? b.created_at ?? "";
+      return at < bt ? 1 : at > bt ? -1 : 0;
+    });
+  const c = profileCalls.find((x) => x.call_type === "voicemail" || x.transcript) ?? profileCalls[0];
+  if (!c) return { timeLabel: null, vmLabel: null };
+  const at = c.started_at ?? c.created_at ?? null;
+  const timeLabel = at
+    ? new Date(at).toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" })
+    : null;
+  const secs = typeof c.duration_seconds === "number" ? c.duration_seconds : null;
+  const vmLabel =
+    secs && secs > 0 && (c.call_type === "voicemail" || c.transcript)
+      ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`
+      : null;
+  return { timeLabel, vmLabel };
+}

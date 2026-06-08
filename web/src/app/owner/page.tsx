@@ -5,7 +5,7 @@ import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
-import { buildLeadRundown } from "@/app/owner/leadRundown";
+import { buildLeadRundown, callMetaLabels } from "@/app/owner/leadRundown";
 import { fmtPhone } from "@/app/owner/format";
 
 // Always read current in-memory state (the sandbox runtime), never statically cache.
@@ -44,15 +44,21 @@ export default async function OwnerCallbacks() {
   const items = business
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })
     : [];
-  const leadItems: LeadListItem[] = items.map((it) => ({
-    id: it.id,
-    name: it.display_name || fmtPhone(it.phone_e164),
-    snippet: outcomeSnippet(it),
-    customerReplied: it.customer_replied,
-    responded: RESPONDED_STATUSES.has(it.status),
-    lastActivity: it.last_contact_at,
-    rundown: buildLeadRundown(it.id, calls, settings.quote_ranges)
-  }));
+  const tz = business?.timezone || "America/New_York";
+  const leadItems: LeadListItem[] = items.map((it) => {
+    const m = callMetaLabels(it.id, calls, tz);
+    return {
+      id: it.id,
+      name: it.display_name || fmtPhone(it.phone_e164),
+      snippet: outcomeSnippet(it),
+      customerReplied: it.customer_replied,
+      responded: RESPONDED_STATUSES.has(it.status),
+      lastActivity: it.last_contact_at,
+      rundown: buildLeadRundown(it.id, calls, settings.quote_ranges),
+      callTimeLabel: m.timeLabel,
+      voicemailLabel: m.vmLabel
+    };
+  });
 
   return (
     <main style={S.shell}>
