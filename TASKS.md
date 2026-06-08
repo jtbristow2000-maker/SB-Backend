@@ -792,6 +792,10 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-06-08: "Ring my phone first" backend wiring:
+  - DONE (Codex, 2026-06-08): `forward_calls=false` now sends incoming calls straight to voicemail recording while reusing the same missed-call side effects as the no-answer dial path.
+  - DONE (Codex, 2026-06-08): Missing owner phone numbers now take a voicemail instead of returning a configuration error, so businesses can still capture messages.
+  - DONE (Codex, 2026-06-08): The Twilio voice webhook returns HTTP 200 for direct voicemail TwiML and keeps HTTP 404 only for unmatched business numbers.
 - 2026-06-08: Recorded voicemail greeting audio:
   - DONE (Codex, 2026-06-08): Added `voicemail_greetings` persistence with one WAV greeting per business, validated base64 uploads capped at 1 MB, and a public `GET /api/voicemail-greeting/[businessId]` audio route for Twilio.
   - DONE (Codex, 2026-06-08): Voicemail TwiML now prefers recorded greeting audio via `<Play>` when `PUBLIC_BASE_URL` and audio exist, otherwise falls back to `voicemail_greeting` text or `DEFAULT_VOICEMAIL_GREETING`.

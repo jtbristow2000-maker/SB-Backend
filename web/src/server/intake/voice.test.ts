@@ -154,6 +154,7 @@ describe("BACKEND-07 voice intake service", () => {
       transcriptionProvider?: TranscriptionProvider;
       publicBaseUrl?: string | null;
       scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
+      ownerPhone?: string | null;
     } = {}
   ) {
     const providerLogs: SandboxProviderLog[] = [];
@@ -162,7 +163,7 @@ describe("BACKEND-07 voice intake service", () => {
       id: "00000000-0000-4000-8000-000000000201",
       name: "Detail Test Co",
       ownerName: "Owner",
-      ownerPhone: "(213) 373-4253",
+      ownerPhone: options.ownerPhone === undefined ? "(213) 373-4253" : options.ownerPhone,
       businessPhone: "(310) 555-0199",
       timezone: "America/New_York"
     });
@@ -245,6 +246,83 @@ describe("BACKEND-07 voice intake service", () => {
       to_phone_e164: "+13105550199",
       customer_profile_id: profiles[0].id
     });
+  });
+
+  it("goes straight to voicemail and creates callback work when call forwarding is disabled", async () => {
+    const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+    const {
+      businessRepository,
+      callRecordRepository,
+      taskRepository,
+      auditEventRepository,
+      service
+    } = await setupService({
+      scheduleAutoReplyTimeout: (callback, delayMs) => scheduled.push({ callback, delayMs })
+    });
+    await businessRepository.updateSettings("00000000-0000-4000-8000-000000000201", {
+      forward_calls: false
+    });
+
+    const result = await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_FORWARD_OFF"
+    });
+
+    const calls = await callRecordRepository.list();
+    const tasks = await taskRepository.list();
+    const auditEvents = await auditEventRepository.list();
+    expect(result.status).toBe("voicemail");
+    expect(result.twiml).toContain("<Record");
+    expect(result.twiml).not.toContain("<Dial");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      provider_call_id: "CA_FORWARD_OFF",
+      call_type: "missed",
+      needs_review: true
+    });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      task_type: "callback",
+      status: "open",
+      notes: "Missed call status: forwarding-disabled"
+    });
+    expect(auditEvents).toHaveLength(1);
+    expect(auditEvents[0]).toMatchObject({
+      actor: "system",
+      event_type: "call.missed",
+      event_json: {
+        providerCallId: "CA_FORWARD_OFF",
+        dialCallStatus: "forwarding-disabled",
+        taskId: tasks[0].id
+      }
+    });
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].delayMs).toBe(MISSED_CALL_AUTO_REPLY_TIMEOUT_MS);
+  });
+
+  it("goes straight to voicemail when the owner phone is missing", async () => {
+    const { callRecordRepository, taskRepository, service } = await setupService({
+      ownerPhone: null
+    });
+
+    const result = await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_NO_OWNER_PHONE"
+    });
+
+    const calls = await callRecordRepository.list();
+    const tasks = await taskRepository.list();
+    expect(result.status).toBe("voicemail");
+    expect(result.twiml).toContain("<Record");
+    expect(result.twiml).not.toContain("owner phone number is not configured");
+    expect(calls[0]).toMatchObject({
+      provider_call_id: "CA_NO_OWNER_PHONE",
+      call_type: "missed",
+      needs_review: true
+    });
+    expect(tasks).toHaveLength(1);
   });
 
   it("routes incoming calls by the business-owned Twilio number", async () => {
