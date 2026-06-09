@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
-import { activateNumber, savePortInfo, submitPort } from "@/app/owner/actions";
+import { savePortInfo, submitPort } from "@/app/owner/actions";
+import { ActivateNumberForm } from "@/app/owner/ActivateNumberForm";
 import { fmtPhone } from "@/app/owner/format";
 import type { NumberStatus } from "@/server/db/schema";
 import type { BusinessNumberReadModel } from "@/server/telephony/numberState";
@@ -23,9 +24,7 @@ export function PhoneNumberSection({ model }: { model: BusinessNumberReadModel }
           You don&apos;t have a number connected yet. Activate one to start catching missed calls — it comes with a{" "}
           <strong>14-day free trial</strong>.
         </div>
-        <form action={activateNumber}>
-          <button type="submit" style={S.primary}>Activate my number</button>
-        </form>
+        <ActivateNumberForm />
       </section>
     );
   }

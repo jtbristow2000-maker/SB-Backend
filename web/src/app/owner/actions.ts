@@ -824,13 +824,15 @@ export async function suggestServicesWithAI(input: {
 // mode + credentials + PUBLIC_BASE_URL).
 // ---------------------------------------------------------------------------
 
-export async function activateNumber(): Promise<void> {
+export async function activateNumber(formData?: FormData): Promise<void> {
   const { rt, business } = await getRuntimeAndBusiness();
   if (!rt || !business) return;
+  const areaRaw = formData ? String(formData.get("area_code") ?? "").replace(/\D/g, "") : "";
+  const areaCode = areaRaw.length === 3 ? areaRaw : null;
   try {
     await activateBusinessNumber(
       business.id,
-      {},
+      { areaCode },
       { businessRepository: rt.businessRepository, auditEventRepository: rt.auditEventRepository }
     );
   } catch {
