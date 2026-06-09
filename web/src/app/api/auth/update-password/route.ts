@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createSupabaseRequestClient } from "@/server/auth/supabaseServer";
+import { meetsPasswordPolicy } from "@/server/auth/passwordPolicy";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
   const form = await request.formData().catch(() => null);
   const password = typeof form?.get("password") === "string" ? String(form.get("password")) : "";
 
-  if (password.length < 6) {
+  if (!meetsPasswordPolicy(password)) {
     return NextResponse.redirect(new URL("/reset?error=weak", request.url), { status: 303 });
   }
 

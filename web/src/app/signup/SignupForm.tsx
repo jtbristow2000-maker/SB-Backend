@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useState, type CSSProperties, type FormEvent } from "react";
 
+import { PasswordField } from "@/app/PasswordField";
+import { PasswordStrength } from "@/app/PasswordStrength";
+import { meetsPasswordPolicy } from "@/server/auth/passwordPolicy";
+
 // Client form for the dedicated sign-up screen. Does inline validation BEFORE
 // posting (min password length + confirm match) so owners get a specific
 // message instead of a vague "check your email and password". Posts to the
@@ -20,15 +24,13 @@ export function SignupForm({
   inviteRequired: boolean;
 }) {
   const [clientError, setClientError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    const form = e.currentTarget;
-    const password = (form.elements.namedItem("password") as HTMLInputElement | null)?.value ?? "";
-    const confirm = (form.elements.namedItem("confirm_password") as HTMLInputElement | null)?.value ?? "";
-
-    if (password.length < 6) {
+    if (!meetsPasswordPolicy(password)) {
       e.preventDefault();
-      setClientError("Your password needs to be at least 6 characters.");
+      setClientError("Your password needs at least 8 characters, one uppercase letter, and one number.");
       return;
     }
     if (password !== confirm) {
@@ -94,14 +96,16 @@ export function SignupForm({
 
           <label style={S.label}>
             Password
-            <input name="password" type="password" required minLength={6} autoComplete="new-password" style={S.input} />
-            <span style={S.hint}>At least 6 characters.</span>
+            <PasswordField name="password" value={password} onChange={setPassword} placeholder="Create a password" />
           </label>
+
+          <PasswordStrength password={password} />
 
           <label style={S.label}>
             Confirm password
-            <input name="confirm_password" type="password" required minLength={6} autoComplete="new-password" style={S.input} />
+            <PasswordField name="confirm_password" value={confirm} onChange={setConfirm} placeholder="Re-type password" />
           </label>
+          {confirm.length > 0 && password !== confirm && <div style={S.mismatch}>Passwords don&apos;t match yet.</div>}
 
           <button type="submit" style={S.primary}>Create account</button>
         </form>
@@ -145,6 +149,7 @@ const S: Record<string, CSSProperties> = {
     fontSize: 13,
     fontWeight: 700
   },
+  mismatch: { fontSize: 12, color: "#a13b3b", fontWeight: 600, marginTop: -4 },
   form: { display: "flex", flexDirection: "column", gap: 12 },
   label: { display: "flex", flexDirection: "column", gap: 5, fontSize: 13, fontWeight: 700 },
   optional: { fontWeight: 400, color: "#8a909c", fontSize: 12 },

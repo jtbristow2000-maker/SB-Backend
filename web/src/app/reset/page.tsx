@@ -2,11 +2,12 @@ import Link from "next/link";
 
 import { getCurrentUser } from "@/server/auth/session";
 import { authCard as S } from "@/app/auth-card";
+import { ResetPasswordForm } from "@/app/ResetPasswordForm";
 
 export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
-  weak: "Your new password needs to be at least 6 characters.",
+  weak: "Your new password needs at least 8 characters, one uppercase letter, and one number.",
   failed: "We couldn't update your password — request a fresh reset link and try again."
 };
 
@@ -28,14 +29,7 @@ export default async function ResetPage({
         {error && <div style={S.error}>{ERRORS[error] ?? "Something went wrong — try again."}</div>}
 
         {user ? (
-          <form action="/api/auth/update-password" method="post" style={S.form}>
-            <label style={S.label}>
-              New password
-              <input name="password" type="password" required minLength={6} autoComplete="new-password" style={S.input} />
-              <span style={S.hint}>At least 6 characters.</span>
-            </label>
-            <button type="submit" style={S.primary}>Update password</button>
-          </form>
+          <ResetPasswordForm />
         ) : (
           <>
             <div style={S.sub}>This reset link is invalid or has expired. Request a new one.</div>

@@ -6,6 +6,7 @@ import { getSupabaseServerClient } from "@/server/db/supabaseClient";
 import { createSupabaseRepositories } from "@/server/db/supabaseRepositories";
 
 import { createSupabaseRequestClient } from "./supabaseServer";
+import { meetsPasswordPolicy } from "./passwordPolicy";
 
 export type AuthPayload = {
   email: string;
@@ -223,6 +224,10 @@ export async function handlePasswordSignUp(request: NextRequest): Promise<NextRe
   const requiredInvite = cleanOptionalText(process.env.SIGNUP_INVITE_CODE);
   if (requiredInvite && payload.inviteCode !== requiredInvite) {
     return authError(request, "invalid_invite", 403, "/signup");
+  }
+
+  if (!meetsPasswordPolicy(payload.password)) {
+    return authError(request, "weak_password", 400, "/signup");
   }
 
   const supabase = await createSupabaseRequestClient();
