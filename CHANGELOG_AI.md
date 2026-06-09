@@ -1,5 +1,13 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - "Get your number" activate UX (area code + provisioning state)
+
+### Added
+- `ActivateNumberForm` — the number-activation flow now takes a **preferred area code** (optional) and shows a **"Provisioning your number…"** state via `useFormStatus` while the real Twilio purchase runs. `activateNumber` reads the area code and passes it to `activateBusinessNumber` (3-digit validated).
+
+### Verified
+- `npm run verify` passes: 42 test files, 160 passed, 1 skipped.
+
 ## [2026-06-08] - Stronger password UX + policy
 
 ### Added
