@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-06-08] - Stronger password UX + policy
+
+### Added
+- Shared password policy (`passwordPolicy.ts`): **8+ chars, 1 uppercase, 1 number**, enforced **server-side** on both signup and password reset, plus a heuristic strength scorer (length-weighted).
+- Reusable `PasswordField` (show/hide eye toggle) and `PasswordStrength` (4-segment meter + live requirement checklist).
+- **Reset page** now uses a `ResetPasswordForm`: new password + confirm, both with eye toggles, live strength meter, requirement checklist, and a submit that stays disabled until the policy is met and the two match.
+- **Signup form** upgraded to the same eye toggles + strength meter + policy. Updated the weak-password messages to describe the new rules.
+
+### Verified
+- `npm run verify` passes: 42 test files, 160 passed, 1 skipped.
+
 ## [2026-06-08] - Password reset + email confirmation flow
 
 ### Added

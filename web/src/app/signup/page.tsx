@@ -15,7 +15,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   signups_disabled: "New sign-ups are turned off right now.",
   invalid_invite: "That invite code isn't valid — check it and try again.",
   email_taken: "An account with that email already exists — try signing in instead.",
-  weak_password: "Your password needs to be at least 6 characters.",
+  weak_password: "Your password needs at least 8 characters, one uppercase letter, and one number.",
   invalid_email: "That doesn't look like a valid email address.",
   signup_failed: "We couldn't create your account. Double-check your details and try again."
 };
