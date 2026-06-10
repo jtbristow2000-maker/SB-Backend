@@ -792,6 +792,10 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-06-10: Missed-call auto-text send delay:
+  - DONE (Claude, 2026-06-10): Added the `auto_text_delay_seconds` setting and owner UI.
+  - DONE (Codex, 2026-06-10): Automated missed-call template and AI replies now wait the configured delay with ±2 seconds jitter before provider SMS send; `0` keeps immediate sends.
+  - DONE (Codex, 2026-06-10): Transcript-triggered automated sends run as background work after the Twilio webhook response, while owner/manual SMS sends remain immediate.
 - 2026-06-08: "Ring my phone first" backend wiring:
   - DONE (Codex, 2026-06-08): `forward_calls=false` now sends incoming calls straight to voicemail recording while reusing the same missed-call side effects as the no-answer dial path.
   - DONE (Codex, 2026-06-08): Missing owner phone numbers now take a voicemail instead of returning a configuration error, so businesses can still capture messages.

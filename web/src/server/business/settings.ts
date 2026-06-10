@@ -29,6 +29,7 @@ export type BusinessSettings = {
   brand_color: string;
   logo_url: string;
   auto_text_message: string;
+  auto_text_delay_seconds: number; // seconds to wait before the missed-call auto-text fires (0 = instant)
   voicemail_greeting: string;
   forward_calls: boolean;
   business_hours: BusinessHoursSettings;
@@ -41,6 +42,7 @@ export type BusinessSettingsUpdate = {
   brand_color?: string;
   logo_url?: string;
   auto_text_message?: string;
+  auto_text_delay_seconds?: number;
   voicemail_greeting?: string;
   forward_calls?: boolean;
   business_hours?: Partial<BusinessHoursSettings>;
@@ -63,6 +65,10 @@ export const DEFAULT_VOICEMAIL_GREETING =
 export const DEFAULT_SERVICE_MINUTES = 120;
 export const DEFAULT_TRAVEL_BUFFER_MINUTES = 30;
 
+// Seconds to wait before sending the missed-call auto-text. A short delay feels
+// less robotic without losing the speed-to-lead benefit. 0 = send instantly.
+export const DEFAULT_AUTO_TEXT_DELAY_SECONDS = 10;
+
 export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
   ai_pick_enabled: true,
   sign_off: "",
@@ -77,6 +83,7 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   brand_color: "#5b5bd6",
   logo_url: "",
   auto_text_message: DEFAULT_MISSED_CALL_AUTO_TEXT,
+  auto_text_delay_seconds: DEFAULT_AUTO_TEXT_DELAY_SECONDS,
   voicemail_greeting: "",
   forward_calls: true,
   business_hours: {
@@ -103,6 +110,7 @@ export function getBusinessSettings(
       readNonEmptyString(raw.auto_text_message) ??
       readNonEmptyString(raw.missed_call_auto_text) ??
       DEFAULT_BUSINESS_SETTINGS.auto_text_message,
+    auto_text_delay_seconds: readAutoTextDelay(raw.auto_text_delay_seconds),
     voicemail_greeting:
       typeof raw.voicemail_greeting === "string"
         ? raw.voicemail_greeting.trim()
@@ -131,6 +139,10 @@ export function mergeBusinessSettingsJson(
 
   if (partial.auto_text_message !== undefined) {
     merged.auto_text_message = partial.auto_text_message;
+  }
+
+  if (partial.auto_text_delay_seconds !== undefined) {
+    merged.auto_text_delay_seconds = partial.auto_text_delay_seconds;
   }
 
   if (partial.voicemail_greeting !== undefined) {
@@ -334,6 +346,14 @@ function readTravelBuffer(value: JsonValue | undefined): number {
     return DEFAULT_TRAVEL_BUFFER_MINUTES;
   }
   return Math.min(240, Math.round(value));
+}
+
+// Delay (seconds) before the missed-call auto-text fires, clamped 0–300. 0 = instant.
+function readAutoTextDelay(value: JsonValue | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return DEFAULT_AUTO_TEXT_DELAY_SECONDS;
+  }
+  return Math.min(300, Math.round(value));
 }
 
 function normalizeServiceName(service: string | null | undefined): string | null {

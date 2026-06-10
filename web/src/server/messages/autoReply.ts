@@ -21,6 +21,7 @@ import type { MessageRepository } from "@/server/intake/messages";
 import type { AutoReplyProvider, SmsProvider } from "@/server/providers";
 
 const AUTO_REPLY_PROVIDER_MESSAGE_PREFIX = "missed-call-auto-text";
+export const AUTO_TEXT_DELAY_JITTER_SECONDS = 2;
 
 export type MissedCallAutoReplyReason = "transcript" | "timeout";
 
@@ -36,6 +37,8 @@ export type MissedCallAutoReplyDependencies = {
   isSmsSendingEnabled: () => boolean;
   isAiReplyEnabled: () => boolean;
   now?: () => Date;
+  sleepBeforeAutoReplySend?: (delayMs: number) => Promise<void>;
+  autoReplyDelayRandom?: () => number;
 };
 
 export type MissedCallAutoReplyResult =
@@ -85,14 +88,19 @@ export async function sendMissedCallAutoReply(
     return { status: "profile_not_found" };
   }
 
+  const settings = getBusinessSettings(business);
   const composition = await composeMissedCallAutoReply(dependencies, {
     business,
     profile,
     call,
-    reason: input.reason
+    reason: input.reason,
+    settings
   });
   const smsSendingEnabled = dependencies.isSmsSendingEnabled();
   const createdAt = (dependencies.now?.() ?? new Date()).toISOString();
+  const sendDelayMs = smsSendingEnabled
+    ? autoTextSendDelayMs(settings, dependencies.autoReplyDelayRandom)
+    : 0;
   let message = await dependencies.messageRepository.create({
     business_id: call.business_id,
     customer_profile_id: profile.id,
@@ -111,6 +119,10 @@ export async function sendMissedCallAutoReply(
 
   if (smsSendingEnabled) {
     try {
+      if (sendDelayMs > 0) {
+        await (dependencies.sleepBeforeAutoReplySend ?? sleep)(sendDelayMs);
+      }
+
       const result = await dependencies.smsProvider.sendMessage({
         businessId: call.business_id,
         to: call.from_phone_e164,
@@ -147,7 +159,8 @@ export async function sendMissedCallAutoReply(
       reason: input.reason,
       level: composition.level,
       aiGenerated: composition.aiGenerated,
-      smsSendingEnabled
+      smsSendingEnabled,
+      sendDelayMs
     }
   });
 
@@ -172,6 +185,7 @@ async function composeMissedCallAutoReply(
     profile: CustomerProfileRow;
     call: CallRecordRow;
     reason: MissedCallAutoReplyReason;
+    settings: BusinessSettings;
   }
 ): Promise<{
   body: string;
@@ -181,7 +195,7 @@ async function composeMissedCallAutoReply(
   priceLabel: string | null;
   openSlots: string[];
 }> {
-  const settings = getBusinessSettings(input.business);
+  const settings = input.settings;
   const level = input.reason === "timeout" ? 0 : settings.ai_reply.auto_reply_level;
   const fallback = buildTemplateReply(input.business.name, settings);
   const extracted = readExtractedCallDetails(input.call.extracted_json);
@@ -261,6 +275,19 @@ async function composeMissedCallAutoReply(
   };
 }
 
+export function autoTextSendDelayMs(
+  settings: Pick<BusinessSettings, "auto_text_delay_seconds">,
+  random: () => number = Math.random
+): number {
+  const delaySeconds = settings.auto_text_delay_seconds;
+  if (delaySeconds <= 0) {
+    return 0;
+  }
+
+  const jitterSeconds = (random() * AUTO_TEXT_DELAY_JITTER_SECONDS * 2) - AUTO_TEXT_DELAY_JITTER_SECONDS;
+  return Math.max(0, Math.round((delaySeconds + jitterSeconds) * 1000));
+}
+
 function buildTemplateReply(businessName: string, settings: BusinessSettings): string {
   return settings.auto_text_message.replaceAll("{business_name}", businessName);
 }
@@ -310,4 +337,10 @@ function readString(value: JsonValue | undefined): string | null {
 function cleanReplyBody(body: string | null): string | null {
   const trimmed = body?.trim();
   return trimmed ? trimmed : null;
+}
+
+function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
 }
