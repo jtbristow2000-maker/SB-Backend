@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 
 import { sendOwnerText, suggestServicesWithAI } from "@/app/owner/actions";
 import { fmtUsd } from "@/app/owner/format";
+import { DEFAULT_SERVICE_MINUTES, DEFAULT_TRAVEL_BUFFER_MINUTES } from "@/server/business/settings";
 import type { AiReplySettings, BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
 
 // Interactive reply builder for a missed-call lead. Shows the whole flow in one place:
@@ -15,9 +16,8 @@ import type { AiReplySettings, BusinessHoursSettings, QuoteRangeSettings } from 
 
 type Busy = { start: string; end: string | null };
 
-const JOB_HOURS = 2;
-const SLOT_LEN_MS = JOB_HOURS * 3_600_000;
-const MAX_SLOTS = 8;
+const MAX_SLOTS = 8;          // total openings offered across all days
+const MAX_SLOTS_PER_DAY = 4;  // spread options across days instead of stacking one day
 const PRESELECT_SLOTS = 3;
 
 // ---------------------------------------------------------------- time helpers
@@ -40,13 +40,22 @@ function parseHour(hhmm: string, fallback: number): number {
   const h = Number(m[1]) + Number(m[2]) / 60;
   return Number.isFinite(h) ? h : fallback;
 }
-function candidateHours(hours: BusinessHoursSettings): number[] {
+// Start times to offer for a job of the given length: walk the work day from open
+// to the latest start that still finishes by close, stepping by the job length. A
+// short job yields more openings, a long one fewer — capped per day so options
+// spread across days. Empty when the job can't fit inside a single work day.
+function candidateStartHours(hours: BusinessHoursSettings, durationMin: number): number[] {
   const openH = parseHour(hours.open, 9);
   const closeH = parseHour(hours.close, 17);
-  const latestStart = Math.max(openH, closeH - JOB_HOURS);
-  const clamp = (h: number) => Math.min(Math.max(h, openH), latestStart);
-  const picks = [clamp(openH + 1), clamp(14)];
-  return picks.filter((h, i) => picks.indexOf(h) === i);
+  const durationH = Math.max(0.25, durationMin / 60);
+  const latestStart = closeH - durationH;
+  if (latestStart < openH - 1e-6) return [];
+  const step = Math.max(0.5, durationH);
+  const picks: number[] = [];
+  for (let h = openH; h <= latestStart + 1e-6 && picks.length < MAX_SLOTS_PER_DAY; h += step) {
+    picks.push(Math.round(h * 60) / 60);
+  }
+  return picks;
 }
 // Where to start looking, based on what the caller asked for — lands the first
 // offered slots on the day they actually requested when they name one.
@@ -77,13 +86,23 @@ function orderHoursByRequest(slotHours: number[], requested: string): number[] {
   if (/(afternoon|evening|night|after\s)/.test(t)) return [...slotHours].sort((a, b) => b - a);
   return slotHours;
 }
-function computeSlots(busy: Busy[], hours: BusinessHoursSettings, requested: string): string[] {
+function computeSlots(
+  busy: Busy[],
+  hours: BusinessHoursSettings,
+  requested: string,
+  durationMin: number,
+  bufferMin: number
+): string[] {
+  const slotLenMs = Math.max(15, durationMin) * 60_000;
+  const bufferMs = Math.max(0, bufferMin) * 60_000;
+  // Pad each booked job by the travel buffer so we never offer a slot that lands
+  // within drive time of an existing appointment.
   const intervals = busy.map((b) => {
     const s = new Date(b.start).getTime();
     const e = b.end ? new Date(b.end).getTime() : s + 3_600_000;
-    return [s, e] as const;
+    return [s - bufferMs, e + bufferMs] as const;
   });
-  const slotHours = orderHoursByRequest(candidateHours(hours), requested);
+  const slotHours = orderHoursByRequest(candidateStartHours(hours, durationMin), requested);
   const workDays = hours.days && hours.days.length ? hours.days : [0, 1, 2, 3, 4, 5, 6];
   const out: string[] = [];
   const base = startOfDay(new Date());
@@ -96,7 +115,7 @@ function computeSlots(busy: Busy[], hours: BusinessHoursSettings, requested: str
       const start = new Date(day);
       start.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
       const startMs = start.getTime();
-      const endMs = startMs + SLOT_LEN_MS;
+      const endMs = startMs + slotLenMs;
       if (!intervals.some(([bs, be]) => bs < endMs && be > startMs)) out.push(fmtSlot(start));
     }
   }
@@ -332,6 +351,7 @@ export function ReplyComposer({
   profileId,
   quoteRanges,
   businessHours,
+  travelBufferMinutes = DEFAULT_TRAVEL_BUFFER_MINUTES,
   busy,
   requestedWhen,
   contextText,
@@ -347,6 +367,7 @@ export function ReplyComposer({
   profileId: string;
   quoteRanges: QuoteRangeSettings[];
   businessHours: BusinessHoursSettings;
+  travelBufferMinutes?: number;
   busy: Busy[];
   requestedWhen: string;
   contextText: string;
@@ -357,7 +378,6 @@ export function ReplyComposer({
   slotConflict?: boolean;
   confirmedSlot?: string | null;
 }) {
-  const allSlots = useMemo(() => computeSlots(busy, businessHours, requestedWhen), [busy, businessHours, requestedWhen]);
   const initialPicks = useMemo(
     () => aiSettings.ai_pick_enabled ? suggestServiceIdxs(contextText, quoteRanges) : [],
     [aiSettings.ai_pick_enabled, contextText, quoteRanges]
@@ -365,6 +385,22 @@ export function ReplyComposer({
   const outsideLabel = useMemo(() => describeOutsideHours(requestedWhen, businessHours), [requestedWhen, businessHours]);
 
   const [selectedIdxs, setSelectedIdxs] = useState<Set<number>>(() => new Set(initialPicks));
+
+  // The chosen services drive the appointment length: their durations add up, so the
+  // open slots below get tighter or more spread out as the owner toggles services.
+  const selected = useMemo(
+    () => [...selectedIdxs].sort((a, b) => a - b).map((i) => quoteRanges[i]).filter(Boolean),
+    [selectedIdxs, quoteRanges]
+  );
+  const durationMin = useMemo(() => {
+    const sum = selected.reduce((s, r) => s + (r.duration_minutes ?? DEFAULT_SERVICE_MINUTES), 0);
+    return sum > 0 ? sum : DEFAULT_SERVICE_MINUTES;
+  }, [selected]);
+  const allSlots = useMemo(
+    () => computeSlots(busy, businessHours, requestedWhen, durationMin, travelBufferMinutes),
+    [busy, businessHours, requestedWhen, durationMin, travelBufferMinutes]
+  );
+
   const [selectedSlots, setSelectedSlots] = useState<string[]>(() => allSlots.slice(0, PRESELECT_SLOTS));
   const [includeMenu, setIncludeMenu] = useState<boolean>(() => pricingInquiry && initialPicks.length === 0);
   const [edited, setEdited] = useState<string | null>(null);
@@ -399,10 +435,16 @@ export function ReplyComposer({
       .catch(() => setAiState("done"));
   }, [aiEnabled, transcript, quoteRanges]);
 
-  const selected = useMemo(
-    () => [...selectedIdxs].sort((a, b) => a - b).map((i) => quoteRanges[i]).filter(Boolean),
-    [selectedIdxs, quoteRanges]
-  );
+  // When the offered slots change (e.g. the owner picks a longer service), drop any
+  // selected times that no longer fit; if none survive, pre-pick the first few.
+  useEffect(() => {
+    setSelectedSlots((prev) => {
+      const keep = prev.filter((s) => allSlots.includes(s));
+      if (keep.length === prev.length) return prev;
+      return keep.length ? keep : allSlots.slice(0, PRESELECT_SLOTS);
+    });
+  }, [allSlots]);
+
   const pricedSelected = selected.filter((r) => bounds(r) !== null);
   const hasVaries = selected.some((r) => bounds(r) === null);
   const totalLow = pricedSelected.reduce((s, r) => s + (bounds(r)?.lo ?? 0), 0);

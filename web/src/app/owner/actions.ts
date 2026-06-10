@@ -511,18 +511,23 @@ export async function saveSettings(formData: FormData): Promise<void> {
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
   partial.business_hours = { open: open || "09:00", close: close || "17:00", days };
 
+  const bufferRaw = Number(formData.get("travel_buffer_minutes") ?? 30);
+  partial.travel_buffer_minutes = Number.isFinite(bufferRaw) ? Math.min(240, Math.max(0, Math.round(bufferRaw))) : 30;
+
   const services = formData.getAll("quote_service").map((v) => String(v).trim());
   const lows = formData.getAll("quote_low").map((v) => Number(v));
   const highs = formData.getAll("quote_high").map((v) => Number(v));
   const colors = formData.getAll("quote_color").map((v) => String(v).trim());
   const onCals = formData.getAll("quote_on_calendar").map((v) => String(v) !== "0");
+  const durations = formData.getAll("quote_duration").map((v) => Number(v));
   partial.quote_ranges = services
     .map((service, i) => ({
       service,
       low: lows[i],
       high: highs[i],
       color: /^#[0-9a-fA-F]{6}$/.test(colors[i] ?? "") ? colors[i].toLowerCase() : "#5b5bd6",
-      on_calendar: onCals[i] ?? true
+      on_calendar: onCals[i] ?? true,
+      duration_minutes: Number.isFinite(durations[i]) && durations[i] > 0 ? Math.round(durations[i]) : undefined
     }))
     .filter((range) => range.service && Number.isFinite(range.low) && Number.isFinite(range.high));
 

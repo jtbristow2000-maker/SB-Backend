@@ -180,6 +180,17 @@ export default async function SettingsPage() {
               </label>
             ))}
           </div>
+          <label style={{ ...S.inlineLabel, marginTop: 16 }}>
+            Travel buffer between jobs
+            <select name="travel_buffer_minutes" defaultValue={String(settings.travel_buffer_minutes)} style={S.time}>
+              <option value="0">None</option>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+              <option value="60">1 hr</option>
+            </select>
+          </label>
+          <div style={{ ...S.sectionHint, marginTop: 6 }}>Drive time kept clear around booked jobs, so back-to-back appointments aren&apos;t offered too tight.</div>
         </section>
 
         <section style={S.section}>
