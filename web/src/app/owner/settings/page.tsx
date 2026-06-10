@@ -57,6 +57,17 @@ export default async function SettingsPage() {
             <div style={S.sectionTitle}>Missed-call auto-text</div>
             <div style={S.sectionHint}>Texted to a caller you miss. Use {"{business_name}"} to insert your name.</div>
             <textarea name="auto_text_message" defaultValue={settings.auto_text_message} rows={3} style={S.textarea} />
+            <label style={{ ...S.inlineLabel, marginTop: 10 }}>
+              Send delay
+              <select name="auto_text_delay_seconds" defaultValue={String(settings.auto_text_delay_seconds)} style={S.time}>
+                <option value="0">Instant</option>
+                <option value="5">5 seconds</option>
+                <option value="10">10 seconds</option>
+                <option value="15">15 seconds</option>
+                <option value="30">30 seconds</option>
+              </select>
+            </label>
+            <div style={{ ...S.sectionHint, marginTop: 6 }}>A short pause so the text doesn&apos;t feel robotic — still fast enough to catch the lead.</div>
           </div>
 
           <div style={{ marginTop: 16 }}>

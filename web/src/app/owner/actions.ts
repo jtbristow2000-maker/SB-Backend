@@ -497,6 +497,9 @@ export async function saveSettings(formData: FormData): Promise<void> {
     partial.auto_text_message = autoText;
   }
 
+  const delayRaw = Number(formData.get("auto_text_delay_seconds") ?? 10);
+  partial.auto_text_delay_seconds = Number.isFinite(delayRaw) ? Math.min(300, Math.max(0, Math.round(delayRaw))) : 10;
+
   // Always set (blank clears it → the server uses the default voicemail greeting).
   partial.voicemail_greeting = String(formData.get("voicemail_greeting") ?? "").trim();
 
