@@ -3,6 +3,7 @@ import {
   bootstrapSingleTenantBusiness,
   InMemoryBusinessRepository
 } from "@/server/business/bootstrap";
+import { after } from "next/server";
 import { InMemoryBusinessMemberRepository } from "@/server/business/membership";
 import {
   type CustomerProfileRepository,
@@ -161,7 +162,8 @@ export function buildIntakeRuntime(
       const currentConfig = getAppConfig();
       return currentConfig.fastTranscriptionEnabled && currentConfig.openAiConfigured;
     },
-    getPublicBaseUrl: () => getAppConfig().publicBaseUrl
+    getPublicBaseUrl: () => getAppConfig().publicBaseUrl,
+    scheduleAutomatedOutbound: scheduleAfterResponse
   });
   const smsIntakeService = new SmsIntakeService({
     businessRepository,
@@ -308,4 +310,12 @@ export function hasConfiguredExtractionProvider(
 function parseExtractionProvider(value?: string): "openai" | "anthropic" | null {
   const normalized = value?.trim().toLowerCase();
   return normalized === "openai" || normalized === "anthropic" ? normalized : null;
+}
+
+function scheduleAfterResponse(callback: () => Promise<void>): void {
+  try {
+    after(callback);
+  } catch {
+    void callback();
+  }
 }

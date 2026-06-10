@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-06-10] - Missed-call auto-text send delay
+
+### Changed
+- Wired the existing `auto_text_delay_seconds` setting into the automated missed-call auto-text sender.
+- Automated template and AI auto-replies now wait the configured delay with ±2 seconds of jitter before provider SMS send; `0` sends immediately.
+- Transcript-triggered automated sends are scheduled as background work so Twilio recording webhooks can return without waiting on the delay.
+- Owner/manual SMS sends remain immediate and do not use the automated delay.
+
+### Verified
+- `npm run verify` passes: 43 test files, 164 passed, 1 skipped.
+
 ## [2026-06-10] - Per-service job time → smarter appointment slots + travel buffer
 
 ### Added

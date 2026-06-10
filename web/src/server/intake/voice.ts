@@ -101,6 +101,9 @@ export type VoiceIntakeDependencies = {
   isFastTranscriptionEnabled: () => boolean;
   getPublicBaseUrl?: () => string | null;
   scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
+  scheduleAutomatedOutbound?: (callback: () => Promise<void>) => Promise<void> | void;
+  sleepBeforeAutoReplySend?: (delayMs: number) => Promise<void>;
+  autoReplyDelayRandom?: () => number;
 };
 
 export class VoiceIntakeService {
@@ -361,7 +364,7 @@ export class VoiceIntakeService {
         : updated;
 
     if (transcript) {
-      await this.sendMissedCallAutoReplySafe(enriched.id, "transcript");
+      await this.scheduleMissedCallAutoReplySend(enriched.id, "transcript");
     }
 
     return {
@@ -375,6 +378,14 @@ export class VoiceIntakeService {
     schedule(() => {
       void this.sendMissedCallAutoReplySafe(callRecordId, "timeout");
     }, MISSED_CALL_AUTO_REPLY_TIMEOUT_MS);
+  }
+
+  private async scheduleMissedCallAutoReplySend(
+    callRecordId: string,
+    reason: "transcript" | "timeout"
+  ): Promise<void> {
+    const schedule = this.dependencies.scheduleAutomatedOutbound ?? defaultAutomatedOutboundScheduler;
+    await schedule(() => this.sendMissedCallAutoReplySafe(callRecordId, reason));
   }
 
   private async sendMissedCallAutoReplySafe(
@@ -579,4 +590,8 @@ function isPoBox(value: string): boolean {
 function defaultAutoReplyTimeoutScheduler(callback: () => void, delayMs: number): void {
   const timer = setTimeout(callback, delayMs);
   timer.unref?.();
+}
+
+function defaultAutomatedOutboundScheduler(callback: () => Promise<void>): Promise<void> {
+  return callback();
 }

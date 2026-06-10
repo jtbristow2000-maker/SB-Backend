@@ -9,6 +9,7 @@ import {
   createSandboxProviders,
   type ExtractionProvider,
   type SmsProvider,
+  type SmsSendInput,
   type SandboxProviderLog,
   type TranscriptionInput,
   type TranscriptionProvider,
@@ -91,10 +92,12 @@ describe("BACKEND-07 voice intake service", () => {
     providerName?: string;
     networkCallsMade?: boolean;
     throws?: boolean;
+    calls?: SmsSendInput[];
   }): SmsProvider {
     return {
       providerName: input.providerName ?? "fake",
-      async sendMessage() {
+      async sendMessage(payload) {
+        input.calls?.push(payload);
         if (input.throws) {
           throw new Error("fake sms send failure");
         }
@@ -154,6 +157,9 @@ describe("BACKEND-07 voice intake service", () => {
       transcriptionProvider?: TranscriptionProvider;
       publicBaseUrl?: string | null;
       scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
+      scheduleAutomatedOutbound?: (callback: () => Promise<void>) => Promise<void> | void;
+      autoReplyDelaySleep?: (delayMs: number) => Promise<void>;
+      autoReplyDelayRandom?: () => number;
       ownerPhone?: string | null;
     } = {}
   ) {
@@ -200,7 +206,10 @@ describe("BACKEND-07 voice intake service", () => {
       isAiReplyEnabled: () => options.aiReplyEnabled ?? false,
       isFastTranscriptionEnabled: () => options.fastTranscriptionEnabled ?? false,
       getPublicBaseUrl: () => options.publicBaseUrl ?? null,
-      scheduleAutoReplyTimeout: options.scheduleAutoReplyTimeout
+      scheduleAutoReplyTimeout: options.scheduleAutoReplyTimeout,
+      scheduleAutomatedOutbound: options.scheduleAutomatedOutbound,
+      sleepBeforeAutoReplySend: options.autoReplyDelaySleep ?? (async () => undefined),
+      autoReplyDelayRandom: options.autoReplyDelayRandom
     });
 
     return {
@@ -534,6 +543,111 @@ describe("BACKEND-07 voice intake service", () => {
     expect(messages[0].status).toBe("sent");
     expect(messages[0].sent_at).not.toBeNull();
     expect(auditEvents.map((event) => event.event_type)).toContain("message.auto_text.sent");
+  });
+
+  it("waits the configured jittered delay before automated SMS sends", async () => {
+    const sleepCalls: number[] = [];
+    const smsCalls: SmsSendInput[] = [];
+    const { businessRepository, messageRepository, auditEventRepository, service } = await setupService({
+      smsSendingEnabled: true,
+      smsProvider: createFakeSmsProvider({
+        providerName: "twilio",
+        networkCallsMade: true,
+        calls: smsCalls
+      }),
+      autoReplyDelayRandom: () => 0.75,
+      autoReplyDelaySleep: async (delayMs) => {
+        sleepCalls.push(delayMs);
+      }
+    });
+    await businessRepository.updateSettings("00000000-0000-4000-8000-000000000201", {
+      auto_text_delay_seconds: 10
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUTOTEXT_DELAY"
+    });
+    await service.handleDialStatus({
+      callSid: "CA_AUTOTEXT_DELAY",
+      dialCallStatus: "busy"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_AUTOTEXT_DELAY",
+      transcript: "Hi, I need a detail this week."
+    });
+
+    const messages = await messageRepository.list();
+    const auditEvents = await auditEventRepository.list();
+    const messageAudit = auditEvents.find((event) => event.event_type === "message.auto_text.sent");
+    expect(sleepCalls).toEqual([11_000]);
+    expect(smsCalls).toHaveLength(1);
+    expect(messages[0].status).toBe("sent");
+    expect(messageAudit?.event_json).toMatchObject({
+      sendDelayMs: 11_000
+    });
+  });
+
+  it("sends automated SMS immediately when the auto-text delay is zero", async () => {
+    const sleepCalls: number[] = [];
+    const { businessRepository, messageRepository, service } = await setupService({
+      smsSendingEnabled: true,
+      smsProvider: createFakeSmsProvider({ providerName: "twilio", networkCallsMade: true }),
+      autoReplyDelayRandom: () => 1,
+      autoReplyDelaySleep: async (delayMs) => {
+        sleepCalls.push(delayMs);
+      }
+    });
+    await businessRepository.updateSettings("00000000-0000-4000-8000-000000000201", {
+      auto_text_delay_seconds: 0
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUTOTEXT_NO_DELAY"
+    });
+    await service.handleDialStatus({
+      callSid: "CA_AUTOTEXT_NO_DELAY",
+      dialCallStatus: "busy"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_AUTOTEXT_NO_DELAY",
+      transcript: "Hi, I need a detail this week."
+    });
+
+    const messages = await messageRepository.list();
+    expect(sleepCalls).toHaveLength(0);
+    expect(messages[0].status).toBe("sent");
+  });
+
+  it("schedules transcript-triggered automated sends as background work", async () => {
+    const scheduledOutbound: Array<() => Promise<void>> = [];
+    const { messageRepository, service } = await setupService({
+      scheduleAutomatedOutbound: (callback) => {
+        scheduledOutbound.push(callback);
+      }
+    });
+    await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+13105550199",
+      callSid: "CA_AUTOTEXT_BACKGROUND"
+    });
+    await service.handleDialStatus({
+      callSid: "CA_AUTOTEXT_BACKGROUND",
+      dialCallStatus: "busy"
+    });
+
+    await service.handleRecording({
+      callSid: "CA_AUTOTEXT_BACKGROUND",
+      transcript: "Hi, I need a detail this week."
+    });
+
+    expect(scheduledOutbound).toHaveLength(1);
+    expect(await messageRepository.list()).toHaveLength(0);
+    await scheduledOutbound[0]();
+    expect(await messageRepository.list()).toHaveLength(1);
   });
 
   it("uses the business settings auto-text message when configured", async () => {
