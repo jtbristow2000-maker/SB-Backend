@@ -307,6 +307,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           profileId={profile.id}
           quoteRanges={settings.quote_ranges}
           businessHours={settings.business_hours}
+          travelBufferMinutes={settings.travel_buffer_minutes}
           busy={busy}
           requestedWhen={aiX.requested_datetime ?? ""}
           contextText={contextText}

@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-06-10] - Per-service job time → smarter appointment slots + travel buffer
+
+### Added
+- **Time per service:** each service in Settings → Quote ranges now carries a **⏱ duration** (quick-pick 30 min – 6 hr, default 2 hr), stored as `duration_minutes`.
+- **Travel buffer:** new Business-hours setting `travel_buffer_minutes` (None–1 hr, default 30 min) — drive time kept clear around booked jobs so back-to-back slots aren't offered too tight.
+- The reply composer's **"Offer these times"** now reads the selected service(s): their durations add up and the work day is walked in those steps, so a **short job surfaces more openings and a long job fewer** (previously hardcoded to 2-hour jobs / two fixed daily slots). Slots still respect hours, work days, and existing bookings (now padded by the buffer); selected times reconcile automatically when the duration changes.
+
+### Files
+- `server/business/settings.ts` (contract): `QuoteRangeSettings.duration_minutes`, `BusinessSettings.travel_buffer_minutes`, defaults, readers (`readDurationMinutes`, `readTravelBuffer`), merger.
+- `owner/QuoteRangesEditor.tsx` (duration dropdown), `owner/settings/page.tsx` (buffer control), `owner/actions.ts` (parse both), `owner/ReplyComposer.tsx` (duration-driven slot logic), `owner/[id]/page.tsx` (pass buffer through).
+
+### Verified
+- `npm run verify` passes: 42 test files, 160 passed, 1 skipped.
+
 ## [2026-06-08] - "Get your number" activate UX (area code + provisioning state)
 
 ### Added

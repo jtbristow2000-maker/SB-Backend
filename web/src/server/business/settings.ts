@@ -12,6 +12,7 @@ export type QuoteRangeSettings = {
   high: number;
   color?: string;
   on_calendar?: boolean;
+  duration_minutes?: number; // how long this job takes; drives how many time slots fit. Unset = default.
 };
 
 export type AiReplySettings = {
@@ -31,6 +32,7 @@ export type BusinessSettings = {
   voicemail_greeting: string;
   forward_calls: boolean;
   business_hours: BusinessHoursSettings;
+  travel_buffer_minutes: number; // padding kept around booked jobs so back-to-back slots leave drive time
   quote_ranges: QuoteRangeSettings[];
   ai_reply: AiReplySettings;
 };
@@ -42,6 +44,7 @@ export type BusinessSettingsUpdate = {
   voicemail_greeting?: string;
   forward_calls?: boolean;
   business_hours?: Partial<BusinessHoursSettings>;
+  travel_buffer_minutes?: number;
   quote_ranges?: QuoteRangeSettings[];
   ai_reply?: Partial<AiReplySettings>;
 };
@@ -53,6 +56,12 @@ export const DEFAULT_MISSED_CALL_AUTO_TEXT =
 // use this. Shared so the Settings placeholder and the server TwiML agree.
 export const DEFAULT_VOICEMAIL_GREETING =
   "Sorry we missed your call. Please leave a message after the beep.";
+
+// Fallback job length (minutes) for a service with no duration set, and the
+// default drive-time padding between jobs. Shared so the reply composer and the
+// Settings UI agree on the numbers.
+export const DEFAULT_SERVICE_MINUTES = 120;
+export const DEFAULT_TRAVEL_BUFFER_MINUTES = 30;
 
 export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
   ai_pick_enabled: true,
@@ -75,6 +84,7 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
     close: "17:00",
     days: [1, 2, 3, 4, 5]
   },
+  travel_buffer_minutes: DEFAULT_TRAVEL_BUFFER_MINUTES,
   quote_ranges: [],
   ai_reply: DEFAULT_AI_REPLY_SETTINGS
 };
@@ -100,6 +110,7 @@ export function getBusinessSettings(
     forward_calls:
       typeof raw.forward_calls === "boolean" ? raw.forward_calls : DEFAULT_BUSINESS_SETTINGS.forward_calls,
     business_hours: readBusinessHours(raw.business_hours),
+    travel_buffer_minutes: readTravelBuffer(raw.travel_buffer_minutes),
     quote_ranges: readQuoteRanges(raw.quote_ranges),
     ai_reply: readAiReplySettings(raw.ai_reply)
   };
@@ -144,13 +155,20 @@ export function mergeBusinessSettingsJson(
     merged.business_hours = hours;
   }
 
+  if (partial.travel_buffer_minutes !== undefined) {
+    merged.travel_buffer_minutes = partial.travel_buffer_minutes;
+  }
+
   if (partial.quote_ranges !== undefined) {
     merged.quote_ranges = partial.quote_ranges.map((range) => ({
       service: range.service,
       low: range.low,
       high: range.high,
       color: range.color ?? "#5b5bd6",
-      on_calendar: range.on_calendar !== false
+      on_calendar: range.on_calendar !== false,
+      ...(typeof range.duration_minutes === "number" && range.duration_minutes > 0
+        ? { duration_minutes: range.duration_minutes }
+        : {})
     }));
   }
 
@@ -290,9 +308,32 @@ function readQuoteRanges(value: JsonValue | undefined): QuoteRangeSettings[] {
     if (!Number.isFinite(raw.low) || !Number.isFinite(raw.high)) continue;
     const color = readHexColor(raw.color) ?? defaultServiceColor(out.length);
     const on_calendar = typeof raw.on_calendar === "boolean" ? raw.on_calendar : true;
-    out.push({ service, low: raw.low, high: raw.high, color, on_calendar });
+    const duration_minutes = readDurationMinutes(raw.duration_minutes);
+    out.push({
+      service,
+      low: raw.low,
+      high: raw.high,
+      color,
+      on_calendar,
+      ...(duration_minutes !== undefined ? { duration_minutes } : {})
+    });
   }
   return out;
+}
+
+// A service's job length, clamped to a sane window (15 min – 12 hr). Returns
+// undefined when nothing valid is stored, so callers fall back to the default.
+function readDurationMinutes(value: JsonValue | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return undefined;
+  return Math.min(720, Math.max(15, Math.round(value)));
+}
+
+// Drive-time padding between jobs, clamped to 0–4 hr. Default when unset.
+function readTravelBuffer(value: JsonValue | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return DEFAULT_TRAVEL_BUFFER_MINUTES;
+  }
+  return Math.min(240, Math.round(value));
 }
 
 function normalizeServiceName(service: string | null | undefined): string | null {
