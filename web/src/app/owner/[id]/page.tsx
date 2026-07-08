@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ArrowLeft, Check, CheckCircle2, Hourglass, Sparkles, Star, TriangleAlert, UserRound, Voicemail } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, CalendarClock, Car, Check, Hourglass, Sparkles, Star, UserRound, Voicemail, Wrench, type LucideIcon } from "lucide-react";
 
 import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
@@ -198,6 +198,16 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     (!profile.vehicles && detectedVehicle) || (!profile.preferred_contact && detectedContact)
   );
 
+  // "The job" at a glance — the AI-read essentials in plain rows, so the owner
+  // doesn't have to parse the transcript to know what this call is about.
+  type JobFact = { Icon: LucideIcon; label: string; value: string };
+  const jobFacts: JobFact[] = [
+    aiX.service_requested ? { Icon: Wrench, label: "Wants", value: aiX.service_requested } : null,
+    vehiclesValue ? { Icon: Car, label: "Vehicle", value: vehiclesValue } : null,
+    aiX.requested_datetime ? { Icon: CalendarClock, label: "Asked for", value: aiX.requested_datetime } : null,
+    bookingPrice ? { Icon: BadgeDollarSign, label: "Ballpark", value: bookingPrice } : null
+  ].filter((f): f is JobFact => f !== null);
+
   return (
     <main className="owner-page" style={S.shell}>
       <MarkLeadRead id={profile.id} activity={profile.last_contact_at} />
@@ -217,7 +227,28 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </div>
       </header>
 
+      {(aiSummaryText || jobFacts.length > 0) && (
+        <section className="card" style={S.jobCard}>
+          <div style={S.jobTitle}>THE JOB</div>
+          {aiSummaryText && <div style={S.jobSummary}>{aiSummaryText}</div>}
+          {jobFacts.length > 0 && (
+            <div style={S.facts}>
+              {jobFacts.map((f) => (
+                <div key={f.label} style={S.factRow}>
+                  <f.Icon size={14} style={S.factIco} aria-hidden />
+                  <span style={S.factLabel}>{f.label}</span>
+                  <span style={S.factValue}>{f.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
+      {profile.phone_e164 && (
+        <div style={S.phoneCaption}>These open your own phone — the reply box below texts from your business number.</div>
+      )}
 
       <LeadActionBar
         profileId={profile.id}
@@ -229,6 +260,65 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         prefilledStart={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.datetimeLocal : undefined}
         confirmedLabel={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : undefined}
       />
+
+      <section className="card" style={S.convoCard}>
+        <div style={S.convoTitle}>WHAT HAPPENED</div>
+        {convo.length === 0 ? (
+          <div style={S.convoEmpty}>No calls or texts yet.</div>
+        ) : (
+          <div style={{ marginTop: 2 }}>
+            {convo.map((item) =>
+            item.kind === "call" ? (
+              <div key={item.call.id} style={bubbleWrap(false)}>
+                <div style={S.vmBubble}>
+                  <div style={S.vmHead}>
+                    <Voicemail size={13} className="ico-inline" aria-hidden /> {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} ·{" "}
+                    {fmtTime(item.at, tz)}{item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
+                  </div>
+                  {item.call.transcript ? (
+                    <div style={S.vmBody}>
+                      “{item.call.transcript}”
+                      {item.call.needs_review && <span style={S.review}> · auto-transcribed</span>}
+                    </div>
+                  ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
+                    <div style={S.transcribing}><Hourglass size={12} className="ico-inline" aria-hidden /> Transcribing voicemail…</div>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div key={item.msg.id} style={bubbleWrap(item.msg.direction === "outbound")}>
+                <div style={bubble(item.msg.direction === "outbound")}>
+                  <div>{item.msg.body}</div>
+                  <div style={S.bubbleMeta}>{messageLabel(item.msg)} · {fmtTime(item.at, tz)}</div>
+                </div>
+              </div>
+            )
+          )}
+          </div>
+        )}
+      </section>
+
+      {profile.phone_e164 && (
+        <ReplyComposer
+          customerName={profile.display_name || ""}
+          businessName={business?.name || "us"}
+          profileId={profile.id}
+          quoteRanges={settings.quote_ranges}
+          businessHours={settings.business_hours}
+          travelBufferMinutes={settings.travel_buffer_minutes}
+          busy={busy}
+          requestedWhen={aiX.requested_datetime ?? ""}
+          contextText={contextText}
+          pricingInquiry={pricingInquiry}
+          transcript={heroCall?.call.transcript ?? ""}
+          aiEnabled={aiEnabled}
+          aiSettings={settings.ai_reply}
+          slotConflict={inboundConfirmation?.isConflict ?? false}
+          confirmedSlot={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : null}
+          textingLive={textingLive}
+          textingMissing={textingMissing}
+        />
+      )}
 
       <details style={S.detailsBox}>
         <summary style={S.detailsSummary}><UserRound size={13} className="ico-inline" aria-hidden /> Customer details{autoFilled ? <> <Sparkles size={12} className="ico-inline" aria-hidden /></> : null}</summary>
@@ -258,69 +348,6 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         </form>
       </details>
 
-      <div style={S.paneTitle}>CONVERSATION</div>
-      {convo.length === 0 ? (
-        <div style={S.empty}>No messages yet.</div>
-      ) : (
-        <div style={{ marginTop: 2 }}>
-          {convo.map((item) =>
-            item.kind === "call" ? (
-              <div key={item.call.id} style={bubbleWrap(false)}>
-                <div style={S.vmBubble}>
-                  <div style={S.vmHead}>
-                    <Voicemail size={13} className="ico-inline" aria-hidden /> {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} ·{" "}
-                    {fmtTime(item.at, tz)}{item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
-                  </div>
-                  {item.call.transcript ? (
-                    <div style={S.vmBody}>
-                      “{item.call.transcript}”
-                      {item.call.needs_review && <span style={S.review}> · auto-transcribed</span>}
-                    </div>
-                  ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
-                    <div style={S.transcribing}><Hourglass size={12} className="ico-inline" aria-hidden /> Transcribing voicemail…</div>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <div key={item.msg.id} style={bubbleWrap(item.msg.direction === "outbound")}>
-                <div style={bubble(item.msg.direction === "outbound")}>
-                  <div>{item.msg.body}</div>
-                  <div style={S.bubbleMeta}>{messageLabel(item.msg)} · {fmtTime(item.at, tz)}</div>
-                </div>
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      {textingLive ? (
-        <div style={S.textOk}><CheckCircle2 size={13} className="ico-inline" aria-hidden /> Texting on — replies send from your business number.</div>
-      ) : (
-        <div style={S.textWarn}>
-          <TriangleAlert size={13} className="ico-inline" aria-hidden /> Texting is off — replies are saved here but not sent yet. Still needed: {textingMissing.join(", ")} (set in Vercel), plus Twilio number verification.
-        </div>
-      )}
-
-      {profile.phone_e164 && (
-        <ReplyComposer
-          customerName={profile.display_name || ""}
-          businessName={business?.name || "us"}
-          profileId={profile.id}
-          quoteRanges={settings.quote_ranges}
-          businessHours={settings.business_hours}
-          travelBufferMinutes={settings.travel_buffer_minutes}
-          busy={busy}
-          requestedWhen={aiX.requested_datetime ?? ""}
-          contextText={contextText}
-          pricingInquiry={pricingInquiry}
-          transcript={heroCall?.call.transcript ?? ""}
-          aiEnabled={aiEnabled}
-          aiSettings={settings.ai_reply}
-          slotConflict={inboundConfirmation?.isConflict ?? false}
-          confirmedSlot={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : null}
-        />
-      )}
-
       {pastJobs.length > 0 && (
         <>
           <div style={S.paneTitle}>PAST JOBS</div>
@@ -334,11 +361,6 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           </div>
         </>
       )}
-
-      <footer style={S.footer}>
-        Texts send from your business number. You can also tap <strong>Call back</strong> or{" "}
-        <strong>Text</strong> above to use your phone directly.
-      </footer>
     </main>
   );
 }
@@ -346,20 +368,29 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 const S: Record<string, CSSProperties> = {
   shell: { maxWidth: 720 },
   back: { color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" },
-  h1: { margin: "6px 0 2px", fontSize: 22, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.4px" },
-  sub: { color: "var(--muted)", fontSize: 13 },
+  h1: { margin: "6px 0 2px", fontSize: 24, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
+  sub: { color: "var(--muted)", fontSize: 13.5 },
   replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 9px", borderRadius: 999 },
-  paneTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--muted)", margin: "14px 0 8px" },
+  paneTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--muted)", margin: "18px 0 8px" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "var(--muted)" },
+  jobCard: { marginTop: 14, padding: "13px 16px 14px" },
+  jobTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--muted)", marginBottom: 6 },
+  jobSummary: { fontSize: 14.5, color: "var(--ink)", lineHeight: 1.5, marginBottom: 8 },
+  facts: { display: "flex", flexDirection: "column", gap: 6 },
+  factRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, minWidth: 0 },
+  factIco: { color: "var(--muted)", flexShrink: 0 },
+  factLabel: { fontWeight: 700, color: "var(--text)", width: 74, flexShrink: 0 },
+  factValue: { color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textTransform: "capitalize" },
+  phoneCaption: { fontSize: 12, color: "var(--faint)", margin: "2px 2px 0", lineHeight: 1.4 },
+  convoCard: { marginTop: 14, padding: "13px 16px 12px" },
+  convoTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--muted)", marginBottom: 4 },
+  convoEmpty: { padding: "10px 0 6px", color: "var(--muted)", fontSize: 13.5 },
   transcribing: { marginTop: 4, fontSize: 13, color: "var(--muted)", fontStyle: "italic" },
   review: { color: "#9a6210", fontSize: 11 },
-  vmBubble: { maxWidth: "88%", padding: "9px 12px", borderRadius: 12, background: "#f4f5f8", borderLeft: "3px solid var(--brand)", fontSize: 13, boxSizing: "border-box" },
+  vmBubble: { maxWidth: "88%", padding: "10px 13px", borderRadius: 12, background: "#f4f5f8", borderLeft: "3px solid var(--brand)", fontSize: 14, boxSizing: "border-box" },
   vmHead: { fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 3 },
-  vmBody: { color: "#1e2026", lineHeight: 1.4 },
-  textOk: { marginTop: 14, marginBottom: 2, fontSize: 11.5, fontWeight: 600, color: "#1d6b4f" },
-  textWarn: { marginTop: 14, padding: "9px 12px", borderRadius: 10, background: "rgba(199,125,20,0.12)", color: "#8a5a0c", fontSize: 12, fontWeight: 600, lineHeight: 1.5 },
-  bubbleMeta: { marginTop: 3, fontSize: 11, color: "var(--muted)" },
-  footer: { marginTop: 18, color: "var(--muted)", fontSize: 12, lineHeight: 1.5 },
+  vmBody: { color: "#1e2026", lineHeight: 1.45 },
+  bubbleMeta: { marginTop: 4, fontSize: 11, color: "var(--muted)" },
   jobRow: { display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", padding: "11px 13px", marginBottom: 8, borderRadius: 11, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", fontSize: 13.5 },
   jobMeta: { color: "var(--muted)", fontSize: 12.5, whiteSpace: "nowrap" },
   firstTime: { fontSize: 11, fontWeight: 700, color: "#8a5a0c", background: "rgba(199,125,20,0.14)", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" },
@@ -377,5 +408,5 @@ function bubbleWrap(out: boolean): CSSProperties {
 }
 
 function bubble(out: boolean): CSSProperties {
-  return { maxWidth: "82%", padding: "9px 12px", borderRadius: 12, background: out ? "rgba(var(--brand-rgb),0.1)" : "#f1f2f5", fontSize: 13 };
+  return { maxWidth: "82%", padding: "10px 13px", borderRadius: 12, background: out ? "rgba(var(--brand-rgb),0.1)" : "#f1f2f5", fontSize: 14, lineHeight: 1.45 };
 }

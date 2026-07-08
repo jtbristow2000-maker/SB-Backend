@@ -60,13 +60,15 @@ export function LeadActionBar({
           </form>
         )}
 
-        <button type="button" onClick={() => setBooking((v) => !v)} className="btn" style={booking ? S.btnOn : S.btn}>
-          <CalendarPlus size={14} aria-hidden /> {confirmedLabel ? `Book — ${confirmedLabel}` : "Book"}{booking ? <ChevronDown size={13} aria-hidden /> : null}
+        <button type="button" onClick={() => setBooking((v) => !v)} className="btn" style={booking ? S.btnOn : S.btnBook}>
+          <CalendarPlus size={14} aria-hidden /> {confirmedLabel ? `Book — ${confirmedLabel}` : "Book the job"}{booking ? <ChevronDown size={13} aria-hidden /> : null}
         </button>
+
+        <span style={S.spacer} />
 
         <form action={markLeadWon} style={S.inline}>
           <input type="hidden" name="profileId" value={profileId} />
-          <button type="submit" className="btn" style={S.btnWon}><Trophy size={14} aria-hidden /> Won</button>
+          <button type="submit" className="btn" style={S.btnWon} title="Job done — marks the lead won and completes its appointments"><Trophy size={14} aria-hidden /> Won</button>
         </form>
         <form action={setProfileStatus} style={S.inline}>
           <input type="hidden" name="profileId" value={profileId} />
@@ -107,9 +109,11 @@ const S: Record<string, CSSProperties> = {
   wrap: { margin: "10px 0 2px" },
   row: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
   inline: { display: "inline-flex" },
-  select: { padding: "7px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff", color: "#1e2026", cursor: "pointer" },
-  btn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  btnOn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 9, border: "1px solid var(--brand)", background: "rgba(var(--brand-rgb),0.1)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  select: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff", color: "#1e2026", cursor: "pointer", fontWeight: 600 },
+  btn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  btnBook: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 9, border: "1px solid rgba(var(--brand-rgb),0.4)", background: "rgba(var(--brand-rgb),0.08)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnOn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 9, border: "1px solid var(--brand)", background: "rgba(var(--brand-rgb),0.12)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  spacer: { flex: 1 },
   bookForm: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#f6f7f9", border: "1px solid var(--border)" },
   input: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
   btnPrimary: { padding: "8px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },

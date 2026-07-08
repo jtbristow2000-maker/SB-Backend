@@ -2,18 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
-import { Check, Copy, Send, Sparkles, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Send, Sparkles, TriangleAlert } from "lucide-react";
 
 import { sendOwnerText, suggestServicesWithAI } from "@/app/owner/actions";
 import { fmtUsd } from "@/app/owner/format";
 import { DEFAULT_SERVICE_MINUTES, DEFAULT_TRAVEL_BUFFER_MINUTES } from "@/server/business/settings";
 import type { AiReplySettings, BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
 
-// Interactive reply builder for a missed-call lead. Shows the whole flow in one place:
-// the services we think the caller wants (pre-ticked from the voicemail, owner adjusts) →
-// a live quote from the saved price settings → open time slots to offer (respecting
-// business hours + the caller's requested timeframe) → the assembled, editable text.
-// Toggling any chip rebuilds the draft; the owner can still hand-edit before sending.
+// Interactive reply builder for a missed-call lead, laid out draft-first: the
+// assembled text is the hero (read it → hit Send), and the levers that build it
+// (service picks with a live quote, open time slots) sit underneath as two
+// collapsed "tap to change" rows — so the default path is a single decision.
+// Toggling any chip rebuilds the draft; the owner can still hand-edit before
+// sending. Rows start open only when there's nothing sensible pre-picked.
 
 type Busy = { start: string; end: string | null };
 
@@ -361,7 +362,9 @@ export function ReplyComposer({
   aiEnabled,
   aiSettings,
   slotConflict,
-  confirmedSlot
+  confirmedSlot,
+  textingLive,
+  textingMissing
 }: {
   customerName: string;
   businessName: string;
@@ -378,6 +381,8 @@ export function ReplyComposer({
   aiSettings: AiReplySettings;
   slotConflict?: boolean;
   confirmedSlot?: string | null;
+  textingLive?: boolean;
+  textingMissing?: string[];
 }) {
   const initialPicks = useMemo(
     () => aiSettings.ai_pick_enabled ? suggestServiceIdxs(contextText, quoteRanges) : [],
@@ -407,6 +412,9 @@ export function ReplyComposer({
   const [edited, setEdited] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [aiState, setAiState] = useState<"idle" | "loading" | "done" | "skip">("idle");
+  // The two "tap to change" rows start open only when nothing useful is pre-picked.
+  const [svcOpen, setSvcOpen] = useState<boolean>(() => initialPicks.length === 0);
+  const [timesOpen, setTimesOpen] = useState(false);
 
   // Let the AI read the transcript against the actual menu (judges severity/damage),
   // overriding the keyword guess. Runs once per open; survives the 10s soft refresh.
@@ -516,83 +524,119 @@ export function ReplyComposer({
     }
   };
 
+  // Plain-word summaries for the two collapsed rows, so the owner can see at a
+  // glance what the draft includes without opening anything.
+  const svcSummary =
+    selected.length === 0
+      ? "Nothing picked yet"
+      : `${selected.map((r) => r.service).join(", ")}${
+          pricedSelected.length > 0
+            ? ` — ${totalLow === totalHigh ? fmtUsd(totalLow) : `${fmtUsd(totalLow)}–${fmtUsd(totalHigh)}`}`
+            : " — quoted on site"
+        }`;
+  const timesSummary =
+    selectedSlots.length === 0
+      ? "No times offered"
+      : selectedSlots.length <= 2
+        ? selectedSlots.join(" · ")
+        : `${selectedSlots.slice(0, 2).join(" · ")} +${selectedSlots.length - 2} more`;
+
   return (
     <div style={S.card}>
       <div style={S.head}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Sparkles size={14} aria-hidden /> Suggested reply</span>
+        <span style={S.headTitle}><Sparkles size={15} aria-hidden /> Text them back</span>
+        {textingLive !== undefined && (
+          <span style={textingLive ? S.liveChip : S.draftChip}>
+            <span style={{ ...S.liveDot, background: textingLive ? "var(--positive)" : "#c77d14" }} />
+            {textingLive ? "Sends for real" : "Practice mode"}
+          </span>
+        )}
       </div>
 
-      {/* Services → live quote */}
-      {quoteRanges.length > 0 ? (
-        <>
-          <div style={S.sectionLabel}>
-            What they want{" "}
-            {aiState === "loading" ? (
-              <span style={S.auto}>· <Sparkles size={11} className="ico-inline" aria-hidden /> AI reading the voicemail…</span>
-            ) : aiState === "done" ? (
-              <span style={S.auto}>· <Sparkles size={11} className="ico-inline" aria-hidden /> picked by AI</span>
-            ) : initialPicks.length > 0 ? (
-              <span style={S.auto}>· auto-picked</span>
-            ) : null}
-          </div>
-          <div style={S.chips}>
-            {quoteRanges.map((r, i) => {
-              const on = selectedIdxs.has(i);
-              return (
-                <button key={`${r.service}-${i}`} type="button" onClick={() => toggleService(i)} className="btn" style={chip(on)}>
-                  {on ? <Check size={12} aria-hidden /> : null}{r.service} <span style={S.chipPrice}>{priceText(r)}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div style={S.quoteLine}>
-            {selected.length === 0
-              ? "No service selected — tap the ones they asked about."
-              : pricedSelected.length === 0
-                ? "Quoted on site"
-                : `Quote: ${totalLow === totalHigh ? fmtUsd(totalLow) : `${fmtUsd(totalLow)}–${fmtUsd(totalHigh)}`}${pricedSelected.length > 1 ? " total" : ""}${hasVaries ? " + on-site" : ""}`}
-          </div>
-          <button type="button" onClick={toggleMenu} className="btn" style={menuToggle(includeMenu)}>
-            {includeMenu ? <><Check size={12} aria-hidden /> Including full price list</> : "+ Add full price list"}
-          </button>
-        </>
+      {aiState === "loading" ? (
+        <div style={S.aiLine}><Sparkles size={12} className="ico-inline" aria-hidden /> Reading their voicemail and writing a reply…</div>
       ) : (
-        <div style={S.noRanges}>Add your services + prices in Settings to quote automatically.</div>
+        <div style={S.aiLine}>Here&apos;s a reply ready to go — check it, then hit Send. Tap the rows below to change anything.</div>
       )}
 
-      {/* Times to offer */}
-      {allSlots.length > 0 && (
-        <>
-          <div style={S.sectionLabel}>Offer these times</div>
-          {outsideLabel && (
-            <div style={S.outsideNote}>
-              <TriangleAlert size={12} className="ico-inline" aria-hidden /> They asked for {outsideLabel.toLowerCase()} — outside your hours. The reply offers your next open times instead (tweak it if you can make an exception).
-            </div>
-          )}
-          <div style={S.chips}>
-            {allSlots.map((slot) => {
-              const on = selectedSlots.includes(slot);
-              return (
-                <button key={slot} type="button" onClick={() => toggleSlot(slot)} className="btn" style={chip(on)}>
-                  {on ? <Check size={12} aria-hidden /> : null}{slot}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* Assembled message */}
-      <div style={S.sectionLabel}>Message</div>
-      <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={4} className="input" style={S.textarea} />
+      {/* The draft is the hero: read it, send it. */}
+      <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={5} className="input" style={S.textarea} />
       <div style={S.actions}>
         <button type="button" onClick={send} disabled={sendState === "sending"} className="btn" style={S.sendBtn}>
-          {sendState === "sending" ? "Sending…" : sendState === "sent" ? <><Check size={15} aria-hidden /> Sent</> : <><Send size={15} aria-hidden /> Send</>}
+          {sendState === "sending" ? "Sending…" : sendState === "sent" ? <><Check size={17} aria-hidden /> Sent!</> : <><Send size={17} aria-hidden /> Send text</>}
         </button>
-        <button type="button" onClick={copy} className="btn" style={S.copyBtn}>
+        <button type="button" onClick={copy} className="btn" style={S.copyBtn} title="Copy the message so you can paste it anywhere">
           {copied ? <><Check size={15} aria-hidden /> Copied</> : <><Copy size={15} aria-hidden /> Copy</>}
         </button>
       </div>
+      {textingLive === false && (
+        <div style={S.practiceNote}>
+          Practice mode: this saves the reply here instead of texting the customer.
+          {textingMissing && textingMissing.length > 0 ? ` Turns on once set up (${textingMissing.join(", ")}).` : ""}
+        </div>
+      )}
+
+      {/* What the draft is built from — collapsed unless something needs picking. */}
+      {quoteRanges.length > 0 ? (
+        <div style={S.rows}>
+          <button type="button" onClick={() => setSvcOpen((v) => !v)} className="btn" style={S.rowToggle} aria-expanded={svcOpen}>
+            {svcOpen ? <ChevronDown size={15} aria-hidden /> : <ChevronRight size={15} aria-hidden />}
+            <span style={S.rowLabel}>The job</span>
+            <span className="clamp-1" style={S.rowValue}>{svcSummary}</span>
+            {aiState === "done" && !svcOpen && <span style={S.auto}><Sparkles size={11} className="ico-inline" aria-hidden /> AI</span>}
+          </button>
+          {svcOpen && (
+            <div style={S.rowBody}>
+              <div style={S.rowHint}>Tap what they asked for — the price and reply update on their own.</div>
+              <div style={S.chips}>
+                {quoteRanges.map((r, i) => {
+                  const on = selectedIdxs.has(i);
+                  return (
+                    <button key={`${r.service}-${i}`} type="button" onClick={() => toggleService(i)} className="btn" style={chip(on)}>
+                      {on ? <Check size={12} aria-hidden /> : null}{r.service} <span style={S.chipPrice}>{priceText(r)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button type="button" onClick={toggleMenu} className="btn" style={menuToggle(includeMenu)}>
+                {includeMenu ? <><Check size={12} aria-hidden /> Full price list included</> : "+ Include your full price list"}
+              </button>
+            </div>
+          )}
+
+          {allSlots.length > 0 && (
+            <>
+              <button type="button" onClick={() => setTimesOpen((v) => !v)} className="btn" style={S.rowToggle} aria-expanded={timesOpen}>
+                {timesOpen ? <ChevronDown size={15} aria-hidden /> : <ChevronRight size={15} aria-hidden />}
+                <span style={S.rowLabel}>Times offered</span>
+                <span className="clamp-1" style={S.rowValue}>{timesSummary}</span>
+              </button>
+              {timesOpen && (
+                <div style={S.rowBody}>
+                  {outsideLabel && (
+                    <div style={S.outsideNote}>
+                      <TriangleAlert size={12} className="ico-inline" aria-hidden /> They asked for {outsideLabel.toLowerCase()} — outside your hours. These are your next open times instead.
+                    </div>
+                  )}
+                  <div style={S.rowHint}>Tap the times you want to offer.</div>
+                  <div style={S.chips}>
+                    {allSlots.map((slot) => {
+                      const on = selectedSlots.includes(slot);
+                      return (
+                        <button key={slot} type="button" onClick={() => toggleSlot(slot)} className="btn" style={chip(on)}>
+                          {on ? <Check size={12} aria-hidden /> : null}{slot}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <div style={S.noRanges}>Add your services + prices in Settings and replies will quote automatically.</div>
+      )}
     </div>
   );
 }
@@ -630,18 +674,27 @@ function menuToggle(on: boolean): CSSProperties {
 }
 
 const S: Record<string, CSSProperties> = {
-  card: { marginTop: 12, padding: "12px 14px", borderRadius: 12, background: "#fff", border: "1px solid #d8dce3" },
-  head: { fontSize: 13, fontWeight: 700, color: "#3a3a9a", marginBottom: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  badge: { fontSize: 10, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "2px 8px", borderRadius: 999 },
-  sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: "var(--muted)", textTransform: "uppercase", margin: "10px 0 6px" },
-  auto: { fontWeight: 600, color: "var(--positive)", textTransform: "none", letterSpacing: 0 },
+  card: { marginTop: 14, padding: "16px 16px 14px", borderRadius: "var(--radius-lg)", background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },
+  head: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 6 },
+  headTitle: { display: "inline-flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.2px" },
+  liveChip: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#1d6b4f", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 10px", borderRadius: 999 },
+  draftChip: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#8a5a0c", background: "rgba(199,125,20,0.12)", padding: "3px 10px", borderRadius: 999 },
+  liveDot: { width: 7, height: 7, borderRadius: 999, flexShrink: 0 },
+  aiLine: { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginBottom: 10 },
+  auto: { fontWeight: 600, color: "var(--positive)", whiteSpace: "nowrap", fontSize: 11.5 },
   chips: { display: "flex", flexWrap: "wrap", gap: 6 },
   chipPrice: { fontWeight: 700, opacity: 0.85 },
-  quoteLine: { marginTop: 8, fontSize: 13, fontWeight: 700, color: "var(--ink)" },
-  outsideNote: { marginBottom: 8, fontSize: 12, lineHeight: 1.45, color: "#8a5a0c", background: "rgba(199,125,20,0.1)", padding: "7px 10px", borderRadius: 9 },
-  noRanges: { fontSize: 13, color: "var(--muted)", padding: "6px 0" },
-  textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
-  actions: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" },
-  sendBtn: { display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
-  copyBtn: { display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 14px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 14, cursor: "pointer" }
+  outsideNote: { marginBottom: 8, fontSize: 12.5, lineHeight: 1.45, color: "#8a5a0c", background: "rgba(199,125,20,0.1)", padding: "7px 10px", borderRadius: 9 },
+  noRanges: { fontSize: 13, color: "var(--muted)", padding: "10px 0 2px" },
+  textarea: { width: "100%", padding: "12px 13px", borderRadius: "var(--radius)", border: "1px solid #d8dce3", fontSize: 15, lineHeight: 1.5, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
+  actions: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" },
+  sendBtn: { flex: "1 1 200px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px 18px", borderRadius: "var(--radius)", border: "none", background: "var(--positive)", color: "#fff", fontWeight: 800, fontSize: 15.5, cursor: "pointer", boxShadow: "0 2px 8px rgba(var(--positive-rgb),0.3)" },
+  copyBtn: { display: "inline-flex", alignItems: "center", gap: 7, padding: "12px 16px", borderRadius: "var(--radius)", background: "var(--surface)", border: "1px solid var(--border-strong)", color: "var(--ink)", fontWeight: 700, fontSize: 14, cursor: "pointer" },
+  practiceNote: { marginTop: 8, fontSize: 12, color: "#8a5a0c", lineHeight: 1.45 },
+  rows: { marginTop: 14, borderTop: "1px solid var(--border)" },
+  rowToggle: { width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 2px", background: "none", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left", font: "inherit", color: "var(--muted)" },
+  rowLabel: { fontSize: 13, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap", flexShrink: 0 },
+  rowValue: { flex: 1, minWidth: 0, fontSize: 13, color: "var(--muted)" },
+  rowBody: { padding: "10px 2px 14px", borderBottom: "1px solid var(--border)" },
+  rowHint: { fontSize: 12.5, color: "var(--muted)", margin: "0 0 8px", lineHeight: 1.45 }
 };
