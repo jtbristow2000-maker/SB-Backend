@@ -243,19 +243,14 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Context strip — what this call is about, at a glance. */}
-      {(aiSummaryText || jobFacts.length > 0) && (
-        <div style={S.context}>
-          {aiSummaryText && <div style={S.contextText}>{aiSummaryText}</div>}
-          {jobFacts.length > 0 && (
-            <div style={S.pillRow}>
-              {jobFacts.map((f) => (
-                <span key={f.label} style={S.pill} title={f.label}>
-                  <f.Icon size={12} style={{ color: "var(--muted)", flexShrink: 0 }} aria-hidden />
-                  <span className="clamp-1" style={{ minWidth: 0, textTransform: "capitalize" }}>{f.value}</span>
-                </span>
-              ))}
-            </div>
-          )}
+      {jobFacts.length > 0 && (
+        <div style={S.pillRow}>
+          {jobFacts.map((f) => (
+            <span key={f.label} style={S.pill} title={f.label}>
+              <f.Icon size={12} style={{ color: "var(--muted)", flexShrink: 0 }} aria-hidden />
+              <span className="clamp-1" style={{ minWidth: 0, textTransform: "capitalize" }}>{f.value}</span>
+            </span>
+          ))}
         </div>
       )}
 
@@ -337,9 +332,7 @@ const S: Record<string, CSSProperties> = {
 
   headRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginTop: 14 },
 
-  context: { margin: "16px 0 2px", textAlign: "center" },
-  contextText: { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, maxWidth: 480, margin: "0 auto" },
-  pillRow: { display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  pillRow: { display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 6, margin: "16px 0 2px" },
   pill: {
     display: "inline-flex", alignItems: "center", gap: 6, maxWidth: 220,
     padding: "5px 11px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
