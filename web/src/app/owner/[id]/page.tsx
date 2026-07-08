@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ArrowLeft, BadgeDollarSign, CalendarClock, Car, Check, Hourglass, Sparkles, Star, UserRound, Voicemail, Wrench, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, CalendarClock, Car, Hourglass, Voicemail, Wrench, type LucideIcon } from "lucide-react";
 
 import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
@@ -10,10 +10,10 @@ import { buildProfileDetail, type ProfileCallTimelineItem } from "@/server/profi
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
 import { ContactButtons } from "@/app/owner/ContactButtons";
 import { LeadActionBar } from "@/app/owner/LeadActionBar";
+import { LeadContactCard, type PastJob } from "@/app/owner/LeadContactCard";
 import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 import { fmtPhone, readExtracted, type Extracted } from "@/app/owner/format";
 import { parseInboundConfirmation } from "@/app/owner/inboundParser";
-import { saveCustomerDetails } from "@/app/owner/actions";
 import { detectVehicle, detectPreferredContact } from "@/app/owner/leadRundown";
 
 export const dynamic = "force-dynamic";
@@ -198,56 +198,65 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     (!profile.vehicles && detectedVehicle) || (!profile.preferred_contact && detectedContact)
   );
 
-  // "The job" at a glance — the AI-read essentials in plain rows, so the owner
-  // doesn't have to parse the transcript to know what this call is about.
+  // The AI-read essentials as quiet context pills (icon + value, no labels) —
+  // shown centered under the header like a messaging app's context strip.
   type JobFact = { Icon: LucideIcon; label: string; value: string };
   const jobFacts: JobFact[] = [
-    aiX.service_requested ? { Icon: Wrench, label: "Wants", value: aiX.service_requested } : null,
+    aiX.service_requested ? { Icon: Wrench, label: "Service", value: aiX.service_requested } : null,
     vehiclesValue ? { Icon: Car, label: "Vehicle", value: vehiclesValue } : null,
     aiX.requested_datetime ? { Icon: CalendarClock, label: "Asked for", value: aiX.requested_datetime } : null,
     bookingPrice ? { Icon: BadgeDollarSign, label: "Ballpark", value: bookingPrice } : null
   ].filter((f): f is JobFact => f !== null);
+
+  // Job history for the contact card.
+  const pastJobsForCard: PastJob[] = pastJobs.map((a) => ({
+    id: a.id,
+    title: a.service_requested || a.title || "Appointment",
+    when: fmtTime(a.scheduled_start_at, tz),
+    done: a.status === "completed"
+  }));
+
+  const leadName = profile.display_name || fmtPhone(profile.phone_e164);
 
   return (
     <main className="owner-page" style={S.shell}>
       <MarkLeadRead id={profile.id} activity={profile.last_contact_at} />
       <Link href="/owner/leads" style={S.back}><ArrowLeft size={14} className="ico-inline" aria-hidden /> Leads</Link>
 
-      <header style={{ marginTop: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <h1 style={S.h1}>{profile.display_name || fmtPhone(profile.phone_e164)}</h1>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-            {first_time_customer && <span style={S.firstTime}><Star size={11} className="ico-inline" aria-hidden /> First-time</span>}
-            {customer_replied && <span style={S.replied}>Replied</span>}
-          </div>
-        </div>
-        <div style={S.sub}>
-          {fmtPhone(profile.phone_e164)}
-          {profile.last_contact_at ? ` · last heard ${fmtTime(profile.last_contact_at, tz)}` : ""}
-        </div>
-      </header>
+      {/* Contact header — tap the name for details + history, call/text on the right. */}
+      <div style={S.headRow}>
+        <LeadContactCard
+          profileId={profile.id}
+          name={leadName}
+          phoneLabel={fmtPhone(profile.phone_e164)}
+          lastHeard={profile.last_contact_at ? `last heard ${fmtTime(profile.last_contact_at, tz)}` : null}
+          replied={customer_replied}
+          firstTime={first_time_customer}
+          vehiclesValue={vehiclesValue}
+          poBox={profile.po_box ?? ""}
+          contactValue={contactValue}
+          referral={profile.referral_source ?? ""}
+          autoFilled={autoFilled}
+          pastJobs={pastJobsForCard}
+        />
+        {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
+      </div>
 
+      {/* Context strip — what this call is about, at a glance. */}
       {(aiSummaryText || jobFacts.length > 0) && (
-        <section className="card" style={S.jobCard}>
-          <div style={S.jobTitle}>THE JOB</div>
-          {aiSummaryText && <div style={S.jobSummary}>{aiSummaryText}</div>}
+        <div style={S.context}>
+          {aiSummaryText && <div style={S.contextText}>{aiSummaryText}</div>}
           {jobFacts.length > 0 && (
-            <div style={S.facts}>
+            <div style={S.pillRow}>
               {jobFacts.map((f) => (
-                <div key={f.label} style={S.factRow}>
-                  <f.Icon size={14} style={S.factIco} aria-hidden />
-                  <span style={S.factLabel}>{f.label}</span>
-                  <span style={S.factValue}>{f.value}</span>
-                </div>
+                <span key={f.label} style={S.pill} title={f.label}>
+                  <f.Icon size={12} style={{ color: "var(--muted)", flexShrink: 0 }} aria-hidden />
+                  <span className="clamp-1" style={{ minWidth: 0, textTransform: "capitalize" }}>{f.value}</span>
+                </span>
               ))}
             </div>
           )}
-        </section>
-      )}
-
-      {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
-      {profile.phone_e164 && (
-        <div style={S.phoneCaption}>These open your own phone — the reply box below texts from your business number.</div>
+        </div>
       )}
 
       <LeadActionBar
@@ -261,13 +270,12 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
         confirmedLabel={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : undefined}
       />
 
-      <section className="card" style={S.convoCard}>
-        <div style={S.convoTitle}>WHAT HAPPENED</div>
+      {/* The conversation IS the page — bubbles straight on the background. */}
+      <div style={S.convo}>
         {convo.length === 0 ? (
-          <div style={S.convoEmpty}>No calls or texts yet.</div>
+          <div style={S.convoEmpty}>No calls or texts yet — when they reach out, it shows up here.</div>
         ) : (
-          <div style={{ marginTop: 2 }}>
-            {convo.map((item) =>
+          convo.map((item) =>
             item.kind === "call" ? (
               <div key={item.call.id} style={bubbleWrap(false)}>
                 <div style={S.vmBubble}>
@@ -289,14 +297,13 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
               <div key={item.msg.id} style={bubbleWrap(item.msg.direction === "outbound")}>
                 <div style={bubble(item.msg.direction === "outbound")}>
                   <div>{item.msg.body}</div>
-                  <div style={S.bubbleMeta}>{messageLabel(item.msg)} · {fmtTime(item.at, tz)}</div>
+                  <div style={bubbleMeta(item.msg.direction === "outbound")}>{messageLabel(item.msg)} · {fmtTime(item.at, tz)}</div>
                 </div>
               </div>
             )
-          )}
-          </div>
+          )
         )}
-      </section>
+      </div>
 
       {profile.phone_e164 && (
         <ReplyComposer
@@ -319,94 +326,50 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           textingMissing={textingMissing}
         />
       )}
-
-      <details style={S.detailsBox}>
-        <summary style={S.detailsSummary}><UserRound size={13} className="ico-inline" aria-hidden /> Customer details{autoFilled ? <> <Sparkles size={12} className="ico-inline" aria-hidden /></> : null}</summary>
-        <form action={saveCustomerDetails} style={S.detailsForm}>
-          <input type="hidden" name="profileId" value={profile.id} />
-          {autoFilled && (
-            <div style={S.autoHint}><Sparkles size={12} className="ico-inline" aria-hidden /> Pre-filled from the voicemail — review and Save to keep it.</div>
-          )}
-          <label style={S.fieldLabel}>Vehicle(s)
-            <input name="vehicles" defaultValue={vehiclesValue} placeholder="e.g. 2019 Tahoe; wife's Civic" className="input" style={S.fieldInput} autoComplete="off" />
-          </label>
-          <label style={S.fieldLabel}>Address / PO box
-            <input name="po_box" defaultValue={profile.po_box ?? ""} placeholder="123 Main St / PO Box 45" className="input" style={S.fieldInput} autoComplete="off" />
-          </label>
-          <label style={S.fieldLabel}>Preferred contact
-            <select name="preferred_contact" defaultValue={contactValue} className="input" style={S.fieldInput}>
-              <option value="">No preference</option>
-              <option value="call">Call</option>
-              <option value="text">Text</option>
-              <option value="email">Email</option>
-            </select>
-          </label>
-          <label style={S.fieldLabel}>How did you hear about us?
-            <input name="referral_source" defaultValue={profile.referral_source ?? ""} placeholder="e.g. Google, referral, truck sign" className="input" style={S.fieldInput} autoComplete="off" />
-          </label>
-          <button type="submit" className="btn" style={S.detailsSave}>Save details</button>
-        </form>
-      </details>
-
-      {pastJobs.length > 0 && (
-        <>
-          <div style={S.paneTitle}>PAST JOBS</div>
-          <div>
-            {pastJobs.map((a) => (
-              <div key={a.id} style={S.jobRow}>
-                <span>{a.service_requested || a.title || "Appointment"}</span>
-                <span style={S.jobMeta}>{fmtTime(a.scheduled_start_at, tz)}{a.status === "completed" ? <> · <Check size={12} className="ico-inline" aria-hidden /> done</> : ""}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </main>
   );
 }
 
 const S: Record<string, CSSProperties> = {
-  shell: { maxWidth: 720 },
+  shell: { maxWidth: 680 },
   back: { color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" },
-  h1: { margin: "6px 0 2px", fontSize: 24, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
-  sub: { color: "var(--muted)", fontSize: 13.5 },
-  replied: { fontSize: 11, fontWeight: 700, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.12)", padding: "3px 9px", borderRadius: 999 },
-  paneTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--muted)", margin: "18px 0 8px" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "var(--muted)" },
-  jobCard: { marginTop: 14, padding: "13px 16px 14px" },
-  jobTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--muted)", marginBottom: 6 },
-  jobSummary: { fontSize: 14.5, color: "var(--ink)", lineHeight: 1.5, marginBottom: 8 },
-  facts: { display: "flex", flexDirection: "column", gap: 6 },
-  factRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, minWidth: 0 },
-  factIco: { color: "var(--muted)", flexShrink: 0 },
-  factLabel: { fontWeight: 700, color: "var(--text)", width: 74, flexShrink: 0 },
-  factValue: { color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textTransform: "capitalize" },
-  phoneCaption: { fontSize: 12, color: "var(--faint)", margin: "2px 2px 0", lineHeight: 1.4 },
-  convoCard: { marginTop: 14, padding: "13px 16px 12px" },
-  convoTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "var(--muted)", marginBottom: 4 },
-  convoEmpty: { padding: "10px 0 6px", color: "var(--muted)", fontSize: 13.5 },
+
+  headRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginTop: 14 },
+
+  context: { margin: "16px 0 2px", textAlign: "center" },
+  contextText: { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, maxWidth: 480, margin: "0 auto" },
+  pillRow: { display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  pill: {
+    display: "inline-flex", alignItems: "center", gap: 6, maxWidth: 220,
+    padding: "5px 11px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+    color: "var(--text)", background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-xs)"
+  },
+
+  convo: { marginTop: 16 },
+  convoEmpty: { padding: "26px 12px", textAlign: "center", color: "var(--muted)", fontSize: 13.5 },
   transcribing: { marginTop: 4, fontSize: 13, color: "var(--muted)", fontStyle: "italic" },
   review: { color: "#9a6210", fontSize: 11 },
-  vmBubble: { maxWidth: "88%", padding: "10px 13px", borderRadius: 12, background: "#f4f5f8", borderLeft: "3px solid var(--brand)", fontSize: 14, boxSizing: "border-box" },
-  vmHead: { fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 3 },
-  vmBody: { color: "#1e2026", lineHeight: 1.45 },
-  bubbleMeta: { marginTop: 4, fontSize: 11, color: "var(--muted)" },
-  jobRow: { display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", padding: "11px 13px", marginBottom: 8, borderRadius: 11, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", fontSize: 13.5 },
-  jobMeta: { color: "var(--muted)", fontSize: 12.5, whiteSpace: "nowrap" },
-  firstTime: { fontSize: 11, fontWeight: 700, color: "#8a5a0c", background: "rgba(199,125,20,0.14)", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" },
-  detailsBox: { marginTop: 12, border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface)", boxShadow: "var(--shadow-sm)" },
-  detailsSummary: { cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: "var(--ink)", padding: "11px 14px" },
-  detailsForm: { display: "flex", flexDirection: "column", gap: 10, padding: "2px 14px 14px" },
-  fieldLabel: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, fontWeight: 700, color: "var(--text)" },
-  fieldInput: { padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit" },
-  detailsSave: { alignSelf: "flex-start", padding: "9px 14px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
-  autoHint: { fontSize: 12, color: "#3a3a9a", background: "rgba(var(--brand-rgb),0.08)", padding: "8px 11px", borderRadius: 8, lineHeight: 1.4, marginBottom: 2 }
+  vmBubble: {
+    maxWidth: "85%", padding: "11px 14px", borderRadius: "18px 18px 18px 5px",
+    background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-xs)",
+    fontSize: 14, boxSizing: "border-box"
+  },
+  vmHead: { fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 4 },
+  vmBody: { color: "var(--ink)", lineHeight: 1.5 }
 };
 
 function bubbleWrap(out: boolean): CSSProperties {
-  return { display: "flex", justifyContent: out ? "flex-end" : "flex-start", margin: "7px 0" };
+  return { display: "flex", justifyContent: out ? "flex-end" : "flex-start", margin: "8px 0" };
 }
 
+// iMessage-style bubbles: theirs = white with a tail, yours = solid brand.
 function bubble(out: boolean): CSSProperties {
-  return { maxWidth: "82%", padding: "10px 13px", borderRadius: 12, background: out ? "rgba(var(--brand-rgb),0.1)" : "#f1f2f5", fontSize: 14, lineHeight: 1.45 };
+  return out
+    ? { maxWidth: "80%", padding: "10px 14px", borderRadius: "18px 18px 5px 18px", background: "var(--brand)", color: "#fff", fontSize: 14, lineHeight: 1.5, boxShadow: "0 1px 4px rgba(var(--brand-rgb),0.3)" }
+    : { maxWidth: "80%", padding: "10px 14px", borderRadius: "18px 18px 18px 5px", background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-xs)", color: "var(--ink)", fontSize: 14, lineHeight: 1.5 };
+}
+
+function bubbleMeta(out: boolean): CSSProperties {
+  return { marginTop: 4, fontSize: 10.5, color: out ? "rgba(255,255,255,0.75)" : "var(--faint)" };
 }

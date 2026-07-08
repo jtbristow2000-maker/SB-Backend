@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Lead detail v2: messaging-app layout (Apple-clean)
+
+### Changed
+- **The page is now a conversation, not a dashboard of boxes.** Contact header (avatar + name; **tap the name → contact card modal** with editable customer details + job history — replaces the orphaned bottom accordion), Call/Text as Messages-style circular icon buttons, a quiet centered **context strip** (AI summary sentence + icon pills for service/vehicle/ballpark — no more "THE JOB"/"WHAT HAPPENED" labels), the conversation as **iMessage-style bubbles** straight on the background (theirs = white with tail, yours = solid brand), and a **docked composer**: rounded input + circular send button, with the service/time adjusters as two compact chips above it that expand on tap. Live/Practice status is a small dot tag; captions in plain words.
+- Action bar pill-shaped to match; new `LeadContactCard` component; past-jobs list moved into the contact card.
+
+### Notes
+- All functionality preserved: status/book/won/lost, mark-done, confirmed-slot prefill, details autofill, AI service picking, price list toggle, outside-hours note, copy, practice-mode explanation.
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` pass.
+
 ## [2026-07-08] - Lead detail redesign: calm, story-first layout
 
 ### Changed
