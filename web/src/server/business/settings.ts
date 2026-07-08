@@ -15,6 +15,13 @@ export type QuoteRangeSettings = {
   duration_minutes?: number; // how long this job takes; drives how many time slots fit. Unset = default.
 };
 
+// Weekly targets the owner sets on the Stats screen. 0 = no goal set.
+export type GoalsSettings = {
+  weekly_calls: number;
+  weekly_leads: number;
+  weekly_booked: number;
+};
+
 export type AiReplySettings = {
   ai_pick_enabled: boolean;  // auto-match services from voicemail; false = owner picks manually
   sign_off: string;          // overrides business name at end of replies (e.g. "Mike")
@@ -36,6 +43,7 @@ export type BusinessSettings = {
   travel_buffer_minutes: number; // padding kept around booked jobs so back-to-back slots leave drive time
   quote_ranges: QuoteRangeSettings[];
   ai_reply: AiReplySettings;
+  goals: GoalsSettings;
 };
 
 export type BusinessSettingsUpdate = {
@@ -49,6 +57,7 @@ export type BusinessSettingsUpdate = {
   travel_buffer_minutes?: number;
   quote_ranges?: QuoteRangeSettings[];
   ai_reply?: Partial<AiReplySettings>;
+  goals?: Partial<GoalsSettings>;
 };
 
 export const DEFAULT_MISSED_CALL_AUTO_TEXT =
@@ -68,6 +77,12 @@ export const DEFAULT_TRAVEL_BUFFER_MINUTES = 30;
 // Seconds to wait before sending the missed-call auto-text. A short delay feels
 // less robotic without losing the speed-to-lead benefit. 0 = send instantly.
 export const DEFAULT_AUTO_TEXT_DELAY_SECONDS = 10;
+
+export const DEFAULT_GOALS_SETTINGS: GoalsSettings = {
+  weekly_calls: 0,
+  weekly_leads: 0,
+  weekly_booked: 0
+};
 
 export const DEFAULT_AI_REPLY_SETTINGS: AiReplySettings = {
   ai_pick_enabled: true,
@@ -93,7 +108,8 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   },
   travel_buffer_minutes: DEFAULT_TRAVEL_BUFFER_MINUTES,
   quote_ranges: [],
-  ai_reply: DEFAULT_AI_REPLY_SETTINGS
+  ai_reply: DEFAULT_AI_REPLY_SETTINGS,
+  goals: DEFAULT_GOALS_SETTINGS
 };
 
 type JsonObject = { [key: string]: JsonValue };
@@ -120,7 +136,8 @@ export function getBusinessSettings(
     business_hours: readBusinessHours(raw.business_hours),
     travel_buffer_minutes: readTravelBuffer(raw.travel_buffer_minutes),
     quote_ranges: readQuoteRanges(raw.quote_ranges),
-    ai_reply: readAiReplySettings(raw.ai_reply)
+    ai_reply: readAiReplySettings(raw.ai_reply),
+    goals: readGoals(raw.goals)
   };
 }
 
@@ -182,6 +199,17 @@ export function mergeBusinessSettingsJson(
         ? { duration_minutes: range.duration_minutes }
         : {})
     }));
+  }
+
+  if (partial.goals !== undefined) {
+    const existingGoals = asJsonObject(merged.goals);
+    const g = partial.goals;
+    merged.goals = {
+      ...existingGoals,
+      ...(g.weekly_calls !== undefined ? { weekly_calls: g.weekly_calls } : {}),
+      ...(g.weekly_leads !== undefined ? { weekly_leads: g.weekly_leads } : {}),
+      ...(g.weekly_booked !== undefined ? { weekly_booked: g.weekly_booked } : {})
+    };
   }
 
   if (partial.ai_reply !== undefined) {
@@ -346,6 +374,18 @@ function readTravelBuffer(value: JsonValue | undefined): number {
     return DEFAULT_TRAVEL_BUFFER_MINUTES;
   }
   return Math.min(240, Math.round(value));
+}
+
+// Weekly goal targets, clamped 0–999 (0 = no goal set).
+function readGoals(value: JsonValue | undefined): GoalsSettings {
+  const raw = asJsonObject(value);
+  const read = (v: JsonValue | undefined): number =>
+    typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.min(999, Math.round(v)) : 0;
+  return {
+    weekly_calls: read(raw.weekly_calls),
+    weekly_leads: read(raw.weekly_leads),
+    weekly_booked: read(raw.weekly_booked)
+  };
 }
 
 // Delay (seconds) before the missed-call auto-text fires, clamped 0–300. 0 = instant.
