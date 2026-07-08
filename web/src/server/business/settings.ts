@@ -15,6 +15,16 @@ export type QuoteRangeSettings = {
   duration_minutes?: number; // how long this job takes; drives how many time slots fit. Unset = default.
 };
 
+// Weather-smart booking prefs. zip empty = weather off. A forecast day is
+// flagged "bad for exterior work" when it falls outside the temp window, its
+// rain chance exceeds the cutoff, or it's snow/ice/storm weather.
+export type WeatherSettings = {
+  zip: string;
+  min_temp_f: number;
+  max_temp_f: number;
+  max_rain_chance: number; // 0–100 (%)
+};
+
 // Weekly targets the owner sets on the Stats screen. 0 = no goal set.
 export type GoalsSettings = {
   weekly_calls: number;
@@ -44,6 +54,7 @@ export type BusinessSettings = {
   quote_ranges: QuoteRangeSettings[];
   ai_reply: AiReplySettings;
   goals: GoalsSettings;
+  weather: WeatherSettings;
 };
 
 export type BusinessSettingsUpdate = {
@@ -58,6 +69,7 @@ export type BusinessSettingsUpdate = {
   quote_ranges?: QuoteRangeSettings[];
   ai_reply?: Partial<AiReplySettings>;
   goals?: Partial<GoalsSettings>;
+  weather?: Partial<WeatherSettings>;
 };
 
 export const DEFAULT_MISSED_CALL_AUTO_TEXT =
@@ -77,6 +89,13 @@ export const DEFAULT_TRAVEL_BUFFER_MINUTES = 30;
 // Seconds to wait before sending the missed-call auto-text. A short delay feels
 // less robotic without losing the speed-to-lead benefit. 0 = send instantly.
 export const DEFAULT_AUTO_TEXT_DELAY_SECONDS = 10;
+
+export const DEFAULT_WEATHER_SETTINGS: WeatherSettings = {
+  zip: "",
+  min_temp_f: 40,
+  max_temp_f: 95,
+  max_rain_chance: 50
+};
 
 export const DEFAULT_GOALS_SETTINGS: GoalsSettings = {
   weekly_calls: 0,
@@ -109,7 +128,8 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   travel_buffer_minutes: DEFAULT_TRAVEL_BUFFER_MINUTES,
   quote_ranges: [],
   ai_reply: DEFAULT_AI_REPLY_SETTINGS,
-  goals: DEFAULT_GOALS_SETTINGS
+  goals: DEFAULT_GOALS_SETTINGS,
+  weather: DEFAULT_WEATHER_SETTINGS
 };
 
 type JsonObject = { [key: string]: JsonValue };
@@ -137,7 +157,8 @@ export function getBusinessSettings(
     travel_buffer_minutes: readTravelBuffer(raw.travel_buffer_minutes),
     quote_ranges: readQuoteRanges(raw.quote_ranges),
     ai_reply: readAiReplySettings(raw.ai_reply),
-    goals: readGoals(raw.goals)
+    goals: readGoals(raw.goals),
+    weather: readWeather(raw.weather)
   };
 }
 
@@ -199,6 +220,18 @@ export function mergeBusinessSettingsJson(
         ? { duration_minutes: range.duration_minutes }
         : {})
     }));
+  }
+
+  if (partial.weather !== undefined) {
+    const existingWeather = asJsonObject(merged.weather);
+    const w = partial.weather;
+    merged.weather = {
+      ...existingWeather,
+      ...(w.zip !== undefined ? { zip: w.zip } : {}),
+      ...(w.min_temp_f !== undefined ? { min_temp_f: w.min_temp_f } : {}),
+      ...(w.max_temp_f !== undefined ? { max_temp_f: w.max_temp_f } : {}),
+      ...(w.max_rain_chance !== undefined ? { max_rain_chance: w.max_rain_chance } : {})
+    };
   }
 
   if (partial.goals !== undefined) {
@@ -374,6 +407,20 @@ function readTravelBuffer(value: JsonValue | undefined): number {
     return DEFAULT_TRAVEL_BUFFER_MINUTES;
   }
   return Math.min(240, Math.round(value));
+}
+
+// Weather prefs: 5-digit US zip (else off) + clamped cutoffs.
+function readWeather(value: JsonValue | undefined): WeatherSettings {
+  const raw = asJsonObject(value);
+  const zip = typeof raw.zip === "string" && /^\d{5}$/.test(raw.zip.trim()) ? raw.zip.trim() : "";
+  const num = (v: JsonValue | undefined, fallback: number, lo: number, hi: number): number =>
+    typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : fallback;
+  return {
+    zip,
+    min_temp_f: num(raw.min_temp_f, DEFAULT_WEATHER_SETTINGS.min_temp_f, -30, 110),
+    max_temp_f: num(raw.max_temp_f, DEFAULT_WEATHER_SETTINGS.max_temp_f, 0, 130),
+    max_rain_chance: num(raw.max_rain_chance, DEFAULT_WEATHER_SETTINGS.max_rain_chance, 0, 100)
+  };
 }
 
 // Weekly goal targets, clamped 0–999 (0 = no goal set).

@@ -542,6 +542,19 @@ export async function saveSettings(formData: FormData): Promise<void> {
   const bufferRaw = Number(formData.get("travel_buffer_minutes") ?? 30);
   partial.travel_buffer_minutes = Number.isFinite(bufferRaw) ? Math.min(240, Math.max(0, Math.round(bufferRaw))) : 30;
 
+  // Weather-smart booking: zip must be 5 digits (anything else turns weather off).
+  const zipRaw = String(formData.get("weather_zip") ?? "").trim();
+  const clampNum = (name: string, fallback: number, lo: number, hi: number): number => {
+    const n = Number(formData.get(name) ?? fallback);
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : fallback;
+  };
+  partial.weather = {
+    zip: /^\d{5}$/.test(zipRaw) ? zipRaw : "",
+    min_temp_f: clampNum("weather_min_temp", 40, -30, 110),
+    max_temp_f: clampNum("weather_max_temp", 95, 0, 130),
+    max_rain_chance: clampNum("weather_max_rain", 50, 0, 100)
+  };
+
   const services = formData.getAll("quote_service").map((v) => String(v).trim());
   const lows = formData.getAll("quote_low").map((v) => Number(v));
   const highs = formData.getAll("quote_high").map((v) => Number(v));

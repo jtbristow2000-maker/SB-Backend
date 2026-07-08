@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
-import { Check, ChevronDown, Copy, Send, Sparkles, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, Copy, Send, Sparkles, TriangleAlert, Umbrella } from "lucide-react";
 
 import { sendOwnerText, suggestServicesWithAI } from "@/app/owner/actions";
 import { fmtUsd } from "@/app/owner/format";
 import { DEFAULT_SERVICE_MINUTES, DEFAULT_TRAVEL_BUFFER_MINUTES } from "@/server/business/settings";
 import type { AiReplySettings, BusinessHoursSettings, QuoteRangeSettings } from "@/server/business/settings";
+import type { WeatherByDay } from "@/app/owner/weather";
 
 // Interactive reply builder for a missed-call lead, laid out draft-first: the
 // assembled text is the hero (read it → hit Send), and the levers that build it
@@ -93,8 +94,9 @@ function computeSlots(
   hours: BusinessHoursSettings,
   requested: string,
   durationMin: number,
-  bufferMin: number
-): string[] {
+  bufferMin: number,
+  weather?: WeatherByDay
+): { slots: string[]; skipped: string[] } {
   const slotLenMs = Math.max(15, durationMin) * 60_000;
   const bufferMs = Math.max(0, bufferMin) * 60_000;
   // Pad each booked job by the travel buffer so we never offer a slot that lands
@@ -107,11 +109,23 @@ function computeSlots(
   const slotHours = orderHoursByRequest(candidateStartHours(hours, durationMin), requested);
   const workDays = hours.days && hours.days.length ? hours.days : [0, 1, 2, 3, 4, 5, 6];
   const out: string[] = [];
+  const skipped: string[] = [];
   const base = startOfDay(new Date());
   const startOffset = startOffsetFor(requested);
   for (let offset = startOffset; offset <= startOffset + 24 && out.length < MAX_SLOTS; offset++) {
     const day = addDays(base, offset);
     if (!workDays.includes(day.getDay())) continue;
+    // Weather-smart: a work day whose forecast breaks the owner's cutoffs gets
+    // skipped, and we note why so the owner can override knowingly.
+    const wx = weather?.[day.toLocaleDateString("en-CA")];
+    if (wx?.bad) {
+      if (skipped.length < 3) {
+        skipped.push(
+          `${day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}${wx.reason ? ` (${wx.reason})` : ""}`
+        );
+      }
+      continue;
+    }
     for (const hour of slotHours) {
       if (out.length >= MAX_SLOTS) break;
       const start = new Date(day);
@@ -121,7 +135,7 @@ function computeSlots(
       if (!intervals.some(([bs, be]) => bs < endMs && be > startMs)) out.push(fmtSlot(start));
     }
   }
-  return out;
+  return { slots: out, skipped };
 }
 
 const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -364,7 +378,8 @@ export function ReplyComposer({
   slotConflict,
   confirmedSlot,
   textingLive,
-  textingMissing
+  textingMissing,
+  weather
 }: {
   customerName: string;
   businessName: string;
@@ -383,6 +398,7 @@ export function ReplyComposer({
   confirmedSlot?: string | null;
   textingLive?: boolean;
   textingMissing?: string[];
+  weather?: WeatherByDay;
 }) {
   const initialPicks = useMemo(
     () => aiSettings.ai_pick_enabled ? suggestServiceIdxs(contextText, quoteRanges) : [],
@@ -402,9 +418,9 @@ export function ReplyComposer({
     const sum = selected.reduce((s, r) => s + (r.duration_minutes ?? DEFAULT_SERVICE_MINUTES), 0);
     return sum > 0 ? sum : DEFAULT_SERVICE_MINUTES;
   }, [selected]);
-  const allSlots = useMemo(
-    () => computeSlots(busy, businessHours, requestedWhen, durationMin, travelBufferMinutes),
-    [busy, businessHours, requestedWhen, durationMin, travelBufferMinutes]
+  const { slots: allSlots, skipped: weatherSkipped } = useMemo(
+    () => computeSlots(busy, businessHours, requestedWhen, durationMin, travelBufferMinutes, weather),
+    [busy, businessHours, requestedWhen, durationMin, travelBufferMinutes, weather]
   );
 
   const [selectedSlots, setSelectedSlots] = useState<string[]>(() => allSlots.slice(0, PRESELECT_SLOTS));
@@ -599,6 +615,11 @@ export function ReplyComposer({
               <TriangleAlert size={12} className="ico-inline" aria-hidden /> They asked for {outsideLabel.toLowerCase()} — outside your hours. These are your next open times instead.
             </div>
           )}
+          {weatherSkipped.length > 0 && (
+            <div style={S.weatherNote}>
+              <Umbrella size={12} className="ico-inline" aria-hidden /> Skipped for weather: {weatherSkipped.join(" · ")}
+            </div>
+          )}
           <div style={S.panelHint}>Tap the times you want to offer.</div>
           <div style={S.chips}>
             {allSlots.map((slot) => {
@@ -734,6 +755,7 @@ const S: Record<string, CSSProperties> = {
   chips: { display: "flex", flexWrap: "wrap", gap: 6 },
   chipPrice: { fontWeight: 700, opacity: 0.85 },
   outsideNote: { marginBottom: 9, fontSize: 12.5, lineHeight: 1.45, color: "#8a5a0c", background: "rgba(199,125,20,0.1)", padding: "7px 10px", borderRadius: 9 },
+  weatherNote: { marginBottom: 9, fontSize: 12.5, lineHeight: 1.45, color: "#2b5f9e", background: "rgba(58,123,208,0.1)", padding: "7px 10px", borderRadius: 9 },
   noRanges: { fontSize: 13, color: "var(--muted)", margin: "0 2px 9px" },
   inputRow: { display: "flex", alignItems: "flex-end", gap: 8, padding: "10px 10px 10px 14px", borderRadius: 22, background: "var(--surface)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-sm)" },
   textarea: { flex: 1, minWidth: 0, border: "none", outline: "none", resize: "none", fontSize: 15, lineHeight: 1.5, fontFamily: "inherit", color: "var(--ink)", background: "transparent", padding: "4px 0" },

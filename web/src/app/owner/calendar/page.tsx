@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { createAppointment } from "@/app/owner/actions";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
 import { fmtPhone } from "@/app/owner/format";
+import { getWeatherByZip } from "@/app/owner/weather";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings, quotePriceLabel, quoteServiceColor, isServiceOnCalendar } from "@/server/business/settings";
 
@@ -22,6 +23,7 @@ export default async function CalendarPage() {
     rt.customerProfileRepository.list()
   ]) : [[], []];
   const settings = getBusinessSettings(business);
+  const weather = await getWeatherByZip(settings.weather);
   const nameById = new Map(
     profiles.map((p) => [p.id, p.display_name || (p.phone_e164 ? fmtPhone(p.phone_e164) : "")])
   );
@@ -68,7 +70,11 @@ export default async function CalendarPage() {
         <button type="submit" style={S.btnPrimary}>Add to schedule</button>
       </form>
 
-      <CalendarViews events={events} legend={settings.quote_ranges.filter((r) => r.on_calendar !== false).map((r) => ({ service: r.service, color: r.color ?? "#5b5bd6" }))} />
+      <CalendarViews
+        events={events}
+        legend={settings.quote_ranges.filter((r) => r.on_calendar !== false).map((r) => ({ service: r.service, color: r.color ?? "#5b5bd6" }))}
+        weather={weather}
+      />
     </main>
   );
 }
