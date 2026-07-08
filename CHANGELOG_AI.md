@@ -1,5 +1,21 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Premium UI Phases 2-4: perceived speed, micro-polish, resilience
+
+### Added
+- **Loading skeletons** (`loading.tsx` + shared `Skeleton.tsx`) for Today, Leads, Lead detail, Schedule, and Settings — navigation now shows an instant shimmer of the incoming layout instead of sitting frozen on the old screen.
+- **Sticky save bar in Settings** (`SettingsSaveBar.tsx`): a floating pill appears only when something changed — Save from anywhere in the long form, "Saving…" while the action runs, flashes "✓ Saved," then hides. (Bottom Save button retained.)
+- **Metric count-up** (`CountUp.tsx`): Today's stat numbers animate up on load (respects reduced-motion).
+- **Branded error boundaries** (`owner/error.tsx`, root `error.tsx`): crashes show a friendly retry card instead of Next's raw error screen.
+- Designed "all caught up" empty state on Today (icon + title + hint).
+
+### Changed
+- **AutoRefresh calmed**: 10s → 30s interval, skips ticks while the owner is typing or the tab is hidden, still refreshes instantly on tab return. (~3× fewer background re-fetches per open screen.)
+- Gray token sweep across 16 owner components: `#8a909c/#3c414b/#9aa0b3` → `var(--muted)/var(--text)/var(--faint)`.
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` both pass.
+
 ## [2026-07-08] - Premium UI Phase 1: typography, icons, interactive states
 
 ### Changed

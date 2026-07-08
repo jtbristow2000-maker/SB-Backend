@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { CalendarCheck2, PhoneMissed, TrendingUp, Voicemail } from "lucide-react";
+import { CalendarCheck2, CircleCheckBig, PhoneMissed, TrendingUp, Voicemail } from "lucide-react";
+
+import { CountUp } from "@/app/owner/CountUp";
 
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
@@ -152,7 +154,7 @@ export default async function Today() {
         {metrics.map((m) => (
           <Link key={m.label} href={m.href} className="card card-tap" style={S.metricCard}>
             <div style={metricChip(m.tint, m.iconColor)}><m.Icon size={16} strokeWidth={2.2} aria-hidden /></div>
-            <div style={S.metricValue}>{m.value}</div>
+            <div style={S.metricValue}><CountUp value={m.value} /></div>
             <div style={S.metricLabel}>{m.label}</div>
           </Link>
         ))}
@@ -171,7 +173,11 @@ export default async function Today() {
       <div style={S.sectionLabel}>NEEDS ATTENTION</div>
       {attentionItems.length === 0 ? (
         <div style={S.empty}>
-          You&apos;re all caught up — nothing needs a reply right now. New leads and replies show up here automatically.
+          <CircleCheckBig size={26} strokeWidth={1.8} style={{ color: "var(--positive)" }} aria-hidden />
+          <div>
+            <div style={S.emptyTitle}>You&apos;re all caught up</div>
+            <div style={S.emptyText}>Nothing needs a reply right now — new leads and replies show up here automatically.</div>
+          </div>
         </div>
       ) : (
         <div>
@@ -193,7 +199,9 @@ const S = {
   metricValue: { fontSize: 32, fontWeight: 800, color: "var(--ink)", lineHeight: 1.05, letterSpacing: "-0.5px" } as CSSProperties,
   metricLabel: { fontSize: 12, color: "var(--muted)", marginTop: 5, fontWeight: 600 } as CSSProperties,
   sectionLabel: { fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: "var(--muted)", margin: "30px 0 11px", textTransform: "uppercase" } as CSSProperties,
-  empty: { padding: "26px 20px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", color: "#3c414b", fontSize: 14, lineHeight: 1.55 } as CSSProperties,
+  empty: { display: "flex", alignItems: "center", gap: 14, padding: "24px 20px", borderRadius: "var(--radius-lg)", background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" } as CSSProperties,
+  emptyTitle: { fontSize: 14.5, fontWeight: 700, color: "var(--ink)" } as CSSProperties,
+  emptyText: { fontSize: 13, color: "var(--muted)", lineHeight: 1.5, marginTop: 2 } as CSSProperties,
   attentionScroll: { maxHeight: 540, overflowY: "auto", padding: "2px 8px 2px 2px" } as CSSProperties,
   weekRow: { display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 6 } as CSSProperties,
   weekCard: { flex: "1 1 120px", minWidth: 110, padding: "14px 15px" } as CSSProperties,

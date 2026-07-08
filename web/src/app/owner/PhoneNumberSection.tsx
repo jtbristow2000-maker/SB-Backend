@@ -133,8 +133,8 @@ function badgeStyle(status: NumberStatus, expired?: boolean): CSSProperties {
 const S: Record<string, CSSProperties> = {
   section: { padding: "16px 18px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },
   title: { fontSize: 14, fontWeight: 700, color: "var(--ink)" },
-  hint: { fontSize: 12, color: "#8a909c", margin: "2px 0 10px" },
-  body: { fontSize: 13, color: "#3c414b", lineHeight: 1.5, margin: "8px 0" },
+  hint: { fontSize: 12, color: "var(--muted)", margin: "2px 0 10px" },
+  body: { fontSize: 13, color: "var(--text)", lineHeight: 1.5, margin: "8px 0" },
   numberRow: { display: "flex", alignItems: "center", gap: 10, margin: "6px 0 2px", flexWrap: "wrap" },
   number: { fontSize: 18, fontWeight: 700, color: "var(--ink)", fontFamily: "ui-monospace, monospace" },
   forward: { marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(var(--brand-rgb),0.06)" },

@@ -132,19 +132,19 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
 }
 
 const S: Record<string, CSSProperties> = {
-  editorHint: { fontSize: 11.5, color: "#8a909c", marginBottom: 10, lineHeight: 1.4 },
+  editorHint: { fontSize: 11.5, color: "var(--muted)", marginBottom: 10, lineHeight: 1.4 },
   row: { display: "flex", alignItems: "center", gap: 6, marginBottom: 8 },
   reorder: { display: "flex", flexDirection: "column", gap: 2 },
-  moveBtn: { width: 22, height: 18, padding: 0, lineHeight: 1, borderRadius: 6, border: "1px solid #d8dce3", background: "#fff", color: "#3c414b", fontSize: 11, cursor: "pointer" },
+  moveBtn: { width: 22, height: 18, padding: 0, lineHeight: 1, borderRadius: 6, border: "1px solid #d8dce3", background: "#fff", color: "var(--text)", fontSize: 11, cursor: "pointer" },
   color: { width: 30, height: 30, padding: 0, border: "1px solid #d8dce3", borderRadius: 7, background: "#fff", cursor: "pointer", flexShrink: 0 },
   service: { flex: 1, minWidth: 110, padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
-  dollar: { color: "#8a909c", fontSize: 13 },
-  dash: { color: "#8a909c" },
+  dollar: { color: "var(--muted)", fontSize: 13 },
+  dash: { color: "var(--muted)" },
   num: { width: 72, padding: "8px 8px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
   clock: { display: "inline-flex", alignItems: "center", color: "var(--muted)", flexShrink: 0 },
   duration: { width: 78, padding: "8px 6px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff", cursor: "pointer", flexShrink: 0 },
   del: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, padding: 0, borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#b23b3b", cursor: "pointer", flexShrink: 0 },
-  add: { marginTop: 2, padding: "8px 12px", borderRadius: 9, border: "1px dashed #b9bfca", background: "#fff", color: "#3c414b", fontWeight: 600, fontSize: 13, cursor: "pointer" }
+  add: { marginTop: 2, padding: "8px 12px", borderRadius: 9, border: "1px dashed #b9bfca", background: "#fff", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer" }
 };
 
 function calToggle(on: boolean): CSSProperties {

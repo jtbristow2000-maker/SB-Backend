@@ -40,7 +40,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
 
   return (
     <div className="owner-shell" style={themeStyle}>
-      <AutoRefresh seconds={10} />
+      <AutoRefresh seconds={30} />
       {/* Desktop sidebar */}
       <aside className="owner-sidebar">
         <div className="owner-brand">

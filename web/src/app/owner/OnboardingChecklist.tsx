@@ -101,7 +101,7 @@ const S: Record<string, CSSProperties> = {
   stepBody: { flex: 1, minWidth: 0 },
   stepTitle: { fontSize: 14, fontWeight: 700, color: "var(--ink)" },
   stepTitleDone: { color: "var(--muted)", textDecoration: "line-through" },
-  stepDesc: { fontSize: 12.5, color: "#3c414b", lineHeight: 1.45, marginTop: 2 },
+  stepDesc: { fontSize: 12.5, color: "var(--text)", lineHeight: 1.45, marginTop: 2 },
   note: { fontSize: 12, color: "#8a5a0c", background: "rgba(199,125,20,0.1)", padding: "6px 9px", borderRadius: 8, marginTop: 6, lineHeight: 1.4 },
   stepCta: { flexShrink: 0, alignSelf: "center", padding: "6px 11px", borderRadius: 8, background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 12, textDecoration: "none", whiteSpace: "nowrap" },
   polish: { display: "inline-block", marginTop: 14, color: "var(--brand)", fontWeight: 600, fontSize: 12.5, textDecoration: "none" },

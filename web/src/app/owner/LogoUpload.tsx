@@ -141,7 +141,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 const S: Record<string, CSSProperties> = {
   zone: { display: "flex", alignItems: "center", justifyContent: "center", minHeight: 100, padding: 14, border: "1.5px dashed var(--border-strong)", borderRadius: 12, background: "var(--surface)", cursor: "pointer", textAlign: "center", transition: "border-color .15s ease, background .15s ease" },
   zoneOver: { borderColor: "var(--brand)", background: "rgba(var(--brand-rgb),0.05)" },
-  placeholder: { display: "flex", flexDirection: "column", gap: 3, color: "#3c414b", fontSize: 13, lineHeight: 1.4 },
+  placeholder: { display: "flex", flexDirection: "column", gap: 3, color: "var(--text)", fontSize: 13, lineHeight: 1.4 },
   hint: { fontSize: 11.5, color: "var(--muted)" },
   preview: { maxHeight: 76, maxWidth: "100%", objectFit: "contain", borderRadius: 8 },
   row: { display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap", minHeight: 18 },

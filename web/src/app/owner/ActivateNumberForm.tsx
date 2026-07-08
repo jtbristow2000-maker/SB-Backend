@@ -38,8 +38,8 @@ export function ActivateNumberForm() {
 
 const S: Record<string, CSSProperties> = {
   form: { display: "flex", flexDirection: "column", gap: 9, marginTop: 6 },
-  label: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, fontWeight: 700, color: "#3c414b" },
-  opt: { fontWeight: 400, color: "#8a909c" },
+  label: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, fontWeight: 700, color: "var(--text)" },
+  opt: { fontWeight: 400, color: "var(--muted)" },
   input: { width: 120, padding: "9px 11px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 14 },
   primary: { alignSelf: "flex-start", padding: "10px 16px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
   pending: { background: "#b9bdd6", cursor: "wait" }
