@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 
-import { createAppointment } from "@/app/owner/actions";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
 import { fmtPhone } from "@/app/owner/format";
 import { getWeatherByZip } from "@/app/owner/weather";
@@ -10,9 +9,9 @@ import { getBusinessSettings, quotePriceLabel, quoteServiceColor, isServiceOnCal
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Owner screen — Schedule: a Week / Month / Agenda calendar of appointments,
-// plus a quick "book an appointment" form. Calendar rendering + navigation is
-// the CalendarViews client island; booking is a server action.
+// Owner screen — Schedule. Booking happens right on the calendar (click or drag
+// an empty slot, or the + Book button), Google-style; CalendarViews owns all of
+// the interaction as a client island.
 
 export default async function CalendarPage() {
   const context = await getOwnerBusinessContext();
@@ -50,47 +49,20 @@ export default async function CalendarPage() {
   return (
     <main className="owner-page" style={S.page}>
       <div style={S.narrow}>
-      <h1 style={S.h1}>Schedule</h1>
-      <div style={S.sub}>Your appointments — switch between Week, Month, and Agenda.</div>
-
-      <form action={createAppointment} style={S.bookForm}>
-        <div style={S.bookTitle}>+ Book an appointment</div>
-        <input name="title" placeholder="What & who (e.g. Full detail — Sarah's SUV)" style={S.input} autoComplete="off" />
-        <input name="service" placeholder="Service for the quote (e.g. Full Detail SUV)" style={S.input} autoComplete="off" />
-        <input name="start" type="datetime-local" required style={S.input} />
-        <select name="duration" defaultValue="60" style={S.input} aria-label="Duration">
-          <option value="30">30 minutes</option>
-          <option value="60">1 hour</option>
-          <option value="90">1.5 hours</option>
-          <option value="120">2 hours</option>
-          <option value="180">3 hours</option>
-          <option value="240">4 hours</option>
-        </select>
-        <input name="location" placeholder="Address (optional — for directions)" style={S.input} autoComplete="off" />
-        <input name="notes" placeholder="Notes (optional — gate code, etc.)" style={S.input} autoComplete="off" />
-        <button type="submit" style={S.btnPrimary}>Add to schedule</button>
-      </form>
+        <h1 style={S.h1}>Schedule</h1>
+        <div style={S.sub}>Click or drag an empty slot to book it — just like your phone&apos;s calendar.</div>
       </div>
 
-      <CalendarViews
-        events={events}
-        legend={settings.quote_ranges.filter((r) => r.on_calendar !== false).map((r) => ({ service: r.service, color: r.color ?? "#5b5bd6" }))}
-        weather={forecast.days}
-        weatherHours={forecast.hours}
-      />
+      <CalendarViews events={events} weather={forecast.days} weatherHours={forecast.hours} />
     </main>
   );
 }
 
 const S: Record<string, CSSProperties> = {
   // The page itself is uncapped so the calendar can fill wide screens; the
-  // header + booking form stay at a readable width.
+  // header stays at a readable width.
   page: { maxWidth: "none" },
   narrow: { maxWidth: 760, margin: "0 auto", width: "100%" },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
-  sub: { color: "var(--muted)", fontSize: 13 },
-  bookForm: { display: "flex", flexDirection: "column", gap: 8, marginTop: 16, padding: "14px", borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },
-  bookTitle: { fontSize: 13, fontWeight: 700, color: "#3a3a9a" },
-  input: { padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 },
-  btnPrimary: { padding: "10px 13px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }
+  sub: { color: "var(--muted)", fontSize: 13 }
 };

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import { BadgeDollarSign, CalendarDays, Cloud, CloudLightning, CloudRain, CloudSnow, CloudSun, MapPin, Pencil, Phone, StickyNote, Sun, Tag, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
+import { BadgeDollarSign, CalendarDays, Cloud, CloudLightning, CloudRain, CloudSnow, CloudSun, MapPin, Pencil, Phone, Plus, StickyNote, Sun, Tag, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
 
-import { deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
+import { createAppointment, deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
 import { fmtPhone } from "@/app/owner/format";
 import type { WeatherByDay, WeatherByHour } from "@/app/owner/weather";
 
@@ -122,10 +122,22 @@ function WxTag({ weather, date, size = 12 }: { weather?: WeatherByDay; date: Dat
   );
 }
 
-export function CalendarViews({ events, legend = [], weather, weatherHours }: { events: CalendarEvent[]; legend?: { service: string; color: string }[]; weather?: WeatherByDay; weatherHours?: WeatherByHour }) {
+export function CalendarViews({ events, weather, weatherHours }: { events: CalendarEvent[]; weather?: WeatherByDay; weatherHours?: WeatherByHour }) {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [selected, setSelected] = useState<Selection | null>(null);
+
+  // Quick-book: set by clicking/dragging an empty slot (or the + Book button);
+  // opens a small prefilled dialog that posts createAppointment.
+  const [draft, setDraft] = useState<{ start: Date; end: Date } | null>(null);
+  const openBook = () => {
+    const s0 = new Date();
+    s0.setMinutes(0, 0, 0);
+    s0.setHours(Math.min(Math.max(s0.getHours() + 1, AXIS_START), AXIS_END - 1));
+    const e0 = new Date(s0);
+    e0.setHours(s0.getHours() + 1);
+    setDraft({ start: s0, end: e0 });
+  };
 
   // Freely resizable layout: the week grid scrolls inside a window whose height
   // and width you drag (corner / bottom handles), plus a smooth zoom slider for
@@ -265,6 +277,9 @@ export function CalendarViews({ events, legend = [], weather, weatherHours }: { 
           ))}
         </div>
         <div style={S.nav}>
+          <button type="button" onClick={openBook} className="btn" style={S.bookBtn}>
+            <Plus size={14} aria-hidden /> Book
+          </button>
           {view === "week" && (
             <label style={S.zoomWrap} title="Hour height - drag to zoom the grid">
               <span style={S.zoomLabel}>Zoom</span>
@@ -290,23 +305,12 @@ export function CalendarViews({ events, legend = [], weather, weatherHours }: { 
         </div>
       </div>
       <div style={S.periodLabel}>{periodLabel}</div>
-      {legend.length > 0 && (
-        <div style={S.legend}>
-          {legend.map((l) => (
-            <span key={l.service} style={S.legendItem}>
-              <span style={{ ...S.legendDot, background: l.color }} />
-              {l.service}
-            </span>
-          ))}
-        </div>
-      )}
-
       <div
         ref={frameRef}
         style={{ position: "relative", maxWidth: calW ?? undefined, margin: calW !== null ? "0 auto" : undefined, paddingBottom: view === "week" ? 9 : 0 }}
       >
         {view === "week" && (
-          <WeekView anchor={anchor} evs={evs} weather={weather} weatherHours={weatherHours} hourPx={hourPx} gridH={gridH} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
+          <WeekView anchor={anchor} evs={evs} weather={weather} weatherHours={weatherHours} hourPx={hourPx} gridH={gridH} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} onCreate={(start, end) => setDraft({ start, end })} />
         )}
         {view === "month" && (
           <MonthView
@@ -353,6 +357,44 @@ export function CalendarViews({ events, legend = [], weather, weatherHours }: { 
       {hover && !selected && (
         <HoverCard ev={hover.ev} left={hover.left} top={hover.top} onEnter={cancelHideHover} onLeave={queueHideHover} />
       )}
+
+      {draft && <QuickBook draft={draft} onClose={() => setDraft(null)} />}
+    </div>
+  );
+}
+
+// Compact booking dialog, prefilled from the slot the owner clicked/dragged.
+function QuickBook({ draft, onClose }: { draft: { start: Date; end: Date }; onClose: () => void }) {
+  const mins = Math.max(30, Math.round((draft.end.getTime() - draft.start.getTime()) / 60000));
+  const duration = DURATION_OPTIONS.reduce((best, d) => (Math.abs(d - mins) < Math.abs(best - mins) ? d : best), 60);
+  const whenLabel = `${draft.start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${timeLabel(draft.start)} – ${timeLabel(draft.end)}`;
+  return (
+    <div style={S.overlay} onClick={onClose} role="presentation">
+      <div style={S.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Book an appointment">
+        <div style={S.modalHead}>
+          <strong style={{ fontSize: 16, paddingRight: 8 }}>New appointment</strong>
+          <button type="button" onClick={onClose} className="btn" style={S.modalClose} aria-label="Close"><X size={16} aria-hidden /></button>
+        </div>
+        <div style={S.quickWhen}><CalendarDays size={13} className="ico-inline" aria-hidden /> {whenLabel}</div>
+        <form action={createAppointment} onSubmit={onClose} style={S.modalBody}>
+          <input name="title" required placeholder="What & who (e.g. Full detail - Sarah's SUV)" className="input" style={S.qInput} autoFocus autoComplete="off" />
+          <input name="service" placeholder="Service (matches your price list)" className="input" style={S.qInput} autoComplete="off" />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input name="start" type="datetime-local" required defaultValue={toLocalInput(draft.start)} className="input" style={{ ...S.qInput, flex: "1 1 190px" }} aria-label="Start time" />
+            <select name="duration" defaultValue={String(duration)} className="input" style={{ ...S.qInput, width: 104 }} aria-label="Duration">
+              {DURATION_OPTIONS.map((m) => (
+                <option key={m} value={m}>{m < 60 ? `${m}m` : `${m / 60}h`}</option>
+              ))}
+            </select>
+          </div>
+          <input name="location" placeholder="Address (optional - for directions)" className="input" style={S.qInput} autoComplete="off" />
+          <input name="notes" placeholder="Notes (optional - gate code, etc.)" className="input" style={S.qInput} autoComplete="off" />
+          <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Add to schedule</button>
+            <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -366,7 +408,8 @@ function WeekView({
   gridH,
   onOpen,
   onHover,
-  onHoverLeave
+  onHoverLeave,
+  onCreate
 }: {
   anchor: Date;
   evs: Ev[];
@@ -377,6 +420,7 @@ function WeekView({
   onOpen: (ev: Ev, mode: "view" | "edit") => void;
   onHover: (ev: Ev, rect: DOMRect) => void;
   onHoverLeave: () => void;
+  onCreate: (start: Date, end: Date) => void;
 }) {
   // The grid lives in a scroll window; open on the working morning (8 AM).
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -384,6 +428,45 @@ function WeekView({
     const el = scrollRef.current;
     if (el) el.scrollTop = Math.max(0, (8 - AXIS_START) * hourPx - 6);
   }, [hourPx]);
+
+  // Google-style create: press on empty grid, drag to pick the window, release
+  // to book. A plain click (no drag) books a one-hour slot.
+  const [sel, setSel] = useState<{ di: number; a: number; b: number; moved: boolean } | null>(null);
+  const snapAt = (colTop: number, clientY: number) => {
+    const raw = (clientY - colTop) / hourPx + AXIS_START;
+    return Math.min(AXIS_END - 0.5, Math.max(AXIS_START, Math.floor(raw * 2) / 2));
+  };
+  const dateAt = (day: Date, h: number) => {
+    const x = new Date(day);
+    x.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0);
+    return x;
+  };
+  const beginCreate = (e: ReactPointerEvent<HTMLDivElement>, di: number) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest("button")) return; // an event block
+    const col = e.currentTarget;
+    const h = snapAt(col.getBoundingClientRect().top, e.clientY);
+    col.setPointerCapture(e.pointerId);
+    setSel({ di, a: h, b: h + 0.5, moved: false });
+  };
+  const moveCreate = (e: ReactPointerEvent<HTMLDivElement>, di: number) => {
+    setSel((prev) => {
+      if (!prev || prev.di !== di) return prev;
+      const h = snapAt(e.currentTarget.getBoundingClientRect().top, e.clientY) + 0.5;
+      const b = Math.max(prev.a + 0.5, Math.min(AXIS_END, h));
+      return b === prev.b ? prev : { ...prev, b, moved: true };
+    });
+  };
+  const endCreate = (di: number, day: Date) => {
+    setSel((prev) => {
+      if (prev && prev.di === di) {
+        const startH = Math.min(prev.a, prev.b - 0.5);
+        const endH = prev.moved ? Math.max(prev.b, startH + 0.5) : Math.min(AXIS_END, startH + 1);
+        onCreate(dateAt(day, startH), dateAt(day, endH));
+      }
+      return null;
+    });
+  };
   const weekStart = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
@@ -410,10 +493,28 @@ function WeekView({
               <div key={h} style={{ ...S.axisHour, height: hourPx }}>{hourLabel(h)}</div>
             ))}
           </div>
-          {days.map((d) => {
+          {days.map((d, i) => {
             const dayEvents = evs.filter((e) => sameDay(e.startDate, d));
             return (
-              <div key={d.toISOString()} style={{ ...S.dayCol, height: totalPx }}>
+              <div
+                key={d.toISOString()}
+                style={{ ...S.dayCol, height: totalPx }}
+                onPointerDown={(e) => beginCreate(e, i)}
+                onPointerMove={sel && sel.di === i ? (e) => moveCreate(e, i) : undefined}
+                onPointerUp={() => endCreate(i, d)}
+                onPointerCancel={() => setSel(null)}
+              >
+                {sel && sel.di === i && (
+                  <div
+                    style={{
+                      ...S.selBlock,
+                      top: (Math.min(sel.a, sel.b - 0.5) - AXIS_START) * hourPx,
+                      height: (Math.max(sel.b, sel.a + 0.5) - Math.min(sel.a, sel.b - 0.5)) * hourPx
+                    }}
+                  >
+                    {timeLabel(dateAt(d, Math.min(sel.a, sel.b - 0.5)))} – {timeLabel(dateAt(d, Math.max(sel.b, sel.a + 0.5)))}
+                  </div>
+                )}
                 {weatherHours &&
                   hours.map((h) => {
                     const wx = weatherHours[hourKey(d, h)];
@@ -859,6 +960,10 @@ const S: Record<string, CSSProperties> = {
   dayCol: { flex: "1 0 110px", position: "relative", borderLeft: "1px solid var(--border)" },
   wxBand: { position: "absolute", left: 0, right: 0, background: "rgba(58,123,208,0.07)", pointerEvents: "none" },
   wxStamp: { position: "absolute", right: 3, display: "inline-flex", alignItems: "center", gap: 2, fontSize: 9, fontWeight: 600, zIndex: 1 },
+  bookBtn: { display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 999, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 2px 8px rgba(var(--brand-rgb),0.3)" },
+  quickWhen: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--brand)", margin: "2px 0 10px" },
+  qInput: { padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, width: "100%", boxSizing: "border-box" },
+  selBlock: { position: "absolute", left: 3, right: 3, zIndex: 2, borderRadius: 8, background: "rgba(var(--brand-rgb),0.16)", border: "1.5px dashed var(--brand)", color: "#2a2a8a", fontSize: 10.5, fontWeight: 700, padding: "3px 6px", pointerEvents: "none", boxSizing: "border-box" },
   zoomWrap: { display: "inline-flex", alignItems: "center", gap: 7, padding: "0 4px" },
   zoomLabel: { fontSize: 11.5, fontWeight: 600, color: "var(--muted)" },
   zoom: { width: 96, accentColor: "var(--brand)", cursor: "ew-resize" },
