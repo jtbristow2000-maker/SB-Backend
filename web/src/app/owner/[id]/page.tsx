@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ArrowLeft, BadgeDollarSign, CalendarClock, Car, Hourglass, Voicemail, Wrench, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Hourglass, Voicemail } from "lucide-react";
 
 import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
@@ -198,14 +198,13 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
     (!profile.vehicles && detectedVehicle) || (!profile.preferred_contact && detectedContact)
   );
 
-  // The AI-read essentials as quiet context pills (icon + value, no labels) —
-  // shown centered under the header like a messaging app's context strip.
-  type JobFact = { Icon: LucideIcon; label: string; value: string };
+  // The AI-read essentials — shown inside the contact card (tap the name).
+  // Vehicle is skipped here: it's already an editable field on the card.
+  type JobFact = { label: string; value: string };
   const jobFacts: JobFact[] = [
-    aiX.service_requested ? { Icon: Wrench, label: "Service", value: aiX.service_requested } : null,
-    vehiclesValue ? { Icon: Car, label: "Vehicle", value: vehiclesValue } : null,
-    aiX.requested_datetime ? { Icon: CalendarClock, label: "Asked for", value: aiX.requested_datetime } : null,
-    bookingPrice ? { Icon: BadgeDollarSign, label: "Ballpark", value: bookingPrice } : null
+    aiX.service_requested ? { label: "Service", value: aiX.service_requested } : null,
+    aiX.requested_datetime ? { label: "Asked for", value: aiX.requested_datetime } : null,
+    bookingPrice ? { label: "Ballpark", value: bookingPrice } : null
   ].filter((f): f is JobFact => f !== null);
 
   // Job history for the contact card.
@@ -237,22 +236,11 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           contactValue={contactValue}
           referral={profile.referral_source ?? ""}
           autoFilled={autoFilled}
+          facts={jobFacts}
           pastJobs={pastJobsForCard}
         />
         {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
       </div>
-
-      {/* Context strip — what this call is about, at a glance. */}
-      {jobFacts.length > 0 && (
-        <div style={S.pillRow}>
-          {jobFacts.map((f) => (
-            <span key={f.label} style={S.pill} title={f.label}>
-              <f.Icon size={12} style={{ color: "var(--muted)", flexShrink: 0 }} aria-hidden />
-              <span className="clamp-1" style={{ minWidth: 0, textTransform: "capitalize" }}>{f.value}</span>
-            </span>
-          ))}
-        </div>
-      )}
 
       <LeadActionBar
         profileId={profile.id}
@@ -331,13 +319,6 @@ const S: Record<string, CSSProperties> = {
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "var(--muted)" },
 
   headRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginTop: 14 },
-
-  pillRow: { display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 6, margin: "16px 0 2px" },
-  pill: {
-    display: "inline-flex", alignItems: "center", gap: 6, maxWidth: 220,
-    padding: "5px 11px", borderRadius: 999, fontSize: 12.5, fontWeight: 600,
-    color: "var(--text)", background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-xs)"
-  },
 
   convo: { marginTop: 16 },
   convoEmpty: { padding: "26px 12px", textAlign: "center", color: "var(--muted)", fontSize: 13.5 },

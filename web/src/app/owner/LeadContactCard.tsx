@@ -2,15 +2,23 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { Check, ChevronRight, Sparkles, X } from "lucide-react";
+import { BadgeDollarSign, CalendarClock, Check, ChevronRight, Sparkles, Wrench, X, type LucideIcon } from "lucide-react";
 
 import { saveCustomerDetails } from "@/app/owner/actions";
 
 // The lead's identity, iMessage-style: avatar + name up top, and tapping it opens
-// a contact card (modal) with the editable customer details + job history. This
-// replaces the old orphaned "Customer details" accordion at the bottom of the page.
+// a contact card (modal) with what they asked for (AI-read facts), the editable
+// customer details, and job history. Replaces the old orphaned "Customer details"
+// accordion at the bottom of the page.
 
 export type PastJob = { id: string; title: string; when: string; done: boolean };
+export type ContactFact = { label: string; value: string };
+
+const FACT_ICONS: Record<string, LucideIcon> = {
+  Service: Wrench,
+  "Asked for": CalendarClock,
+  Ballpark: BadgeDollarSign
+};
 
 export function LeadContactCard({
   profileId,
@@ -24,6 +32,7 @@ export function LeadContactCard({
   contactValue,
   referral,
   autoFilled,
+  facts = [],
   pastJobs
 }: {
   profileId: string;
@@ -37,6 +46,7 @@ export function LeadContactCard({
   contactValue: string;
   referral: string;
   autoFilled: boolean;
+  facts?: ContactFact[];
   pastJobs: PastJob[];
 }) {
   const [open, setOpen] = useState(false);
@@ -95,6 +105,21 @@ export function LeadContactCard({
                 <X size={17} aria-hidden />
               </button>
             </div>
+
+            {facts.length > 0 && (
+              <div style={S.factsBox}>
+                {facts.map((f) => {
+                  const Icon = FACT_ICONS[f.label];
+                  return (
+                    <div key={f.label} style={S.factRow}>
+                      {Icon ? <Icon size={14} style={{ color: "var(--muted)", flexShrink: 0 }} aria-hidden /> : null}
+                      <span style={S.factLabel}>{f.label}</span>
+                      <span className="clamp-1" style={S.factValue}>{f.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <form action={saveCustomerDetails} style={S.form}>
               <input type="hidden" name="profileId" value={profileId} />
@@ -164,6 +189,10 @@ const S: Record<string, CSSProperties> = {
   overlay: { position: "fixed", inset: 0, zIndex: 50, background: "rgba(15,17,22,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(2px)" },
   sheet: { width: "100%", maxWidth: 460, maxHeight: "88vh", overflowY: "auto", background: "var(--surface)", borderRadius: 20, boxShadow: "var(--shadow-lg)", padding: "20px 20px 22px" },
   sheetHead: { display: "flex", alignItems: "center", gap: 14, marginBottom: 16 },
+  factsBox: { display: "flex", flexDirection: "column", gap: 7, padding: "11px 13px", borderRadius: 12, background: "#f6f7f9", border: "1px solid var(--border)", marginBottom: 14 },
+  factRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, minWidth: 0 },
+  factLabel: { fontWeight: 700, color: "var(--text)", width: 72, flexShrink: 0 },
+  factValue: { color: "var(--ink)", minWidth: 0, textTransform: "capitalize" },
   close: { marginLeft: "auto", width: 34, height: 34, borderRadius: 999, border: "none", background: "#f1f2f5", color: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 },
   form: { display: "flex", flexDirection: "column", gap: 11 },
   autoHint: { fontSize: 12.5, color: "#3a3a9a", background: "rgba(var(--brand-rgb),0.08)", padding: "8px 11px", borderRadius: 9, lineHeight: 1.4 },
