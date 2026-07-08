@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Schedule v3: window-style calendar with true drag-resize
+
+### Changed
+- **The week grid now scrolls inside a window** (default 520px tall, opens at 8 AM, sticky day headers) instead of stacking 14 hours down the page — the "too long" fix.
+- **Preset buttons replaced with real drag handles**: a corner grip resizes width + height like a window (drag to the page edge snaps back to fill), a bottom pill handle drags the height, and the row-height presets became a **smooth Zoom slider** (36–88px/hour). Double-click either handle to reset. All persisted per browser.
+- Handles are touch-friendly (pointer events); text selection is suppressed while dragging.
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` pass.
+
 ## [2026-07-08] - Schedule v2: fill-the-screen layout, row-height control, hour-by-hour weather
 
 ### Changed
