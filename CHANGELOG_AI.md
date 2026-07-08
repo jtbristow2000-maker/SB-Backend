@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Schedule v4: book right on the grid (Google/Outlook-style)
+
+### Changed
+- **Click or drag an empty slot on the week grid to book it**: press-and-drag paints a live dashed selection with the time range (30-min snapping); a plain click grabs a one-hour slot. Releasing opens a compact **New appointment** dialog prefilled with that date/time + duration — title, service, address, notes, Add to schedule.
+- **+ Book button** in the toolbar (for month/agenda views or booking outside visible hours) opens the same dialog defaulted to the next hour.
+- **Removed**: the standalone "+ Book an appointment" form block and the service-color legend row — the calendar is the booking surface now.
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` pass.
+
 ## [2026-07-08] - Schedule v3: window-style calendar with true drag-resize
 
 ### Changed
