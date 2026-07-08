@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Check, PartyPopper, TriangleAlert, X } from "lucide-react";
 import type { CSSProperties } from "react";
 
 // Interactive setup checklist shown on Today. Each step's "done" state is computed
@@ -43,14 +44,14 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
     <div className="card" style={S.card}>
       <div style={S.header}>
         <div style={{ minWidth: 0 }}>
-          <div style={S.title}>{allDone ? "🎉 You're all set!" : "Get set up"}</div>
+          <div style={S.title}>{allDone ? <><PartyPopper size={15} className="ico-inline" aria-hidden /> You&apos;re all set!</> : "Get set up"}</div>
           <div style={S.sub}>
             {allDone
               ? "Your assistant is ready to catch every missed job. You can close this."
               : `${doneCount} of ${steps.length} done — finish setup so Snagly can catch every job.`}
           </div>
         </div>
-        <button type="button" onClick={dismiss} style={S.dismiss} aria-label="Dismiss setup checklist">✕</button>
+        <button type="button" onClick={dismiss} className="btn" style={S.dismiss} aria-label="Dismiss setup checklist"><X size={15} aria-hidden /></button>
       </div>
 
       <div style={S.progressTrack}>
@@ -60,11 +61,11 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
       <div style={S.steps}>
         {steps.map((s, i) => (
           <div key={s.key} style={S.step}>
-            <div style={s.done ? S.checkDone : S.checkTodo}>{s.done ? "✓" : i + 1}</div>
+            <div style={s.done ? S.checkDone : S.checkTodo}>{s.done ? <Check size={13} strokeWidth={3} aria-hidden /> : i + 1}</div>
             <div style={S.stepBody}>
               <div style={{ ...S.stepTitle, ...(s.done ? S.stepTitleDone : null) }}>{s.title}</div>
               {!s.done && <div style={S.stepDesc}>{s.desc}</div>}
-              {!s.done && s.note && <div style={S.note}>⚠️ {s.note}</div>}
+              {!s.done && s.note && <div style={S.note}><TriangleAlert size={12} className="ico-inline" aria-hidden /> {s.note}</div>}
             </div>
             {!s.done && (
               <Link href={s.href} style={S.stepCta}>{s.cta}</Link>
@@ -79,7 +80,7 @@ export function OnboardingChecklist({ steps }: { steps: OnboardingStep[] }) {
         </Link>
       )}
       {allDone && (
-        <button type="button" onClick={dismiss} style={S.doneBtn}>Got it — hide this</button>
+        <button type="button" onClick={dismiss} className="btn" style={S.doneBtn}>Got it — hide this</button>
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { CalendarCheck2, MessageSquareText, Sparkle, Trophy, X, type LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
 
 import { fmtPhone } from "@/app/owner/format";
@@ -37,21 +38,21 @@ function fmtApptWhen(iso: string, tz: string): string {
   });
 }
 
-type Handling = { icon: string; text: string; color: string };
+type Handling = { Icon: LucideIcon; text: string; color: string };
 // A short "how this lead has been handled" line — the pipeline state at a glance,
 // so Leads reads as a CRM (where they stand) rather than another voicemail list.
 function handlingSummary(lead: DirectoryLead, tz: string): Handling {
   if (lead.next_appointment) {
-    return { icon: "📅", text: `Booked · ${fmtApptWhen(lead.next_appointment, tz)}`, color: "var(--brand)" };
+    return { Icon: CalendarCheck2, text: `Booked · ${fmtApptWhen(lead.next_appointment, tz)}`, color: "var(--brand)" };
   }
   const s = lead.status || "new";
-  if (s === "won") return { icon: "🏆", text: "Won — job closed", color: "var(--positive)" };
-  if (s === "lost") return { icon: "✕", text: "Lost", color: "#b23b3b" };
-  if (s === "booked") return { icon: "📅", text: "Booked", color: "var(--brand)" };
+  if (s === "won") return { Icon: Trophy, text: "Won — job closed", color: "var(--positive)" };
+  if (s === "lost") return { Icon: X, text: "Lost", color: "#b23b3b" };
+  if (s === "booked") return { Icon: CalendarCheck2, text: "Booked", color: "var(--brand)" };
   if (s === "contacted") {
-    return { icon: "💬", text: lead.last_contact_at ? `Contacted · ${fmtWhen(lead.last_contact_at, tz)}` : "Contacted", color: "#c77d14" };
+    return { Icon: MessageSquareText, text: lead.last_contact_at ? `Contacted · ${fmtWhen(lead.last_contact_at, tz)}` : "Contacted", color: "#c77d14" };
   }
-  return { icon: "🆕", text: lead.last_contact_at ? `New · heard ${fmtWhen(lead.last_contact_at, tz)}` : "New lead", color: "#6b7280" };
+  return { Icon: Sparkle, text: lead.last_contact_at ? `New · heard ${fmtWhen(lead.last_contact_at, tz)}` : "New lead", color: "#6b7280" };
 }
 
 // A booked appointment trumps a stale "contacted"/"new" status, so the badge,
@@ -101,12 +102,13 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search by name or number…"
+        className="input"
         style={S.search}
         autoComplete="off"
       />
       <div style={S.chips}>
         {STATUS_FILTERS.map((s) => (
-          <button key={s} type="button" onClick={() => setStatus(s)} style={chipStyle(s === status)}>
+          <button key={s} type="button" onClick={() => setStatus(s)} className="btn" style={chipStyle(s === status)}>
             {s === "all" ? "All" : s[0].toUpperCase() + s.slice(1)}
             <span style={{ opacity: 0.7, marginLeft: 5 }}>{counts[s] ?? 0}</span>
           </button>
@@ -128,7 +130,7 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
                 </strong>
                 <span style={statusBadge(effectiveStatus(lead))}>{effectiveStatus(lead)}</span>
               </div>
-              <div style={{ ...S.handling, color: h.color }}>{h.icon} {h.text}</div>
+              <div style={{ ...S.handling, color: h.color }}><h.Icon size={13} className="ico-inline" aria-hidden /> {h.text}</div>
               <div style={S.phoneMeta}>{fmtPhone(lead.phone_e164)}</div>
             </Link>
           );

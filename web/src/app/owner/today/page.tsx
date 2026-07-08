@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { CalendarCheck2, PhoneMissed, TrendingUp, Voicemail } from "lucide-react";
 
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
@@ -79,10 +80,10 @@ export default async function Today() {
   // (Dropped the redundant all-time "Voicemails" ≈ Callbacks, and the confusing
   // "Replied — waiting on you" 0 — replies now surface as a badge in Needs Attention.)
   const metrics = [
-    { label: "Callbacks waiting", value: callbacks.length, tint: "rgba(var(--brand-rgb),0.13)", icon: "📞", href: "/owner/leads" },
-    { label: "Booked today", value: bookedToday, tint: "rgba(var(--positive-rgb),0.14)", icon: "📅", href: "/owner/calendar" },
-    { label: "Calls today", value: callsToday, tint: "rgba(58,123,208,0.14)", icon: "📈", href: "/owner/leads" },
-    { label: "Voicemails today", value: voicemailsToday, tint: "rgba(199,125,20,0.14)", icon: "🎙️", href: "/owner/leads" }
+    { label: "Callbacks waiting", value: callbacks.length, tint: "rgba(var(--brand-rgb),0.13)", iconColor: "var(--brand)", Icon: PhoneMissed, href: "/owner/leads" },
+    { label: "Booked today", value: bookedToday, tint: "rgba(var(--positive-rgb),0.14)", iconColor: "var(--positive)", Icon: CalendarCheck2, href: "/owner/calendar" },
+    { label: "Calls today", value: callsToday, tint: "rgba(58,123,208,0.14)", iconColor: "#3a7bd0", Icon: TrendingUp, href: "/owner/leads" },
+    { label: "Voicemails today", value: voicemailsToday, tint: "rgba(199,125,20,0.14)", iconColor: "#b06f12", Icon: Voicemail, href: "/owner/leads" }
   ];
 
   const settings = getBusinessSettings(business);
@@ -139,7 +140,7 @@ export default async function Today() {
   ];
 
   return (
-    <main style={S.page}>
+    <main className="owner-page">
       <div style={S.greeting}>{greeting(tz)}</div>
       <div style={S.date}>
         {new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric" })}
@@ -150,7 +151,7 @@ export default async function Today() {
       <div style={S.metricRow}>
         {metrics.map((m) => (
           <Link key={m.label} href={m.href} className="card card-tap" style={S.metricCard}>
-            <div style={metricChip(m.tint)}>{m.icon}</div>
+            <div style={metricChip(m.tint, m.iconColor)}><m.Icon size={16} strokeWidth={2.2} aria-hidden /></div>
             <div style={S.metricValue}>{m.value}</div>
             <div style={S.metricLabel}>{m.label}</div>
           </Link>
@@ -185,7 +186,6 @@ export default async function Today() {
 }
 
 const S = {
-  page: { maxWidth: 880, margin: "0 auto", padding: "34px 28px 56px", color: "#1e2026", fontFamily: "'Segoe UI', system-ui, sans-serif" } as CSSProperties,
   greeting: { fontSize: 28, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.6px" } as CSSProperties,
   date: { color: "var(--muted)", fontSize: 13, marginTop: 3, fontWeight: 500 } as CSSProperties,
   metricRow: { display: "flex", gap: 14, flexWrap: "wrap", marginTop: 22 } as CSSProperties,
@@ -202,6 +202,6 @@ const S = {
   viewAll: { display: "inline-block", marginTop: 12, color: "var(--brand)", fontWeight: 700, fontSize: 13, textDecoration: "none" } as CSSProperties
 };
 
-function metricChip(tint: string): CSSProperties {
-  return { position: "absolute", top: 15, right: 15, width: 32, height: 32, borderRadius: 10, background: tint, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 };
+function metricChip(tint: string, color: string): CSSProperties {
+  return { position: "absolute", top: 15, right: 15, width: 32, height: 32, borderRadius: 10, background: tint, color, display: "flex", alignItems: "center", justifyContent: "center" };
 }

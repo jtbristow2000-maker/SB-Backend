@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
+import { BadgeDollarSign, CalendarDays, MapPin, Pencil, Phone, StickyNote, Tag, Trash2, UserRound, X } from "lucide-react";
 
 import { deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
 import { fmtPhone } from "@/app/owner/format";
@@ -422,7 +423,7 @@ function AgendaView({ evs, onOpen }: { evs: Ev[]; onOpen: (ev: Ev, mode: "view" 
               >
                 <div style={{ fontWeight: 600 }}>{e.title}</div>
                 {e.who ? <div style={S.agendaWho}>{e.who}</div> : null}
-                {e.priceLabel ? <div style={S.agendaWho}>{e.priceLabel}{e.location ? " · 📍" : ""}</div> : null}
+                {e.priceLabel ? <div style={S.agendaWho}>{e.priceLabel}{e.location ? <> · <MapPin size={11} className="ico-inline" aria-hidden /></> : null}</div> : null}
               </div>
               <form action={setAppointmentStatus} style={{ display: "flex", gap: 4, alignItems: "center" }}>
                 <input type="hidden" name="appointmentId" value={e.id} />
@@ -477,23 +478,23 @@ function HoverCard({
     <div style={{ ...S.hoverCard, left, top }} onMouseEnter={onEnter} onMouseLeave={onLeave}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{ev.title}</div>
       <div style={S.hoverRow}>
-        🗓 {ev.startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} ·{" "}
+        <CalendarDays size={12} className="ico-inline" aria-hidden /> {ev.startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} ·{" "}
         {timeLabel(ev.startDate)}{ev.endDate ? `–${timeLabel(ev.endDate)}` : ""}
       </div>
       <div style={S.hoverRow}>
         <span style={{ ...S.statusPill, background: `${color}1f`, color }}>{ev.status.replace("_", " ")}</span>
       </div>
-      {ev.priceLabel && <div style={S.hoverRow}>💰 {ev.priceLabel}{ev.service ? ` · ${ev.service}` : ""}</div>}
+      {ev.priceLabel && <div style={S.hoverRow}><BadgeDollarSign size={12} className="ico-inline" aria-hidden /> {ev.priceLabel}{ev.service ? ` · ${ev.service}` : ""}</div>}
       {ev.location && (
         <div style={S.hoverRow}>
-          📍 {ev.location}
+          <MapPin size={12} className="ico-inline" aria-hidden /> {ev.location}
           {mapsHref && <> · <a href={mapsHref} target="_blank" rel="noreferrer" style={S.mapLink}>Maps ↗</a></>}
         </div>
       )}
-      {ev.notes && <div style={{ ...S.hoverRow, whiteSpace: "pre-line" }}>📝 {ev.notes}</div>}
-      {ev.who && <div style={S.hoverRow}>👤 {ev.who}</div>}
+      {ev.notes && <div style={{ ...S.hoverRow, whiteSpace: "pre-line" }}><StickyNote size={12} className="ico-inline" aria-hidden /> {ev.notes}</div>}
+      {ev.who && <div style={S.hoverRow}><UserRound size={12} className="ico-inline" aria-hidden /> {ev.who}</div>}
       {ev.phone && (
-        <div style={S.hoverRow}>📞 <a href={`tel:${ev.phone}`} style={S.mapLink}>{fmtPhone(ev.phone)}</a></div>
+        <div style={S.hoverRow}><Phone size={12} className="ico-inline" aria-hidden /> <a href={`tel:${ev.phone}`} style={S.mapLink}>{fmtPhone(ev.phone)}</a></div>
       )}
       <div style={S.hoverHint}>Click for full details · double-click to edit</div>
     </div>
@@ -537,24 +538,24 @@ function AppointmentModal({
       <div style={S.modal} onClick={(e) => e.stopPropagation()}>
         <div style={S.modalHead}>
           <strong style={{ fontSize: 16, paddingRight: 8 }}>{mode === "edit" ? "Edit appointment" : ev.title}</strong>
-          <button type="button" onClick={onClose} style={S.modalClose} aria-label="Close">✕</button>
+          <button type="button" onClick={onClose} className="btn" style={S.modalClose} aria-label="Close"><X size={16} aria-hidden /></button>
         </div>
 
         {mode === "view" ? (
           <div style={S.modalBody}>
-            <div style={S.detailRow}><span style={S.detailIcon}>🗓</span><span>{dateLabel} · {timeRange}</span></div>
+            <div style={S.detailRow}><span style={S.detailIcon}><CalendarDays size={14} aria-hidden /></span><span>{dateLabel} · {timeRange}</span></div>
             <div style={S.detailRow}>
-              <span style={S.detailIcon}>🏷</span>
+              <span style={S.detailIcon}><Tag size={14} aria-hidden /></span>
               <span style={{ ...S.statusPill, background: `${color}1f`, color }}>{ev.status.replace("_", " ")}</span>
             </div>
             {ev.priceLabel && (
               <div style={S.detailRow}>
-                <span style={S.detailIcon}>💰</span>
+                <span style={S.detailIcon}><BadgeDollarSign size={14} aria-hidden /></span>
                 <span><strong>{ev.priceLabel}</strong>{ev.service ? ` · ${ev.service}` : ""}</span>
               </div>
             )}
             <div style={S.detailRow}>
-              <span style={S.detailIcon}>📍</span>
+              <span style={S.detailIcon}><MapPin size={14} aria-hidden /></span>
               {ev.location ? (
                 <span>
                   {ev.location}
@@ -565,27 +566,27 @@ function AppointmentModal({
               )}
             </div>
             <div style={S.detailRow}>
-              <span style={S.detailIcon}>📝</span>
+              <span style={S.detailIcon}><StickyNote size={14} aria-hidden /></span>
               {ev.notes ? <span style={{ whiteSpace: "pre-line" }}>{ev.notes}</span> : <span style={S.muted}>No notes</span>}
             </div>
-            {ev.who && <div style={S.detailRow}><span style={S.detailIcon}>👤</span><span>{ev.who}</span></div>}
+            {ev.who && <div style={S.detailRow}><span style={S.detailIcon}><UserRound size={14} aria-hidden /></span><span>{ev.who}</span></div>}
             {ev.phone && (
               <div style={S.detailRow}>
-                <span style={S.detailIcon}>📞</span>
+                <span style={S.detailIcon}><Phone size={14} aria-hidden /></span>
                 <span><a href={`tel:${ev.phone}`} style={S.mapLink}>{fmtPhone(ev.phone)}</a></span>
               </div>
             )}
 
             <div style={S.modalActions}>
-              <button type="button" onClick={onEdit} style={S.btnPrimary}>✎ Edit</button>
+              <button type="button" onClick={onEdit} className="btn" style={S.btnPrimary}><Pencil size={13} aria-hidden /> Edit</button>
               {ev.customerProfileId && <Link href={`/owner/${ev.customerProfileId}`} style={S.btnGhost}>Open lead</Link>}
-              {ev.phone && <a href={`tel:${ev.phone}`} style={S.btnGhost}>📞 Call</a>}
+              {ev.phone && <a href={`tel:${ev.phone}`} className="btn" style={S.btnGhost}><Phone size={13} className="ico-inline" aria-hidden /> Call</a>}
               <button
                 type="button"
                 onClick={() => (confirmDel ? onDelete(ev) : setConfirmDel(true))}
                 style={S.btnDanger}
               >
-                {confirmDel ? "Tap again to confirm" : "🗑 Delete"}
+                {confirmDel ? "Tap again to confirm" : <><Trash2 size={13} className="ico-inline" aria-hidden /> Delete</>}
               </button>
             </div>
           </div>

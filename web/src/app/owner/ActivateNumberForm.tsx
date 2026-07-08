@@ -10,7 +10,7 @@ import { activateNumber } from "@/app/owner/actions";
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={{ ...S.primary, ...(pending ? S.pending : null) }}>
+    <button type="submit" disabled={pending} className="btn" style={{ ...S.primary, ...(pending ? S.pending : null) }}>
       {pending ? "Provisioning your number…" : "Activate my number"}
     </button>
   );
@@ -22,6 +22,7 @@ export function ActivateNumberForm() {
       <label style={S.label}>
         Preferred area code <span style={S.opt}>(optional)</span>
         <input
+          className="input"
           name="area_code"
           inputMode="numeric"
           maxLength={3}

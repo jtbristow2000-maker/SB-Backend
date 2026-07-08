@@ -37,7 +37,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <main style={S.page}>
+    <main className="owner-page" style={S.page}>
       <h1 style={S.h1}>Settings</h1>
       <div style={S.sub}>Customize how your assistant looks and replies. Saved changes apply right away.</div>
 
@@ -56,10 +56,10 @@ export default async function SettingsPage() {
           <div style={{ marginTop: 12 }}>
             <div style={S.sectionTitle}>Missed-call auto-text</div>
             <div style={S.sectionHint}>Texted to a caller you miss. Use {"{business_name}"} to insert your name.</div>
-            <textarea name="auto_text_message" defaultValue={settings.auto_text_message} rows={3} style={S.textarea} />
+            <textarea name="auto_text_message" defaultValue={settings.auto_text_message} rows={3} className="input" style={S.textarea} />
             <label style={{ ...S.inlineLabel, marginTop: 10 }}>
               Send delay
-              <select name="auto_text_delay_seconds" defaultValue={String(settings.auto_text_delay_seconds)} style={S.time}>
+              <select name="auto_text_delay_seconds" defaultValue={String(settings.auto_text_delay_seconds)} className="input" style={S.time}>
                 <option value="0">Instant</option>
                 <option value="5">5 seconds</option>
                 <option value="10">10 seconds</option>
@@ -72,11 +72,11 @@ export default async function SettingsPage() {
 
           <div style={{ marginTop: 16 }}>
             <div style={S.sliderLabel}>Auto-reply to missed calls</div>
-            <div style={{ fontSize: 12, color: "#8a909c", margin: "0 0 8px", lineHeight: 1.45 }}>
+            <div style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 8px", lineHeight: 1.45 }}>
               How much the AI writes the reply for you. It waits for the caller&apos;s voicemail first — so it feels human and knows what they asked for. Higher = the more it says on its own.
             </div>
             <AutoReplyLevelSlider initial={settings.ai_reply.auto_reply_level} />
-            <div style={{ fontSize: 11.5, color: "#9aa0b3", marginTop: 8 }}>⚙️ Takes effect once AI + texting are switched on.</div>
+            <div style={{ fontSize: 11.5, color: "var(--faint)", marginTop: 8 }}>Takes effect once AI + texting are switched on.</div>
           </div>
 
           <label style={S.checkRow}>
@@ -118,15 +118,15 @@ export default async function SettingsPage() {
           </div>
 
           <div style={{ marginTop: 16 }}>
-            <div style={S.sectionTitle}>Signature <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+            <div style={S.sectionTitle}>Signature <span style={{ fontWeight: 400, fontSize: 12, color: "var(--faint)" }}>(optional)</span></div>
             <div style={S.sectionHint}>Overrides &ldquo;{business?.name ?? "your business name"}&rdquo; at the end of replies. e.g. just &ldquo;Mike&rdquo; for a personal touch.</div>
-            <input name="ai_sign_off" defaultValue={settings.ai_reply.sign_off} placeholder={`e.g. Mike or Mike's Detailing`} style={S.textInput} autoComplete="off" />
+            <input name="ai_sign_off" defaultValue={settings.ai_reply.sign_off} placeholder={`e.g. Mike or Mike's Detailing`} className="input" style={S.textInput} autoComplete="off" />
           </div>
 
           <div style={{ marginTop: 12 }}>
-            <div style={S.sectionTitle}>Custom note <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+            <div style={S.sectionTitle}>Custom note <span style={{ fontWeight: 400, fontSize: 12, color: "var(--faint)" }}>(optional)</span></div>
             <div style={S.sectionHint}>Added to every draft before the signature. e.g. &ldquo;Ask about our monthly maintenance plan!&rdquo;</div>
-            <input name="ai_custom_note" defaultValue={settings.ai_reply.custom_note} placeholder="e.g. Ask about our monthly maintenance plan!" style={S.textInput} autoComplete="off" />
+            <input name="ai_custom_note" defaultValue={settings.ai_reply.custom_note} placeholder="e.g. Ask about our monthly maintenance plan!" className="input" style={S.textInput} autoComplete="off" />
           </div>
         </section>
 
@@ -142,7 +142,7 @@ export default async function SettingsPage() {
           <div style={{ ...S.sectionHint, marginTop: 12 }}>Greeting — what callers hear before leaving a message. Record your own voice (callers hear that); the typed version is read aloud only when there&apos;s no recording.</div>
           {business && <VoicemailRecorder businessId={business.id} />}
           <div style={{ ...S.sectionHint, marginTop: 14, marginBottom: 6 }}>Typed fallback (used when there&apos;s no recording)</div>
-          <textarea name="voicemail_greeting" defaultValue={settings.voicemail_greeting} rows={2} placeholder="Sorry we missed your call. Please leave a message after the beep." style={S.textarea} />
+          <textarea name="voicemail_greeting" defaultValue={settings.voicemail_greeting} rows={2} placeholder="Sorry we missed your call. Please leave a message after the beep." className="input" style={S.textarea} />
         </section>
 
         <section style={S.section}>
@@ -153,6 +153,7 @@ export default async function SettingsPage() {
             defaultValue={business?.name ?? ""}
             placeholder="e.g. Riverside Auto Detailing"
             autoComplete="organization"
+            className="input"
             style={S.textInput}
           />
         </section>
@@ -167,7 +168,7 @@ export default async function SettingsPage() {
         </section>
 
         <section style={S.section}>
-          <div style={S.sectionTitle}>Brand logo <span style={{ fontWeight: 400, fontSize: 12, color: "#9aa0b3" }}>(optional)</span></div>
+          <div style={S.sectionTitle}>Brand logo <span style={{ fontWeight: 400, fontSize: 12, color: "var(--faint)" }}>(optional)</span></div>
           <div style={S.sectionHint}>Drag in a logo file (or paste a URL) — it shows in your dashboard header. Leave blank to use your initial.</div>
           <LogoUpload initial={settings.logo_url} />
         </section>
@@ -177,10 +178,10 @@ export default async function SettingsPage() {
           <div style={S.sectionHint}>Used to suggest open appointment times in replies.</div>
           <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
             <label style={S.inlineLabel}>
-              Open <input type="time" name="hours_open" defaultValue={settings.business_hours.open} style={S.time} />
+              Open <input type="time" name="hours_open" defaultValue={settings.business_hours.open} className="input" style={S.time} />
             </label>
             <label style={S.inlineLabel}>
-              Close <input type="time" name="hours_close" defaultValue={settings.business_hours.close} style={S.time} />
+              Close <input type="time" name="hours_close" defaultValue={settings.business_hours.close} className="input" style={S.time} />
             </label>
           </div>
           <div style={S.days}>
@@ -193,7 +194,7 @@ export default async function SettingsPage() {
           </div>
           <label style={{ ...S.inlineLabel, marginTop: 16 }}>
             Travel buffer between jobs
-            <select name="travel_buffer_minutes" defaultValue={String(settings.travel_buffer_minutes)} style={S.time}>
+            <select name="travel_buffer_minutes" defaultValue={String(settings.travel_buffer_minutes)} className="input" style={S.time}>
               <option value="0">None</option>
               <option value="15">15 min</option>
               <option value="30">30 min</option>
@@ -210,35 +211,35 @@ export default async function SettingsPage() {
           <QuoteRangesEditor initial={settings.quote_ranges} />
         </section>
 
-        <button type="submit" style={S.save}>Save settings</button>
+        <button type="submit" className="btn" style={S.save}>Save settings</button>
       </form>
     </main>
   );
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 640, margin: "0 auto", padding: "26px 20px 64px", fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1e2026" },
+  page: { maxWidth: 640 },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
   sub: { color: "var(--muted)", fontSize: 13 },
   form: { marginTop: 18, display: "flex", flexDirection: "column", gap: 14 },
   section: { padding: "16px 18px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },
   sectionTitle: { fontSize: 14, fontWeight: 700, color: "var(--ink)" },
-  sectionHint: { fontSize: 12, color: "#8a909c", margin: "2px 0 10px" },
+  sectionHint: { fontSize: 12, color: "var(--muted)", margin: "2px 0 10px" },
   color: { width: 52, height: 36, padding: 0, border: "1px solid #d8dce3", borderRadius: 8, background: "#fff", cursor: "pointer" },
   textInput: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, boxSizing: "border-box" },
-  mono: { fontFamily: "ui-monospace, monospace", fontSize: 13, color: "#3c414b" },
+  mono: { fontFamily: "ui-monospace, monospace", fontSize: 13, color: "var(--text)" },
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
-  inlineLabel: { fontSize: 13, color: "#3c414b", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 },
+  inlineLabel: { fontSize: 13, color: "var(--text)", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 },
   time: { padding: "7px 9px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
   days: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 },
-  dayChip: { display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#3c414b", fontWeight: 600 },
+  dayChip: { display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "var(--text)", fontWeight: 600 },
   save: { alignSelf: "flex-start", padding: "11px 18px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
   checkRow: { display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, marginBottom: 4 },
   checkLabel: { display: "block", fontWeight: 700, color: "var(--ink)", marginBottom: 2 },
-  checkHint: { display: "block", fontSize: 12, color: "#8a909c" },
+  checkHint: { display: "block", fontSize: 12, color: "var(--muted)" },
   sliderLabel: { fontSize: 13, fontWeight: 700, color: "var(--ink)", marginBottom: 6 },
   sliderTrack: { display: "flex", alignItems: "center", gap: 10 },
-  sliderEnd: { fontSize: 12, color: "#8a909c", whiteSpace: "nowrap" as const, minWidth: 82 },
+  sliderEnd: { fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" as const, minWidth: 82 },
   slider: { flex: 1, accentColor: "var(--brand)" },
-  radioRow: { display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "#3c414b", lineHeight: 1.4, marginTop: 6 }
+  radioRow: { display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--text)", lineHeight: 1.4, marginTop: 6 }
 };

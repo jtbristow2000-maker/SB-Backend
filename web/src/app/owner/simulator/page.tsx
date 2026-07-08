@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 export default async function SimulatorPage() {
   if (!getAppConfig().simulatorEnabled) {
     return (
-      <main style={S.page}>
+      <main className="owner-page" style={S.page}>
         <h1 style={S.h1}>Simulator</h1>
         <div style={S.note}>The simulator is turned off for this account.</div>
       </main>
@@ -34,7 +34,7 @@ export default async function SimulatorPage() {
   );
 
   return (
-    <main style={S.page}>
+    <main className="owner-page" style={S.page}>
       <h1 style={S.h1}>Simulator</h1>
       <div style={S.sub}>
         Paste a pretend voicemail and we&apos;ll run it through the <strong>same AI</strong> your real
@@ -118,7 +118,7 @@ export default async function SimulatorPage() {
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 640, margin: "0 auto", padding: "26px 20px 64px", fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1e2026" },
+  page: { maxWidth: 640 },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
   sub: { color: "#8a909c", fontSize: 13, lineHeight: 1.5 },
   aiOk: { marginTop: 12, padding: "9px 12px", borderRadius: 10, background: "rgba(var(--positive-rgb),0.12)", color: "#1d6b4f", fontSize: 12, fontWeight: 600 },

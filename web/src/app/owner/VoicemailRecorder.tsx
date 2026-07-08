@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Mic, Square } from "lucide-react";
 import type { CSSProperties } from "react";
 
 import { setVoicemailGreetingAudio } from "@/server/voicemailGreetings/actions";
@@ -153,16 +154,16 @@ export function VoicemailRecorder({ businessId }: { businessId: string }) {
     <div style={S.wrap}>
       {hasExisting && phase !== "preview" && (
         <div style={S.current}>
-          <span style={S.currentLabel}>🎙️ Your recording</span>
+          <span style={S.currentLabel}><Mic size={13} className="ico-inline" aria-hidden /> Your recording</span>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <audio controls src={audioUrl} style={S.audio} />
-          <button type="button" onClick={removeGreeting} style={S.remove}>Remove</button>
+          <button type="button" onClick={removeGreeting} className="btn" style={S.remove}>Remove</button>
         </div>
       )}
 
       {phase === "idle" && (
-        <button type="button" onClick={startRecording} style={S.record}>
-          🔴 {hasExisting ? "Record a new greeting" : "Record greeting"}
+        <button type="button" onClick={startRecording} className="btn" style={S.record}>
+          <Mic size={15} aria-hidden /> {hasExisting ? "Record a new greeting" : "Record greeting"}
         </button>
       )}
 
@@ -170,7 +171,7 @@ export function VoicemailRecorder({ businessId }: { businessId: string }) {
         <div style={S.recRow}>
           <span style={S.recDot} />
           <span style={S.recTime}>Recording… {fmt(elapsed)} / {fmt(MAX_SECONDS)}</span>
-          <button type="button" onClick={stopRecording} style={S.stop}>■ Stop</button>
+          <button type="button" onClick={stopRecording} className="btn" style={S.stop}><Square size={13} aria-hidden /> Stop</button>
         </div>
       )}
 
@@ -180,8 +181,8 @@ export function VoicemailRecorder({ businessId }: { businessId: string }) {
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <audio controls src={previewUrl} style={S.audio} />
           <div style={S.previewBtns}>
-            <button type="button" onClick={save} style={S.save}>Save greeting</button>
-            <button type="button" onClick={discard} style={S.discard}>Re-record</button>
+            <button type="button" onClick={save} className="btn" style={S.save}>Save greeting</button>
+            <button type="button" onClick={discard} className="btn" style={S.discard}>Re-record</button>
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { CSSProperties } from "react";
+import { CalendarDays, Clock, X } from "lucide-react";
 
 // Editable list of service → price-range rows for the Settings screen. Inputs
 // carry name="quote_service|quote_low|quote_high|quote_duration" so they submit
@@ -53,7 +54,7 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
 
   return (
     <div>
-      <div style={S.editorHint}>🎨 color · 📅 tap to hide from calendar · ⏱ how long it takes (sets how many openings to offer) · 💵 one price = flat · both = range · blank = quoted on site</div>
+      <div style={S.editorHint}>Each service: calendar color · duration (sets how many openings to offer) · the calendar button hides it from your schedule · one price = flat rate, both = a range, blank = quoted on site</div>
       {rows.map((r, i) => (
         <div key={i} style={S.row}>
           <div style={S.reorder}>
@@ -74,6 +75,7 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
             value={r.service}
             onChange={(e) => update(i, "service", e.target.value)}
             placeholder="Service (e.g. full detail)"
+            className="input"
             style={S.service}
           />
           <span style={S.dollar}>$</span>
@@ -84,6 +86,7 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
             value={r.low}
             onChange={(e) => update(i, "low", e.target.value)}
             placeholder="price"
+            className="input"
             style={S.num}
           />
           <span style={S.dash}>–</span>
@@ -94,13 +97,15 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
             value={r.high}
             onChange={(e) => update(i, "high", e.target.value)}
             placeholder="(or range)"
+            className="input"
             style={S.num}
           />
-          <span style={S.clock} title="How long this job takes">⏱</span>
+          <span style={S.clock} title="How long this job takes"><Clock size={13} aria-hidden /></span>
           <select
             name="quote_duration"
             value={r.duration}
             onChange={(e) => update(i, "duration", e.target.value)}
+            className="input"
             style={S.duration}
             aria-label="How long this service takes"
             title="How long this job takes — sets how many appointment times get offered"
@@ -113,14 +118,15 @@ export function QuoteRangesEditor({ initial }: { initial: QuoteRange[] }) {
           <button
             type="button"
             onClick={() => toggleCal(i)}
+            className="btn"
             style={calToggle(r.onCalendar)}
             title={r.onCalendar ? "Shows on your calendar — tap to keep it off" : "Kept off your calendar — tap to put it on"}
             aria-label="Toggle calendar visibility"
-          >📅</button>
-          <button type="button" onClick={() => remove(i)} style={S.del} aria-label="Remove">✕</button>
+          ><CalendarDays size={15} aria-hidden /></button>
+          <button type="button" onClick={() => remove(i)} className="btn" style={S.del} aria-label="Remove"><X size={13} aria-hidden /></button>
         </div>
       ))}
-      <button type="button" onClick={add} style={S.add}>+ Add service</button>
+      <button type="button" onClick={add} className="btn" style={S.add}>+ Add service</button>
     </div>
   );
 }
@@ -135,17 +141,19 @@ const S: Record<string, CSSProperties> = {
   dollar: { color: "#8a909c", fontSize: 13 },
   dash: { color: "#8a909c" },
   num: { width: 72, padding: "8px 8px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13 },
-  clock: { fontSize: 13, color: "#8a909c", flexShrink: 0 },
+  clock: { display: "inline-flex", alignItems: "center", color: "var(--muted)", flexShrink: 0 },
   duration: { width: 78, padding: "8px 6px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff", cursor: "pointer", flexShrink: 0 },
-  del: { padding: "6px 9px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#b23b3b", fontWeight: 700, fontSize: 12, cursor: "pointer" },
+  del: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, padding: 0, borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "#b23b3b", cursor: "pointer", flexShrink: 0 },
   add: { marginTop: 2, padding: "8px 12px", borderRadius: 9, border: "1px dashed #b9bfca", background: "#fff", color: "#3c414b", fontWeight: 600, fontSize: 13, cursor: "pointer" }
 };
 
 function calToggle(on: boolean): CSSProperties {
   return {
-    width: 30, height: 30, padding: 0, borderRadius: 7, cursor: "pointer", flexShrink: 0, fontSize: 13,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    width: 30, height: 30, padding: 0, borderRadius: 7, cursor: "pointer", flexShrink: 0,
     border: `1px solid ${on ? "var(--brand)" : "#d8dce3"}`,
     background: on ? "rgba(var(--brand-rgb),0.1)" : "#f1f2f5",
-    opacity: on ? 1 : 0.45
+    color: on ? "var(--brand)" : "var(--muted)",
+    opacity: on ? 1 : 0.5
   };
 }
