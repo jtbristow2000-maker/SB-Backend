@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
-import { BadgeDollarSign, CalendarDays, Cloud, CloudLightning, CloudRain, CloudSnow, CloudSun, MapPin, Pencil, Phone, StickyNote, Sun, Tag, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
+import { BadgeDollarSign, CalendarDays, Cloud, CloudLightning, CloudRain, CloudSnow, CloudSun, MapPin, Maximize2, Minimize2, Pencil, Phone, StickyNote, Sun, Tag, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
 
 import { deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
 import { fmtPhone } from "@/app/owner/format";
-import type { WeatherByDay } from "@/app/owner/weather";
+import type { WeatherByDay, WeatherByHour } from "@/app/owner/weather";
 
 // Calendar with Week (hourly time axis + positioned blocks), Month (grid), and
 // Agenda views. Date math is in the browser's local timezone — for a single
@@ -36,8 +36,9 @@ const DURATION_OPTIONS = [30, 60, 90, 120, 180, 240];
 
 const AXIS_START = 7; // 7 AM
 const AXIS_END = 21; // 9 PM
-const HOUR_PX = 44;
-const TOTAL_PX = (AXIS_END - AXIS_START) * HOUR_PX;
+// Row-height presets - the owner picks; persisted per browser.
+const ROW_HEIGHTS = { compact: 44, cozy: 60, roomy: 80 } as const;
+type RowDensity = keyof typeof ROW_HEIGHTS;
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -80,12 +81,12 @@ function statusColor(s: string): string {
         ? "var(--brand)"
         : "#c77d14";
 }
-function blockGeom(start: Date, end: Date | null): { top: number; height: number } {
+function blockGeom(start: Date, end: Date | null, hourPx: number): { top: number; height: number } {
   const sH = start.getHours() + start.getMinutes() / 60;
   const eH = end ? end.getHours() + end.getMinutes() / 60 : sH + 1;
-  const top = (Math.min(Math.max(sH, AXIS_START), AXIS_END) - AXIS_START) * HOUR_PX;
+  const top = (Math.min(Math.max(sH, AXIS_START), AXIS_END) - AXIS_START) * hourPx;
   const bottomH = Math.min(Math.max(eH, sH + 0.5), AXIS_END);
-  return { top, height: Math.max((bottomH - AXIS_START) * HOUR_PX - top, 20) };
+  return { top, height: Math.max((bottomH - AXIS_START) * hourPx - top, 20) };
 }
 function weekLabel(weekStart: Date): string {
   const end = addDays(weekStart, 6);
@@ -124,10 +125,37 @@ function WxTag({ weather, date, size = 12 }: { weather?: WeatherByDay; date: Dat
   );
 }
 
-export function CalendarViews({ events, legend = [], weather }: { events: CalendarEvent[]; legend?: { service: string; color: string }[]; weather?: WeatherByDay }) {
+export function CalendarViews({ events, legend = [], weather, weatherHours }: { events: CalendarEvent[]; legend?: { service: string; color: string }[]; weather?: WeatherByDay; weatherHours?: WeatherByHour }) {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [selected, setSelected] = useState<Selection | null>(null);
+
+  // Layout prefs - unlocked (fill the screen) vs locked (centered), plus row
+  // density. Persisted per browser; loaded after mount to keep hydration clean.
+  const [wide, setWide] = useState(true);
+  const [density, setDensity] = useState<RowDensity>("cozy");
+  useEffect(() => {
+    try {
+      const w = localStorage.getItem("snagly_cal_wide");
+      if (w !== null) setWide(w === "1");
+      const d = localStorage.getItem("snagly_cal_density");
+      if (d === "compact" || d === "cozy" || d === "roomy") setDensity(d);
+    } catch { /* private mode */ }
+  }, []);
+  const toggleWide = () => {
+    setWide((v) => {
+      try { localStorage.setItem("snagly_cal_wide", v ? "0" : "1"); } catch { /* ignore */ }
+      return !v;
+    });
+  };
+  const cycleDensity = () => {
+    setDensity((d) => {
+      const next: RowDensity = d === "compact" ? "cozy" : d === "cozy" ? "roomy" : "compact";
+      try { localStorage.setItem("snagly_cal_density", next); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const hourPx = ROW_HEIGHTS[density];
   const openEvent = (ev: Ev, mode: "view" | "edit") => setSelected({ ev, mode });
 
   // Desktop hover preview (skipped on touch, where the click popup is the path).
@@ -192,7 +220,7 @@ export function CalendarViews({ events, legend = [], weather }: { events: Calend
       : startOfWeek(anchor) > startOfWeek(new Date());
 
   return (
-    <div>
+    <div style={{ maxWidth: wide ? undefined : 820, margin: wide ? undefined : "0 auto" }}>
       <div style={S.toolbar}>
         <div style={S.viewToggle}>
           {(["week", "month", "agenda"] as View[]).map((v) => (
@@ -201,13 +229,24 @@ export function CalendarViews({ events, legend = [], weather }: { events: Calend
             </button>
           ))}
         </div>
-        {view !== "agenda" && (
-          <div style={S.nav}>
-            <button type="button" onClick={() => go(-1)} disabled={!canGoBack} style={{ ...S.navBtn, opacity: canGoBack ? 1 : 0.35, cursor: canGoBack ? "pointer" : "default" }} aria-label="Previous">‹</button>
-            <button type="button" onClick={() => setAnchor(new Date())} style={S.navToday}>Today</button>
-            <button type="button" onClick={() => go(1)} style={S.navBtn} aria-label="Next">›</button>
-          </div>
-        )}
+        <div style={S.nav}>
+          {view === "week" && (
+            <button type="button" onClick={cycleDensity} className="btn" style={S.layoutBtn} title="Row height - tap to cycle">
+              {density === "compact" ? "Compact" : density === "cozy" ? "Cozy" : "Roomy"}
+            </button>
+          )}
+          <button type="button" onClick={toggleWide} className="btn" style={S.layoutBtn} title={wide ? "Center the calendar at a fixed width" : "Let the calendar fill the screen"}>
+            {wide ? <Minimize2 size={13} aria-hidden /> : <Maximize2 size={13} aria-hidden />}
+            {wide ? "Centered" : "Fill"}
+          </button>
+          {view !== "agenda" && (
+            <>
+              <button type="button" onClick={() => go(-1)} disabled={!canGoBack} style={{ ...S.navBtn, opacity: canGoBack ? 1 : 0.35, cursor: canGoBack ? "pointer" : "default" }} aria-label="Previous">‹</button>
+              <button type="button" onClick={() => setAnchor(new Date())} style={S.navToday}>Today</button>
+              <button type="button" onClick={() => go(1)} style={S.navBtn} aria-label="Next">›</button>
+            </>
+          )}
+        </div>
       </div>
       <div style={S.periodLabel}>{periodLabel}</div>
       {legend.length > 0 && (
@@ -222,7 +261,7 @@ export function CalendarViews({ events, legend = [], weather }: { events: Calend
       )}
 
       {view === "week" && (
-        <WeekView anchor={anchor} evs={evs} weather={weather} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
+        <WeekView anchor={anchor} evs={evs} weather={weather} weatherHours={weatherHours} hourPx={hourPx} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
       )}
       {view === "month" && (
         <MonthView
@@ -259,6 +298,8 @@ function WeekView({
   anchor,
   evs,
   weather,
+  weatherHours,
+  hourPx,
   onOpen,
   onHover,
   onHoverLeave
@@ -266,6 +307,8 @@ function WeekView({
   anchor: Date;
   evs: Ev[];
   weather?: WeatherByDay;
+  weatherHours?: WeatherByHour;
+  hourPx: number;
   onOpen: (ev: Ev, mode: "view" | "edit") => void;
   onHover: (ev: Ev, rect: DOMRect) => void;
   onHoverLeave: () => void;
@@ -274,6 +317,8 @@ function WeekView({
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
   const hours = Array.from({ length: AXIS_END - AXIS_START }, (_, i) => AXIS_START + i);
+  const totalPx = (AXIS_END - AXIS_START) * hourPx;
+  const hourKey = (d: Date, h: number) => `${localKey(d)}T${String(h).padStart(2, "0")}`;
 
   return (
     <div style={S.weekScroll}>
@@ -291,18 +336,40 @@ function WeekView({
         <div style={S.weekRow}>
           <div style={S.axisCol}>
             {hours.map((h) => (
-              <div key={h} style={S.axisHour}>{hourLabel(h)}</div>
+              <div key={h} style={{ ...S.axisHour, height: hourPx }}>{hourLabel(h)}</div>
             ))}
           </div>
           {days.map((d) => {
             const dayEvents = evs.filter((e) => sameDay(e.startDate, d));
             return (
-              <div key={d.toISOString()} style={S.dayCol}>
+              <div key={d.toISOString()} style={{ ...S.dayCol, height: totalPx }}>
+                {weatherHours &&
+                  hours.map((h) => {
+                    const wx = weatherHours[hourKey(d, h)];
+                    if (!wx?.bad) return null;
+                    return <div key={`wx-${h}`} style={{ ...S.wxBand, top: (h - AXIS_START) * hourPx, height: hourPx }} />;
+                  })}
+                {weatherHours &&
+                  [9, 13, 17].map((h) => {
+                    const wx = weatherHours[hourKey(d, h)];
+                    if (!wx || wx.temp === null) return null;
+                    const Icon = wxIcon(wx.short);
+                    return (
+                      <span
+                        key={`stamp-${h}`}
+                        style={{ ...S.wxStamp, top: (h - AXIS_START) * hourPx + 2, color: wx.bad ? "#b06f12" : "var(--faint)" }}
+                        title={`${hourLabel(h)} - ${wx.short}${wx.temp !== null ? ` · ${wx.temp}°` : ""}${wx.rain !== null ? ` · ${wx.rain}% rain` : ""}`}
+                      >
+                        <Icon size={11} aria-hidden />
+                        {wx.temp}°
+                      </span>
+                    );
+                  })}
                 {hours.map((h) => (
-                  <div key={h} style={{ ...S.hourLine, top: (h - AXIS_START) * HOUR_PX }} />
+                  <div key={h} style={{ ...S.hourLine, top: (h - AXIS_START) * hourPx }} />
                 ))}
                 {dayEvents.map((e) => {
-                  const g = blockGeom(e.startDate, e.endDate);
+                  const g = blockGeom(e.startDate, e.endDate, hourPx);
                   return (
                     <EventBlock
                       key={e.id}
@@ -713,12 +780,15 @@ const S: Record<string, CSSProperties> = {
   legendItem: { display: "inline-flex", alignItems: "center", gap: 5 },
   legendDot: { width: 11, height: 11, borderRadius: 3, display: "inline-block", flexShrink: 0 },
   weekScroll: { overflowX: "auto", border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface)", boxShadow: "var(--shadow-sm)" },
-  weekInner: { minWidth: 724 },
+  weekInner: { minWidth: 780 },
   weekRow: { display: "flex" },
   axisCol: { flex: "0 0 52px", width: 52 },
-  axisHour: { height: HOUR_PX, fontSize: 10, color: "var(--muted)", textAlign: "right", paddingRight: 6, transform: "translateY(-6px)" },
+  axisHour: { fontSize: 10, color: "var(--muted)", textAlign: "right", paddingRight: 6, transform: "translateY(-6px)" },
   dayHeaderNum: { fontSize: 15, fontWeight: 700, color: "var(--ink)" },
-  dayCol: { flex: "1 0 96px", position: "relative", height: TOTAL_PX, borderLeft: "1px solid var(--border)" },
+  dayCol: { flex: "1 0 110px", position: "relative", borderLeft: "1px solid var(--border)" },
+  wxBand: { position: "absolute", left: 0, right: 0, background: "rgba(58,123,208,0.07)", pointerEvents: "none" },
+  wxStamp: { position: "absolute", right: 3, display: "inline-flex", alignItems: "center", gap: 2, fontSize: 9, fontWeight: 600, zIndex: 1 },
+  layoutBtn: { display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 11px", borderRadius: 999, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--muted)", fontWeight: 600, fontSize: 12, cursor: "pointer" },
   hourLine: { position: "absolute", left: 0, right: 0, height: 1, background: "#f1f2f5" },
   monthDow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginTop: 4 },
   monthDowCell: { textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted)", padding: "4px 0" },

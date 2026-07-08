@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Schedule v2: fill-the-screen layout, row-height control, hour-by-hour weather
+
+### Changed
+- **The Schedule finally uses your screen.** The page container is uncapped (header + booking form stay at a readable width); the calendar grid stretches to fill. Two persisted layout controls in the toolbar:
+  - **Fill ⇄ Centered** (the lock/unlock): let the calendar span the whole browser or pin it to a centered 820px. Remembered per browser.
+  - **Row height — Compact / Cozy / Roomy** (44/60/80px per hour): tap to cycle; the week grid, hour axis, and event blocks all rescale. Default is now the roomier "Cozy."
+- **Hour-by-hour weather on the week grid** (NWS hourly forecast): hours that break the owner's cutoffs get a soft blue tint band, and small temp stamps sit at 9a/1p/5p in each day column (amber when that hour is bad; hover for condition + rain %). Daily tags in the headers stay.
+- `getWeatherByZip` now returns `{ days, hours }`; day columns widened (min 110px).
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` pass.
+
 ## [2026-07-08] - Weather-smart booking: live forecast in the schedule + reply times
 
 ### Added
