@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Weather-smart booking: live forecast in the schedule + reply times
+
+### Added
+- **Live forecast engine** (`app/owner/weather.ts`): zip → lat/lon (zippopotam.us) → National Weather Service 7-day forecast (api.weather.gov — free, no API key, US). Cached via Next fetch revalidation (zip 7d / gridpoint 1d / forecast 30 min); any failure degrades to "no weather" silently. Each day gets a `bad` flag + plain-words reason judged against the owner's cutoffs.
+- **Weather cutoffs in Settings** ("Weather-smart booking"): zip code (blank = off), workable temp window (default 40–95°F), skip-rain-above % (default 50%). Snow/ice/storms always flagged. Stored in `settings_json.weather` — no migration.
+- **Calendar**: Week day-headers, Month cells, and Agenda day rows now show a forecast tag (condition icon + high); days breaking the cutoffs render amber with the reason in the tooltip.
+- **Reply logic**: the composer's offered time slots now **skip forecast-bad days** and show a note in the times panel ("Skipped for weather: Wed, Jul 15 (70% rain)") so the owner can override knowingly.
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` pass.
+
 ## [2026-07-08] - Stats tab: scoreboard with goals, trends & records
 
 ### Added

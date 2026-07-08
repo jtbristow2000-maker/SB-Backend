@@ -207,6 +207,49 @@ export default async function SettingsPage() {
         </section>
 
         <section style={S.section}>
+          <div style={S.sectionTitle}>Weather-smart booking</div>
+          <div style={S.sectionHint}>
+            Add your zip and the schedule + suggested reply times steer around bad-weather days (live forecast, U.S. only). Leave the zip blank to turn it off.
+          </div>
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={S.inlineLabel}>
+              Zip
+              <input
+                name="weather_zip"
+                inputMode="numeric"
+                maxLength={5}
+                placeholder="30144"
+                defaultValue={settings.weather.zip}
+                className="input"
+                style={{ ...S.time, width: 86 }}
+                autoComplete="postal-code"
+              />
+            </label>
+            <label style={S.inlineLabel}>
+              Workable temps
+              <input name="weather_min_temp" type="number" min={-30} max={110} defaultValue={settings.weather.min_temp_f} className="input" style={{ ...S.time, width: 64 }} aria-label="Minimum workable temperature (°F)" />
+              <span style={{ color: "var(--muted)" }}>–</span>
+              <input name="weather_max_temp" type="number" min={0} max={130} defaultValue={settings.weather.max_temp_f} className="input" style={{ ...S.time, width: 64 }} aria-label="Maximum workable temperature (°F)" />
+              °F
+            </label>
+            <label style={S.inlineLabel}>
+              Skip rain above
+              <select name="weather_max_rain" defaultValue={String(settings.weather.max_rain_chance)} className="input" style={S.time}>
+                <option value="30">30%</option>
+                <option value="40">40%</option>
+                <option value="50">50%</option>
+                <option value="60">60%</option>
+                <option value="70">70%</option>
+                <option value="80">80%</option>
+              </select>
+            </label>
+          </div>
+          <div style={{ ...S.sectionHint, marginTop: 8 }}>
+            Days outside these limits get flagged on your Schedule and skipped when the reply suggests times. Snow, ice, and storms are always flagged.
+          </div>
+        </section>
+
+        <section style={S.section}>
           <div style={S.sectionTitle}>Quote ranges</div>
           <div style={S.sectionHint}>Optional. A suggested reply can include a price range when a service matches.</div>
           <QuoteRangesEditor initial={settings.quote_ranges} />

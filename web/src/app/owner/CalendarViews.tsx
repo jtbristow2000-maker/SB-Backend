@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
-import { BadgeDollarSign, CalendarDays, MapPin, Pencil, Phone, StickyNote, Tag, Trash2, UserRound, X } from "lucide-react";
+import { BadgeDollarSign, CalendarDays, Cloud, CloudLightning, CloudRain, CloudSnow, CloudSun, MapPin, Pencil, Phone, StickyNote, Sun, Tag, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
 
 import { deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
 import { fmtPhone } from "@/app/owner/format";
+import type { WeatherByDay } from "@/app/owner/weather";
 
 // Calendar with Week (hourly time axis + positioned blocks), Month (grid), and
 // Agenda views. Date math is in the browser's local timezone — for a single
@@ -92,7 +93,38 @@ function weekLabel(weekStart: Date): string {
   return `${MONTHS[weekStart.getMonth()].slice(0, 3)} ${weekStart.getDate()} – ${sameMonth ? "" : `${MONTHS[end.getMonth()].slice(0, 3)} `}${end.getDate()}, ${end.getFullYear()}`;
 }
 
-export function CalendarViews({ events, legend = [] }: { events: CalendarEvent[]; legend?: { service: string; color: string }[] }) {
+// ------------------------------------------------------------ weather glyphs
+function localKey(d: Date): string {
+  return d.toLocaleDateString("en-CA"); // YYYY-MM-DD in the browser's local tz
+}
+function wxIcon(short: string): LucideIcon {
+  const s = short.toLowerCase();
+  if (/thunder|storm/.test(s)) return CloudLightning;
+  if (/snow|sleet|ice|blizzard|flurr|freezing/.test(s)) return CloudSnow;
+  if (/rain|shower|drizzle/.test(s)) return CloudRain;
+  if (/partly|mostly sunny/.test(s)) return CloudSun;
+  if (/cloud|overcast|fog|haze/.test(s)) return Cloud;
+  return Sun;
+}
+// Small forecast tag for a calendar day: icon + high, amber when the day breaks
+// the owner's weather cutoffs (tooltip carries the reason).
+function WxTag({ weather, date, size = 12 }: { weather?: WeatherByDay; date: Date; size?: number }) {
+  const w = weather?.[localKey(date)];
+  if (!w || (w.hi === null && !w.short)) return null;
+  const Icon = wxIcon(w.short);
+  const color = w.bad ? "#b06f12" : "var(--muted)";
+  return (
+    <span
+      style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: size - 1.5, fontWeight: 600, color, whiteSpace: "nowrap" }}
+      title={`${w.short}${w.hi !== null ? ` · ${w.hi}°` : ""}${w.rain !== null ? ` · ${w.rain}% rain` : ""}${w.bad && w.reason ? ` — ${w.reason}` : ""}`}
+    >
+      <Icon size={size} aria-hidden />
+      {w.hi !== null ? `${w.hi}°` : ""}
+    </span>
+  );
+}
+
+export function CalendarViews({ events, legend = [], weather }: { events: CalendarEvent[]; legend?: { service: string; color: string }[]; weather?: WeatherByDay }) {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [selected, setSelected] = useState<Selection | null>(null);
@@ -190,19 +222,20 @@ export function CalendarViews({ events, legend = [] }: { events: CalendarEvent[]
       )}
 
       {view === "week" && (
-        <WeekView anchor={anchor} evs={evs} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
+        <WeekView anchor={anchor} evs={evs} weather={weather} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
       )}
       {view === "month" && (
         <MonthView
           anchor={anchor}
           evs={evs}
+          weather={weather}
           onPickDay={(d) => {
             setAnchor(d);
             setView("week");
           }}
         />
       )}
-      {view === "agenda" && <AgendaView evs={evs} onOpen={openEvent} />}
+      {view === "agenda" && <AgendaView evs={evs} weather={weather} onOpen={openEvent} />}
 
       {selected && (
         <AppointmentModal
@@ -225,12 +258,14 @@ export function CalendarViews({ events, legend = [] }: { events: CalendarEvent[]
 function WeekView({
   anchor,
   evs,
+  weather,
   onOpen,
   onHover,
   onHoverLeave
 }: {
   anchor: Date;
   evs: Ev[];
+  weather?: WeatherByDay;
   onOpen: (ev: Ev, mode: "view" | "edit") => void;
   onHover: (ev: Ev, rect: DOMRect) => void;
   onHoverLeave: () => void;
@@ -249,6 +284,7 @@ function WeekView({
             <div key={d.toISOString()} style={dayHeader(sameDay(d, today))}>
               <div>{DOW[d.getDay()]}</div>
               <div style={S.dayHeaderNum}>{d.getDate()}</div>
+              <WxTag weather={weather} date={d} size={12} />
             </div>
           ))}
         </div>
@@ -353,7 +389,7 @@ function EventBlock({
   );
 }
 
-function MonthView({ anchor, evs, onPickDay }: { anchor: Date; evs: Ev[]; onPickDay: (d: Date) => void }) {
+function MonthView({ anchor, evs, weather, onPickDay }: { anchor: Date; evs: Ev[]; weather?: WeatherByDay; onPickDay: (d: Date) => void }) {
   const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const gridStart = startOfWeek(monthStart);
   const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
@@ -374,7 +410,7 @@ function MonthView({ anchor, evs, onPickDay }: { anchor: Date; evs: Ev[]; onPick
             .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
           return (
             <button key={d.toISOString()} type="button" onClick={() => onPickDay(new Date(d))} style={monthCell(inMonth, sameDay(d, today))}>
-              <div style={S.monthDayNum}>{d.getDate()}</div>
+              <div style={S.monthCellTop}><span style={S.monthDayNum}>{d.getDate()}</span><WxTag weather={weather} date={d} size={11} /></div>
               {dayEvents.slice(0, 3).map((e) => (
                 <div key={e.id} style={{ ...S.monthChip, background: `${e.serviceColor}1f`, borderLeft: `2px solid ${e.serviceColor}` }}>
                   {timeLabel(e.startDate)} {e.title}
@@ -389,7 +425,7 @@ function MonthView({ anchor, evs, onPickDay }: { anchor: Date; evs: Ev[]; onPick
   );
 }
 
-function AgendaView({ evs, onOpen }: { evs: Ev[]; onOpen: (ev: Ev, mode: "view" | "edit") => void }) {
+function AgendaView({ evs, weather, onOpen }: { evs: Ev[]; weather?: WeatherByDay; onOpen: (ev: Ev, mode: "view" | "edit") => void }) {
   const today = startOfDay(new Date());
   const upcoming = evs.filter((e) => e.startDate >= today).sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
   if (upcoming.length === 0) {
@@ -409,7 +445,7 @@ function AgendaView({ evs, onOpen }: { evs: Ev[]; onOpen: (ev: Ev, mode: "view" 
     <div>
       {groups.map((g) => (
         <div key={g.key} style={{ marginTop: 14 }}>
-          <div style={S.agendaDay}>{g.label}</div>
+          <div style={S.agendaDay}>{g.label} <WxTag weather={weather} date={g.items[0].startDate} size={12} /></div>
           {g.items.map((e) => (
             <div key={e.id} style={{ ...S.agendaItem, borderLeft: `4px solid ${e.serviceColor}` }}>
               <div style={S.agendaTime}>
@@ -687,7 +723,8 @@ const S: Record<string, CSSProperties> = {
   monthDow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginTop: 4 },
   monthDowCell: { textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted)", padding: "4px 0" },
   monthGrid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
-  monthDayNum: { fontSize: 12, fontWeight: 700, marginBottom: 2 },
+  monthCellTop: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4, marginBottom: 2, minWidth: 0 },
+  monthDayNum: { fontSize: 12, fontWeight: 700 },
   monthChip: { fontSize: 9, padding: "1px 3px", borderRadius: 3, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#1e2026" },
   monthMore: { fontSize: 9, color: "var(--muted)" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "var(--muted)" },

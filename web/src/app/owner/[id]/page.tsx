@@ -15,6 +15,7 @@ import { MarkLeadRead } from "@/app/owner/MarkLeadRead";
 import { fmtPhone, readExtracted, type Extracted } from "@/app/owner/format";
 import { parseInboundConfirmation } from "@/app/owner/inboundParser";
 import { detectVehicle, detectPreferredContact } from "@/app/owner/leadRundown";
+import { getWeatherByZip } from "@/app/owner/weather";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -217,6 +218,9 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 
   const leadName = profile.display_name || fmtPhone(profile.phone_e164);
 
+  // Live forecast (owner's zip) so offered time slots steer around bad-weather days.
+  const weather = await getWeatherByZip(settings.weather);
+
   return (
     <main className="owner-page" style={S.shell}>
       <MarkLeadRead id={profile.id} activity={profile.last_contact_at} />
@@ -307,6 +311,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           confirmedSlot={inboundConfirmation && !inboundConfirmation.isConflict ? inboundConfirmation.label : null}
           textingLive={textingLive}
           textingMissing={textingMissing}
+          weather={weather}
         />
       )}
     </main>
