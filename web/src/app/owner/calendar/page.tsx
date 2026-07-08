@@ -23,7 +23,7 @@ export default async function CalendarPage() {
     rt.customerProfileRepository.list()
   ]) : [[], []];
   const settings = getBusinessSettings(business);
-  const weather = await getWeatherByZip(settings.weather);
+  const forecast = await getWeatherByZip(settings.weather);
   const nameById = new Map(
     profiles.map((p) => [p.id, p.display_name || (p.phone_e164 ? fmtPhone(p.phone_e164) : "")])
   );
@@ -49,6 +49,7 @@ export default async function CalendarPage() {
 
   return (
     <main className="owner-page" style={S.page}>
+      <div style={S.narrow}>
       <h1 style={S.h1}>Schedule</h1>
       <div style={S.sub}>Your appointments — switch between Week, Month, and Agenda.</div>
 
@@ -69,18 +70,23 @@ export default async function CalendarPage() {
         <input name="notes" placeholder="Notes (optional — gate code, etc.)" style={S.input} autoComplete="off" />
         <button type="submit" style={S.btnPrimary}>Add to schedule</button>
       </form>
+      </div>
 
       <CalendarViews
         events={events}
         legend={settings.quote_ranges.filter((r) => r.on_calendar !== false).map((r) => ({ service: r.service, color: r.color ?? "#5b5bd6" }))}
-        weather={weather}
+        weather={forecast.days}
+        weatherHours={forecast.hours}
       />
     </main>
   );
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 760 },
+  // The page itself is uncapped so the calendar can fill wide screens; the
+  // header + booking form stay at a readable width.
+  page: { maxWidth: "none" },
+  narrow: { maxWidth: 760, margin: "0 auto", width: "100%" },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
   sub: { color: "var(--muted)", fontSize: 13 },
   bookForm: { display: "flex", flexDirection: "column", gap: 8, marginTop: 16, padding: "14px", borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },
