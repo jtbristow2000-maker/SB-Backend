@@ -132,5 +132,5 @@ const S: Record<string, CSSProperties> = {
   won: { ...pill, color: "var(--positive)", background: "rgba(var(--positive-rgb),0.16)" },
   fresh: { ...pill, color: "var(--brand)", background: "rgba(var(--brand-rgb),0.12)" },
   opened: { ...pill, color: "#3a7bd0", background: "rgba(58,123,208,0.14)" },
-  lost: { ...pill, color: "#8a909c", background: "rgba(138,144,156,0.16)" }
+  lost: { ...pill, color: "var(--muted)", background: "rgba(138,144,156,0.16)" }
 };

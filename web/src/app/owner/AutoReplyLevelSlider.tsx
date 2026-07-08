@@ -46,9 +46,9 @@ export function AutoReplyLevelSlider({ initial }: { initial: number }) {
 
 const S: Record<string, CSSProperties> = {
   track: { display: "flex", alignItems: "center", gap: 10 },
-  end: { fontSize: 12, color: "#8a909c", whiteSpace: "nowrap", minWidth: 46 },
+  end: { fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap", minWidth: 46 },
   slider: { flex: 1, accentColor: "var(--brand)" },
   box: { marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(var(--brand-rgb),0.07)" },
   curName: { display: "block", fontSize: 13, fontWeight: 700, color: "#3a3a9a", marginBottom: 2 },
-  curDesc: { fontSize: 12.5, color: "#3c414b", lineHeight: 1.45 }
+  curDesc: { fontSize: 12.5, color: "var(--text)", lineHeight: 1.45 }
 };

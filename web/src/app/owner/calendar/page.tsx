@@ -76,7 +76,7 @@ export default async function CalendarPage() {
 const S: Record<string, CSSProperties> = {
   page: { maxWidth: 760 },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
-  sub: { color: "#8a909c", fontSize: 13 },
+  sub: { color: "var(--muted)", fontSize: 13 },
   bookForm: { display: "flex", flexDirection: "column", gap: 8, marginTop: 16, padding: "14px", borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },
   bookTitle: { fontSize: 13, fontWeight: 700, color: "#3a3a9a" },
   input: { padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 },

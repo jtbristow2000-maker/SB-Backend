@@ -5,6 +5,7 @@ import { PhoneNumberSection } from "@/app/owner/PhoneNumberSection";
 import { AutoReplyLevelSlider } from "@/app/owner/AutoReplyLevelSlider";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
 import { LogoUpload } from "@/app/owner/LogoUpload";
+import { SettingsSaveBar } from "@/app/owner/SettingsSaveBar";
 import { UnsavedChangesGuard } from "@/app/owner/UnsavedChangesGuard";
 import { VoicemailRecorder } from "@/app/owner/VoicemailRecorder";
 import { getOwnerBusinessContext } from "@/server/business/current";
@@ -212,6 +213,7 @@ export default async function SettingsPage() {
         </section>
 
         <button type="submit" className="btn" style={S.save}>Save settings</button>
+        <SettingsSaveBar formId="settings-form" />
       </form>
     </main>
   );

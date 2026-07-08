@@ -143,11 +143,11 @@ export function LeadDirectory({ leads, tz }: { leads: DirectoryLead[]; tz: strin
 const S: Record<string, CSSProperties> = {
   search: { width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid #d8dce3", fontSize: 15, marginBottom: 10 },
   chips: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 },
-  count: { fontSize: 12, color: "#8a909c", marginBottom: 8 },
+  count: { fontSize: 12, color: "var(--muted)", marginBottom: 8 },
   empty: { marginTop: 8, padding: "22px 16px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "var(--muted)" },
   row: { display: "block", padding: "13px 15px", marginBottom: 9 },
   handling: { fontSize: 13, fontWeight: 600, marginTop: 5 },
-  phoneMeta: { color: "#8a909c", fontSize: 12.5, marginTop: 2 }
+  phoneMeta: { color: "var(--muted)", fontSize: 12.5, marginTop: 2 }
 };
 
 function chipStyle(active: boolean): CSSProperties {
