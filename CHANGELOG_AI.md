@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Premium UI Phase 1: typography, icons, interactive states
+
+### Changed
+- **Typeface:** app now loads **Inter** via `next/font` (self-hosted, `--font-sans` variable) instead of falling back to Segoe UI/Arial.
+- **Design tokens** (`styles.css`): locked the scale — semantic grays (`--ink/--text/--muted/--faint`, contrast-bumped), radii `--radius-sm/--radius/--radius-lg` (8/12/16), `--ring` focus token. Cards now use `--radius-lg`.
+- **Icons:** replaced all ~43 emoji-as-icons across the owner app (nav, Today metrics, lead cards, lead detail, composer, calendar, settings, onboarding, phone section, recorders) with **lucide-react** SVG icons — consistent stroke weight, brand-tintable, identical on every device.
+- **Interactive primitives:** new `.btn` (hover brightness, press scale, focus ring, disabled fade — via filter/transform so it composes with existing inline styles) and `.input` (hover border, brand focus ring) applied across all key buttons, inputs, selects, and textareas. `.btn-primary`/`.btn-secondary` variants for future use.
+- **Responsive pages:** new `.owner-page` container class (desktop padding → tighter phone padding) applied to Today/Leads/Detail/Calendar/Settings/Simulator; sidebar/tab-bar icons are now SVGs sized per surface.
+
+### Verified
+- `npm run verify` passes (43 files, 164 tests) and `next build` compiles clean (first-load JS ≤116 kB).
+
 ## [2026-06-10] - Missed-call auto-text send delay
 
 ### Changed

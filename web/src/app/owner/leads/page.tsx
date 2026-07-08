@@ -59,7 +59,7 @@ export default async function LeadsPage() {
     });
 
   return (
-    <main style={S.page}>
+    <main className="owner-page" style={S.page}>
       <h1 style={S.h1}>Leads</h1>
       <div style={S.sub}>Your pipeline — where every lead stands, from new to booked to won.</div>
       <div style={{ marginTop: 16 }}>
@@ -70,7 +70,7 @@ export default async function LeadsPage() {
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 720, margin: "0 auto", padding: "26px 20px 48px", fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1e2026" },
+  page: { maxWidth: 720 },
   h1: { margin: "4px 0 2px", fontSize: 26 },
   sub: { color: "#8a909c", fontSize: 13 }
 };

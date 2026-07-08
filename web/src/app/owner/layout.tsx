@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
+import { FlaskConical, LogOut, Settings } from "lucide-react";
 
 import { getAppConfig } from "@/server/config";
 import { getBusinessSettings } from "@/server/business/settings";
@@ -55,17 +56,17 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
 
         <div className="owner-sidebar-footer">
           {simulatorEnabled && (
-            <Link href="/owner/simulator" className="owner-console-link" style={{ display: "block", marginBottom: 6 }}>🧪 Simulator</Link>
+            <Link href="/owner/simulator" className="owner-console-link" style={{ display: "flex", marginBottom: 6 }}><FlaskConical size={13} aria-hidden /> Simulator</Link>
           )}
-          <Link href="/owner/settings" className="owner-console-link" style={{ display: "block" }}>⚙ Settings</Link>
+          <Link href="/owner/settings" className="owner-console-link" style={{ display: "flex" }}><Settings size={13} aria-hidden /> Settings</Link>
           {authEnabled && (
             <form action="/api/auth/sign-out" method="post" style={{ margin: "6px 0 0" }}>
               <button
                 type="submit"
                 className="owner-console-link"
-                style={{ display: "block", background: "none", border: "none", padding: 0, fontFamily: "inherit", cursor: "pointer", textAlign: "left" }}
+                style={{ display: "flex", background: "none", border: "none", padding: 0, fontFamily: "inherit", cursor: "pointer", textAlign: "left" }}
               >
-                ↪ Sign out
+                <LogOut size={13} aria-hidden /> Sign out
               </button>
             </form>
           )}
@@ -81,9 +82,9 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {simulatorEnabled && (
-            <Link href="/owner/simulator" className="owner-topbar-console" aria-label="Simulator">🧪</Link>
+            <Link href="/owner/simulator" className="owner-topbar-console" aria-label="Simulator"><FlaskConical size={16} aria-hidden /></Link>
           )}
-          <Link href="/owner/settings" className="owner-topbar-console">⚙ Settings</Link>
+          <Link href="/owner/settings" className="owner-topbar-console"><Settings size={14} aria-hidden /> Settings</Link>
           {authEnabled && (
             <form action="/api/auth/sign-out" method="post" style={{ display: "flex" }}>
               <button
@@ -92,7 +93,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
                 style={{ background: "none", border: "none", padding: 0, fontFamily: "inherit", cursor: "pointer" }}
                 aria-label="Sign out"
               >
-                ↪ Sign out
+                <LogOut size={14} aria-hidden /> Sign out
               </button>
             </form>
           )}

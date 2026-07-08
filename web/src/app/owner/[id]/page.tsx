@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { ArrowLeft, Check, CheckCircle2, Hourglass, Sparkles, Star, TriangleAlert, UserRound, Voicemail } from "lucide-react";
 
 import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
@@ -78,8 +79,8 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 
   if (!detail) {
     return (
-      <main style={S.shell}>
-        <Link href="/owner/leads" style={S.back}>← Leads</Link>
+      <main className="owner-page" style={S.shell}>
+        <Link href="/owner/leads" style={S.back}><ArrowLeft size={14} className="ico-inline" aria-hidden /> Leads</Link>
         <div style={S.empty}>Lead not found. It may have been reset.</div>
       </main>
     );
@@ -198,15 +199,15 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
   );
 
   return (
-    <main style={S.shell}>
+    <main className="owner-page" style={S.shell}>
       <MarkLeadRead id={profile.id} activity={profile.last_contact_at} />
-      <Link href="/owner/leads" style={S.back}>← Leads</Link>
+      <Link href="/owner/leads" style={S.back}><ArrowLeft size={14} className="ico-inline" aria-hidden /> Leads</Link>
 
       <header style={{ marginTop: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <h1 style={S.h1}>{profile.display_name || fmtPhone(profile.phone_e164)}</h1>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-            {first_time_customer && <span style={S.firstTime}>⭐ First-time</span>}
+            {first_time_customer && <span style={S.firstTime}><Star size={11} className="ico-inline" aria-hidden /> First-time</span>}
             {customer_replied && <span style={S.replied}>Replied</span>}
           </div>
         </div>
@@ -230,20 +231,20 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       />
 
       <details style={S.detailsBox}>
-        <summary style={S.detailsSummary}>👤 Customer details{autoFilled ? " ✨" : ""}</summary>
+        <summary style={S.detailsSummary}><UserRound size={13} className="ico-inline" aria-hidden /> Customer details{autoFilled ? <> <Sparkles size={12} className="ico-inline" aria-hidden /></> : null}</summary>
         <form action={saveCustomerDetails} style={S.detailsForm}>
           <input type="hidden" name="profileId" value={profile.id} />
           {autoFilled && (
-            <div style={S.autoHint}>✨ Pre-filled from the voicemail — review and Save to keep it.</div>
+            <div style={S.autoHint}><Sparkles size={12} className="ico-inline" aria-hidden /> Pre-filled from the voicemail — review and Save to keep it.</div>
           )}
           <label style={S.fieldLabel}>Vehicle(s)
-            <input name="vehicles" defaultValue={vehiclesValue} placeholder="e.g. 2019 Tahoe; wife's Civic" style={S.fieldInput} autoComplete="off" />
+            <input name="vehicles" defaultValue={vehiclesValue} placeholder="e.g. 2019 Tahoe; wife's Civic" className="input" style={S.fieldInput} autoComplete="off" />
           </label>
           <label style={S.fieldLabel}>Address / PO box
-            <input name="po_box" defaultValue={profile.po_box ?? ""} placeholder="123 Main St / PO Box 45" style={S.fieldInput} autoComplete="off" />
+            <input name="po_box" defaultValue={profile.po_box ?? ""} placeholder="123 Main St / PO Box 45" className="input" style={S.fieldInput} autoComplete="off" />
           </label>
           <label style={S.fieldLabel}>Preferred contact
-            <select name="preferred_contact" defaultValue={contactValue} style={S.fieldInput}>
+            <select name="preferred_contact" defaultValue={contactValue} className="input" style={S.fieldInput}>
               <option value="">No preference</option>
               <option value="call">Call</option>
               <option value="text">Text</option>
@@ -251,9 +252,9 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
             </select>
           </label>
           <label style={S.fieldLabel}>How did you hear about us?
-            <input name="referral_source" defaultValue={profile.referral_source ?? ""} placeholder="e.g. Google, referral, truck sign" style={S.fieldInput} autoComplete="off" />
+            <input name="referral_source" defaultValue={profile.referral_source ?? ""} placeholder="e.g. Google, referral, truck sign" className="input" style={S.fieldInput} autoComplete="off" />
           </label>
-          <button type="submit" style={S.detailsSave}>Save details</button>
+          <button type="submit" className="btn" style={S.detailsSave}>Save details</button>
         </form>
       </details>
 
@@ -267,7 +268,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
               <div key={item.call.id} style={bubbleWrap(false)}>
                 <div style={S.vmBubble}>
                   <div style={S.vmHead}>
-                    🎙️ {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} ·{" "}
+                    <Voicemail size={13} className="ico-inline" aria-hidden /> {callLabel(item.call.call_type, Boolean(item.call.transcript), Boolean(item.call.recording_url))} ·{" "}
                     {fmtTime(item.at, tz)}{item.call.duration_seconds ? ` · ${item.call.duration_seconds}s` : ""}
                   </div>
                   {item.call.transcript ? (
@@ -276,7 +277,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
                       {item.call.needs_review && <span style={S.review}> · auto-transcribed</span>}
                     </div>
                   ) : item.call.call_type === "voicemail" || item.call.recording_url ? (
-                    <div style={S.transcribing}>⏳ Transcribing voicemail…</div>
+                    <div style={S.transcribing}><Hourglass size={12} className="ico-inline" aria-hidden /> Transcribing voicemail…</div>
                   ) : null}
                 </div>
               </div>
@@ -293,10 +294,10 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
       )}
 
       {textingLive ? (
-        <div style={S.textOk}>✓ Texting on — replies send from your business number.</div>
+        <div style={S.textOk}><CheckCircle2 size={13} className="ico-inline" aria-hidden /> Texting on — replies send from your business number.</div>
       ) : (
         <div style={S.textWarn}>
-          ⚠ Texting is off — replies are saved here but not sent yet. Still needed: {textingMissing.join(", ")} (set in Vercel), plus Twilio number verification.
+          <TriangleAlert size={13} className="ico-inline" aria-hidden /> Texting is off — replies are saved here but not sent yet. Still needed: {textingMissing.join(", ")} (set in Vercel), plus Twilio number verification.
         </div>
       )}
 
@@ -327,7 +328,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
             {pastJobs.map((a) => (
               <div key={a.id} style={S.jobRow}>
                 <span>{a.service_requested || a.title || "Appointment"}</span>
-                <span style={S.jobMeta}>{fmtTime(a.scheduled_start_at, tz)}{a.status === "completed" ? " · ✓ done" : ""}</span>
+                <span style={S.jobMeta}>{fmtTime(a.scheduled_start_at, tz)}{a.status === "completed" ? <> · <Check size={12} className="ico-inline" aria-hidden /> done</> : ""}</span>
               </div>
             ))}
           </div>
@@ -343,7 +344,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 }
 
 const S: Record<string, CSSProperties> = {
-  shell: { maxWidth: 720, margin: "0 auto", padding: "22px 20px 48px", fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1e2026" },
+  shell: { maxWidth: 720 },
   back: { color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" },
   h1: { margin: "6px 0 2px", fontSize: 22, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.4px" },
   sub: { color: "#8a909c", fontSize: 13 },

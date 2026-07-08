@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { CalendarDays, LayoutDashboard, Users, type LucideIcon } from "lucide-react";
 
 // Owner navigation, shared by the desktop sidebar and the mobile bottom tab bar.
 // Client component so it can highlight the active screen via usePathname().
 
-const ITEMS = [
-  { href: "/owner/today", label: "Today", icon: "📊" },
-  { href: "/owner/leads", label: "Leads", icon: "👥" },
-  { href: "/owner/calendar", label: "Schedule", icon: "📅" }
-] as const;
+const ITEMS: ReadonlyArray<{ href: string; label: string; Icon: LucideIcon }> = [
+  { href: "/owner/today", label: "Today", Icon: LayoutDashboard },
+  { href: "/owner/leads", label: "Leads", Icon: Users },
+  { href: "/owner/calendar", label: "Schedule", Icon: CalendarDays }
+];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/owner/today") {
@@ -40,14 +41,14 @@ export function OwnerNav({ variant }: { variant: "sidebar" | "tabbar" }) {
   if (variant === "tabbar") {
     return (
       <nav className="owner-tabbar">
-        {ITEMS.map((item) => (
+        {ITEMS.map(({ href, label, Icon }) => (
           <Link
-            key={item.href}
-            href={item.href}
-            className={`owner-tab${isActive(pathname, item.href) ? " active" : ""}`}
+            key={href}
+            href={href}
+            className={`owner-tab${isActive(pathname, href) ? " active" : ""}`}
           >
-            <span className="owner-tab-icon">{item.icon}</span>
-            {item.label}
+            <Icon size={20} strokeWidth={2.1} aria-hidden />
+            {label}
           </Link>
         ))}
       </nav>
@@ -56,14 +57,14 @@ export function OwnerNav({ variant }: { variant: "sidebar" | "tabbar" }) {
 
   return (
     <nav>
-      {ITEMS.map((item) => (
+      {ITEMS.map(({ href, label, Icon }) => (
         <Link
-          key={item.href}
-          href={item.href}
-          className={`owner-nav-link${isActive(pathname, item.href) ? " active" : ""}`}
+          key={href}
+          href={href}
+          className={`owner-nav-link${isActive(pathname, href) ? " active" : ""}`}
         >
-          <span aria-hidden>{item.icon}</span>
-          {item.label}
+          <Icon size={17} strokeWidth={2.1} aria-hidden />
+          {label}
         </Link>
       ))}
     </nav>

@@ -46,7 +46,7 @@ export default async function CalendarPage() {
     }));
 
   return (
-    <main style={S.page}>
+    <main className="owner-page" style={S.page}>
       <h1 style={S.h1}>Schedule</h1>
       <div style={S.sub}>Your appointments — switch between Week, Month, and Agenda.</div>
 
@@ -74,7 +74,7 @@ export default async function CalendarPage() {
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 760, margin: "0 auto", padding: "26px 20px 48px", fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1e2026" },
+  page: { maxWidth: 760 },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
   sub: { color: "#8a909c", fontSize: 13 },
   bookForm: { display: "flex", flexDirection: "column", gap: 8, marginTop: 16, padding: "14px", borderRadius: 12, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },

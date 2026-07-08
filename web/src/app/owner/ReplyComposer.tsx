@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
+import { Check, Copy, Send, Sparkles, TriangleAlert } from "lucide-react";
 
 import { sendOwnerText, suggestServicesWithAI } from "@/app/owner/actions";
 import { fmtUsd } from "@/app/owner/format";
@@ -518,7 +519,7 @@ export function ReplyComposer({
   return (
     <div style={S.card}>
       <div style={S.head}>
-        <span>✨ Suggested reply</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Sparkles size={14} aria-hidden /> Suggested reply</span>
       </div>
 
       {/* Services → live quote */}
@@ -527,9 +528,9 @@ export function ReplyComposer({
           <div style={S.sectionLabel}>
             What they want{" "}
             {aiState === "loading" ? (
-              <span style={S.auto}>· ✨ AI reading the voicemail…</span>
+              <span style={S.auto}>· <Sparkles size={11} className="ico-inline" aria-hidden /> AI reading the voicemail…</span>
             ) : aiState === "done" ? (
-              <span style={S.auto}>· ✨ picked by AI</span>
+              <span style={S.auto}>· <Sparkles size={11} className="ico-inline" aria-hidden /> picked by AI</span>
             ) : initialPicks.length > 0 ? (
               <span style={S.auto}>· auto-picked</span>
             ) : null}
@@ -538,8 +539,8 @@ export function ReplyComposer({
             {quoteRanges.map((r, i) => {
               const on = selectedIdxs.has(i);
               return (
-                <button key={`${r.service}-${i}`} type="button" onClick={() => toggleService(i)} style={chip(on)}>
-                  {on ? "✓ " : ""}{r.service} <span style={S.chipPrice}>{priceText(r)}</span>
+                <button key={`${r.service}-${i}`} type="button" onClick={() => toggleService(i)} className="btn" style={chip(on)}>
+                  {on ? <Check size={12} aria-hidden /> : null}{r.service} <span style={S.chipPrice}>{priceText(r)}</span>
                 </button>
               );
             })}
@@ -551,8 +552,8 @@ export function ReplyComposer({
                 ? "Quoted on site"
                 : `Quote: ${totalLow === totalHigh ? fmtUsd(totalLow) : `${fmtUsd(totalLow)}–${fmtUsd(totalHigh)}`}${pricedSelected.length > 1 ? " total" : ""}${hasVaries ? " + on-site" : ""}`}
           </div>
-          <button type="button" onClick={toggleMenu} style={menuToggle(includeMenu)}>
-            {includeMenu ? "✓ Including full price list" : "+ Add full price list"}
+          <button type="button" onClick={toggleMenu} className="btn" style={menuToggle(includeMenu)}>
+            {includeMenu ? <><Check size={12} aria-hidden /> Including full price list</> : "+ Add full price list"}
           </button>
         </>
       ) : (
@@ -565,15 +566,15 @@ export function ReplyComposer({
           <div style={S.sectionLabel}>Offer these times</div>
           {outsideLabel && (
             <div style={S.outsideNote}>
-              ⚠ They asked for {outsideLabel.toLowerCase()} — outside your hours. The reply offers your next open times instead (tweak it if you can make an exception).
+              <TriangleAlert size={12} className="ico-inline" aria-hidden /> They asked for {outsideLabel.toLowerCase()} — outside your hours. The reply offers your next open times instead (tweak it if you can make an exception).
             </div>
           )}
           <div style={S.chips}>
             {allSlots.map((slot) => {
               const on = selectedSlots.includes(slot);
               return (
-                <button key={slot} type="button" onClick={() => toggleSlot(slot)} style={chip(on)}>
-                  {on ? "✓ " : ""}{slot}
+                <button key={slot} type="button" onClick={() => toggleSlot(slot)} className="btn" style={chip(on)}>
+                  {on ? <Check size={12} aria-hidden /> : null}{slot}
                 </button>
               );
             })}
@@ -583,12 +584,14 @@ export function ReplyComposer({
 
       {/* Assembled message */}
       <div style={S.sectionLabel}>Message</div>
-      <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={4} style={S.textarea} />
+      <textarea value={text} onChange={(e) => setEdited(e.target.value)} rows={4} className="input" style={S.textarea} />
       <div style={S.actions}>
-        <button type="button" onClick={send} disabled={sendState === "sending"} style={S.sendBtn}>
-          {sendState === "sending" ? "Sending…" : sendState === "sent" ? "✓ Sent" : "💬 Send"}
+        <button type="button" onClick={send} disabled={sendState === "sending"} className="btn" style={S.sendBtn}>
+          {sendState === "sending" ? "Sending…" : sendState === "sent" ? <><Check size={15} aria-hidden /> Sent</> : <><Send size={15} aria-hidden /> Send</>}
         </button>
-        <button type="button" onClick={copy} style={S.copyBtn}>{copied ? "✓ Copied" : "📋 Copy"}</button>
+        <button type="button" onClick={copy} className="btn" style={S.copyBtn}>
+          {copied ? <><Check size={15} aria-hidden /> Copied</> : <><Copy size={15} aria-hidden /> Copy</>}
+        </button>
       </div>
     </div>
   );
@@ -596,6 +599,9 @@ export function ReplyComposer({
 
 function chip(on: boolean): CSSProperties {
   return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
     padding: "7px 11px",
     borderRadius: 999,
     fontSize: 12.5,
@@ -608,6 +614,9 @@ function chip(on: boolean): CSSProperties {
 }
 function menuToggle(on: boolean): CSSProperties {
   return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
     marginTop: 8,
     padding: "5px 10px",
     borderRadius: 8,
@@ -633,6 +642,6 @@ const S: Record<string, CSSProperties> = {
   noRanges: { fontSize: 13, color: "#8a909c", padding: "6px 0" },
   textarea: { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" },
   actions: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" },
-  sendBtn: { padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
-  copyBtn: { padding: "10px 14px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 14, cursor: "pointer" }
+  sendBtn: { display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" },
+  copyBtn: { display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 14px", borderRadius: 10, background: "#fff", border: "1px solid #d8dce3", color: "#1e2026", fontWeight: 700, fontSize: 14, cursor: "pointer" }
 };

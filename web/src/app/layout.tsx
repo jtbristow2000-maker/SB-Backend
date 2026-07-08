@@ -1,6 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./styles.css";
 import { RegisterSW } from "./RegisterSW";
+
+// Single app-wide typeface. Exposed as a CSS variable so styles.css can build
+// the font stack; loaded via next/font so it's self-hosted (no FOUT/layout shift).
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 const appName = process.env.BUSINESS_NAME?.trim() || "Business Hub";
 
@@ -30,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         {children}
         <RegisterSW />

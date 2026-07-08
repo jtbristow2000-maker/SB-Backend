@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { CheckCircle2, PhoneForwarded } from "lucide-react";
 
 import { savePortInfo, submitPort } from "@/app/owner/actions";
 import { ActivateNumberForm } from "@/app/owner/ActivateNumberForm";
@@ -42,7 +43,7 @@ export function PhoneNumberSection({ model }: { model: BusinessNumberReadModel }
 
       {showForwarding && (
         <div style={S.forward}>
-          <div style={S.forwardTitle}>📲 Connect your business line</div>
+          <div style={S.forwardTitle}><PhoneForwarded size={13} className="ico-inline" aria-hidden /> Connect your business line</div>
           <div style={S.body}>
             On the phone that rings for your business, turn on{" "}
             <strong>&ldquo;forward when busy / unanswered&rdquo;</strong> to this number. On most U.S. carriers you can
@@ -56,7 +57,7 @@ export function PhoneNumberSection({ model }: { model: BusinessNumberReadModel }
         <div style={S.body}>Your real number is being ported in — keep forwarding on until it completes.</div>
       )}
       {number_status === "ported" && (
-        <div style={S.body}>✅ Your own number is fully connected — no forwarding needed.</div>
+        <div style={S.body}><CheckCircle2 size={13} className="ico-inline" aria-hidden /> Your own number is fully connected — no forwarding needed.</div>
       )}
 
       {number_status !== "ported" && (
@@ -68,17 +69,17 @@ export function PhoneNumberSection({ model }: { model: BusinessNumberReadModel }
             {port_request_status ? <strong> Status: {portStatusLabel(port_request_status)}.</strong> : null}
           </div>
           <form action={savePortInfo} style={S.form}>
-            <input name="current_number_e164" required placeholder="Your real business number" style={S.input} autoComplete="off" />
-            <input name="current_carrier" placeholder="Current carrier (e.g. Verizon)" style={S.input} autoComplete="off" />
-            <input name="account_number" placeholder="Account number with that carrier" style={S.input} autoComplete="off" />
-            <input name="account_pin" placeholder="Account PIN / transfer passcode" style={S.input} autoComplete="off" />
-            <input name="billing_name" placeholder="Name on the account" style={S.input} autoComplete="off" />
-            <input name="billing_address" placeholder="Billing address on the account" style={S.input} autoComplete="off" />
-            <button type="submit" style={S.secondary}>Save porting info</button>
+            <input className="input" name="current_number_e164" required placeholder="Your real business number" style={S.input} autoComplete="off" />
+            <input className="input" name="current_carrier" placeholder="Current carrier (e.g. Verizon)" style={S.input} autoComplete="off" />
+            <input className="input" name="account_number" placeholder="Account number with that carrier" style={S.input} autoComplete="off" />
+            <input className="input" name="account_pin" placeholder="Account PIN / transfer passcode" style={S.input} autoComplete="off" />
+            <input className="input" name="billing_name" placeholder="Name on the account" style={S.input} autoComplete="off" />
+            <input className="input" name="billing_address" placeholder="Billing address on the account" style={S.input} autoComplete="off" />
+            <button type="submit" className="btn" style={S.secondary}>Save porting info</button>
           </form>
           {(port_request_status === "collecting" || port_request_status === "rejected") && (
             <form action={submitPort} style={{ marginTop: 8 }}>
-              <button type="submit" style={S.primary}>Submit port request</button>
+              <button type="submit" className="btn" style={S.primary}>Submit port request</button>
             </form>
           )}
         </details>
