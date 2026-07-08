@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, LayoutDashboard, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarDays, LayoutDashboard, Users, type LucideIcon } from "lucide-react";
 
 // Owner navigation, shared by the desktop sidebar and the mobile bottom tab bar.
 // Client component so it can highlight the active screen via usePathname().
@@ -10,7 +10,8 @@ import { CalendarDays, LayoutDashboard, Users, type LucideIcon } from "lucide-re
 const ITEMS: ReadonlyArray<{ href: string; label: string; Icon: LucideIcon }> = [
   { href: "/owner/today", label: "Today", Icon: LayoutDashboard },
   { href: "/owner/leads", label: "Leads", Icon: Users },
-  { href: "/owner/calendar", label: "Schedule", Icon: CalendarDays }
+  { href: "/owner/calendar", label: "Schedule", Icon: CalendarDays },
+  { href: "/owner/stats", label: "Stats", Icon: BarChart3 }
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -20,14 +21,18 @@ function isActive(pathname: string, href: string): boolean {
   if (href === "/owner/calendar") {
     return pathname === "/owner/calendar";
   }
+  if (href === "/owner/stats") {
+    return pathname === "/owner/stats";
+  }
   // Leads tab covers the pipeline directory AND an individual lead detail (/owner/<id>),
-  // but not the other top-level routes (Today / Schedule / Settings / Simulator).
+  // but not the other top-level routes (Today / Schedule / Stats / Settings / Simulator).
   if (href === "/owner/leads") {
     return (
       pathname === "/owner/leads" ||
       (pathname.startsWith("/owner/") &&
         pathname !== "/owner/today" &&
         pathname !== "/owner/calendar" &&
+        pathname !== "/owner/stats" &&
         pathname !== "/owner/settings" &&
         pathname !== "/owner/simulator")
     );

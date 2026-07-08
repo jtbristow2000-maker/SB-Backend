@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Stats tab: scoreboard with goals, trends & records
+
+### Added
+- **New Stats screen** (`/owner/stats`, 4th nav tab): a game-style scoreboard computed live from calls/leads/appointments in the business timezone —
+  - **This week** hero: calls / new leads / jobs booked with ▲▼ deltas vs last week, plus a **win-rate ring** (won vs lost leads).
+  - **Weekly goals**: owner sets targets for calls / new leads / jobs booked (inline editor); progress bars fill through the week, trophies on hit, "2/3 hit" scorekeeping. Stored in `settings_json.goals` — no migration.
+  - **Last 8 weeks** grouped bar chart (calls + booked, current week highlighted) and a **14-day daily activity** strip.
+  - **Records**: best day (calls), best week (calls), best week (booked), jobs completed — personal bests to beat.
+- Contract: `GoalsSettings` in `settings.ts` (+ reader/merger/defaults), `saveGoals` server action, `GoalsEditor` client component, stats loading skeleton, nav item + active-state handling.
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` pass.
+
 ## [2026-07-08] - Lead detail v2: messaging-app layout (Apple-clean)
 
 ### Changed

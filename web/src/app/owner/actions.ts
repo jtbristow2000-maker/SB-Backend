@@ -480,6 +480,31 @@ export async function deleteAppointment(formData: FormData): Promise<void> {
   revalidateSchedule(existing?.customer_profile_id);
 }
 
+// Weekly goal targets from the Stats screen. 0 (or blank) clears a goal.
+export async function saveGoals(formData: FormData): Promise<void> {
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+
+  const read = (name: string): number => {
+    const n = Number(formData.get(name) ?? 0);
+    return Number.isFinite(n) && n > 0 ? Math.min(999, Math.round(n)) : 0;
+  };
+
+  try {
+    await rt.businessRepository.updateSettings(business.id, {
+      goals: {
+        weekly_calls: read("weekly_calls"),
+        weekly_leads: read("weekly_leads"),
+        weekly_booked: read("weekly_booked")
+      }
+    });
+  } catch {
+    /* business may have been reset */
+  }
+
+  revalidatePath("/owner/stats");
+}
+
 export async function saveSettings(formData: FormData): Promise<void> {
   const { rt, business } = await getRuntimeAndBusiness();
   if (!rt || !business) return;
