@@ -6,10 +6,10 @@ import { MessageSquareText, Phone } from "lucide-react";
 
 import { markContacted } from "@/app/owner/actions";
 
-// Call / Text quick actions. Tapping either opens the phone's dialer or Messages
-// app (tel:/sms:) AND records that the owner reached out, so the lead flips to
-// "Responded" on the dashboards. The status write fires in the background; the
-// link navigation is never blocked.
+// Contact-header quick actions, Messages-style: circular icon buttons with a tiny
+// label. Tapping either opens the phone's dialer or Messages app (tel:/sms:) AND
+// records that the owner reached out, so the lead flips to "Responded" on the
+// dashboards. The status write fires in the background; navigation is never blocked.
 export function ContactButtons({ phone, profileId }: { phone: string; profileId: string }) {
   const [, startTransition] = useTransition();
 
@@ -23,18 +23,25 @@ export function ContactButtons({ phone, profileId }: { phone: string; profileId:
 
   return (
     <div style={S.row}>
-      <a href={`tel:${phone}`} className="btn" style={S.call} onClick={recordReachOut}>
-        <Phone size={16} aria-hidden /> Call back
+      <a href={`tel:${phone}`} onClick={recordReachOut} style={S.action} title="Call them from your own phone">
+        <span className="btn" style={{ ...S.circle, background: "var(--positive)", color: "#fff", boxShadow: "0 2px 8px rgba(var(--positive-rgb),0.35)" }}>
+          <Phone size={18} aria-hidden />
+        </span>
+        <span style={S.label}>Call</span>
       </a>
-      <a href={`sms:${phone}`} className="btn" style={S.text} onClick={recordReachOut}>
-        <MessageSquareText size={16} aria-hidden /> Text
+      <a href={`sms:${phone}`} onClick={recordReachOut} style={S.action} title="Text them from your own phone">
+        <span className="btn" style={{ ...S.circle, background: "var(--surface)", color: "var(--ink)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-xs)" }}>
+          <MessageSquareText size={18} aria-hidden />
+        </span>
+        <span style={S.label}>Text</span>
       </a>
     </div>
   );
 }
 
 const S: Record<string, CSSProperties> = {
-  row: { display: "flex", gap: 10, margin: "12px 0 4px" },
-  call: { flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", borderRadius: "var(--radius)", background: "var(--positive)", color: "#fff", fontWeight: 700, fontSize: 15 },
-  text: { flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", borderRadius: "var(--radius)", background: "var(--surface)", border: "1px solid var(--border-strong)", color: "var(--ink)", fontWeight: 700, fontSize: 15 }
+  row: { display: "flex", gap: 14, flexShrink: 0 },
+  action: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textDecoration: "none" },
+  circle: { width: 44, height: 44, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  label: { fontSize: 10.5, fontWeight: 600, color: "var(--muted)" }
 };

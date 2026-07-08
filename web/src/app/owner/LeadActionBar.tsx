@@ -106,18 +106,18 @@ export function LeadActionBar({
 }
 
 const S: Record<string, CSSProperties> = {
-  wrap: { margin: "10px 0 2px" },
+  wrap: { margin: "16px 0 2px" },
   row: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
   inline: { display: "inline-flex" },
-  select: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff", color: "#1e2026", cursor: "pointer", fontWeight: 600 },
-  btn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, border: "1px solid #d8dce3", background: "#fff", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  btnBook: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 9, border: "1px solid rgba(var(--brand-rgb),0.4)", background: "rgba(var(--brand-rgb),0.08)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
-  btnOn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 9, border: "1px solid var(--brand)", background: "rgba(var(--brand-rgb),0.12)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  select: { padding: "8px 12px", borderRadius: 999, border: "1px solid #d8dce3", fontSize: 13, background: "#fff", color: "#1e2026", cursor: "pointer", fontWeight: 600 },
+  btn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 999, border: "1px solid #d8dce3", background: "#fff", color: "var(--text)", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  btnBook: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 999, border: "1px solid rgba(var(--brand-rgb),0.4)", background: "rgba(var(--brand-rgb),0.08)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnOn: { display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 999, border: "1px solid var(--brand)", background: "rgba(var(--brand-rgb),0.12)", color: "#2a2a8a", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   spacer: { flex: 1 },
   bookForm: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8, padding: "10px 12px", borderRadius: 10, background: "#f6f7f9", border: "1px solid var(--border)" },
   input: { padding: "8px 10px", borderRadius: 9, border: "1px solid #d8dce3", fontSize: 13, background: "#fff" },
   btnPrimary: { padding: "8px 13px", borderRadius: 9, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" },
-  btnWon: { display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 9, border: "1px solid rgba(var(--positive-rgb),0.4)", background: "rgba(var(--positive-rgb),0.12)", color: "#1d6b4f", fontWeight: 700, fontSize: 13, cursor: "pointer" },
-  btnLost: { padding: "7px 11px", borderRadius: 9, border: "1px solid #e7c6c6", background: "#fff", color: "#b23b3b", fontWeight: 600, fontSize: 13, cursor: "pointer" },
+  btnWon: { display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 999, border: "1px solid rgba(var(--positive-rgb),0.4)", background: "rgba(var(--positive-rgb),0.12)", color: "#1d6b4f", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  btnLost: { padding: "7px 13px", borderRadius: 999, border: "1px solid #e7c6c6", background: "#fff", color: "#b23b3b", fontWeight: 600, fontSize: 13, cursor: "pointer" },
   confirmedBanner: { marginTop: 8, padding: "8px 12px", borderRadius: 10, background: "rgba(var(--positive-rgb),0.1)", border: "1px solid rgba(var(--positive-rgb),0.2)", color: "#1d6b4f", fontSize: 13, lineHeight: 1.4 }
 };
