@@ -1,5 +1,18 @@
 # CHANGELOG_AI.md
 
+## [2026-07-08] - Lead detail redesign: calm, story-first layout
+
+### Changed
+- **Lead detail page reorganized around the owner's actual question** (who called → what's the job → what happened → what do I say). New order: header → **"The job" card** (AI summary + Wants/Vehicle/Asked-for/Ballpark rows) → Call/Text (with a plain-words caption: these use your phone) → status/booking bar → **"What happened" card** (conversation now inside one card, bigger 14px text) → reply composer → customer details (moved below) → past jobs. Redundant footer + standalone texting banners removed.
+- **Reply composer is now draft-first**: headline "Text them back" + a live **"Sends for real / Practice mode"** chip; the message and a big Send button come first, and the service picks + time slots collapsed into two "tap to change" rows with plain-English summaries ("The job: Full Detail SUV — $300–$500"). Rows auto-open only when nothing is pre-picked. Practice mode explains itself in one line.
+- **Action bar hierarchy**: "Book the job" is now the emphasized action; Won/Lost sit quietly right-aligned (Won keeps its special behavior — completes appointments); status select unchanged.
+
+### Notes
+- All features preserved (statuses, Mark done, booking form + confirmed-slot prefill, customer details autofill, price-list toggle, outside-hours note, copy). This is a reorganization, not a feature cut.
+
+### Verified
+- `npm run verify` (43 files, 164 tests) + `next build` pass.
+
 ## [2026-07-08] - Premium UI Phases 2-4: perceived speed, micro-polish, resilience
 
 ### Added
