@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { CSSProperties } from "react";
-import { BadgeDollarSign, CalendarDays, Cloud, CloudLightning, CloudRain, CloudSnow, CloudSun, MapPin, Maximize2, Minimize2, Pencil, Phone, StickyNote, Sun, Tag, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { BadgeDollarSign, CalendarDays, Cloud, CloudLightning, CloudRain, CloudSnow, CloudSun, MapPin, Pencil, Phone, StickyNote, Sun, Tag, Trash2, UserRound, X, type LucideIcon } from "lucide-react";
 
 import { deleteAppointment, setAppointmentStatus, updateAppointment } from "@/app/owner/actions";
 import { fmtPhone } from "@/app/owner/format";
@@ -36,9 +36,6 @@ const DURATION_OPTIONS = [30, 60, 90, 120, 180, 240];
 
 const AXIS_START = 7; // 7 AM
 const AXIS_END = 21; // 9 PM
-// Row-height presets - the owner picks; persisted per browser.
-const ROW_HEIGHTS = { compact: 44, cozy: 60, roomy: 80 } as const;
-type RowDensity = keyof typeof ROW_HEIGHTS;
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -130,32 +127,70 @@ export function CalendarViews({ events, legend = [], weather, weatherHours }: { 
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [selected, setSelected] = useState<Selection | null>(null);
 
-  // Layout prefs - unlocked (fill the screen) vs locked (centered), plus row
-  // density. Persisted per browser; loaded after mount to keep hydration clean.
-  const [wide, setWide] = useState(true);
-  const [density, setDensity] = useState<RowDensity>("cozy");
+  // Freely resizable layout: the week grid scrolls inside a window whose height
+  // and width you drag (corner / bottom handles), plus a smooth zoom slider for
+  // the hour height. Everything persists per browser; loaded after mount.
+  const [hourPx, setHourPx] = useState(56);
+  const [gridH, setGridH] = useState(520);
+  const [calW, setCalW] = useState<number | null>(null); // null = fill the page
+  const layoutLoaded = useRef(false);
+  const frameRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     try {
-      const w = localStorage.getItem("snagly_cal_wide");
-      if (w !== null) setWide(w === "1");
-      const d = localStorage.getItem("snagly_cal_density");
-      if (d === "compact" || d === "cozy" || d === "roomy") setDensity(d);
+      const z = Number(localStorage.getItem("snagly_cal_zoom"));
+      if (z >= 36 && z <= 88) setHourPx(z);
+      const h = Number(localStorage.getItem("snagly_cal_h"));
+      if (h >= 300 && h <= 900) setGridH(h);
+      const w = localStorage.getItem("snagly_cal_w");
+      if (w && w !== "fill") {
+        const n = Number(w);
+        if (n >= 560) setCalW(n);
+      }
     } catch { /* private mode */ }
+    layoutLoaded.current = true;
   }, []);
-  const toggleWide = () => {
-    setWide((v) => {
-      try { localStorage.setItem("snagly_cal_wide", v ? "0" : "1"); } catch { /* ignore */ }
-      return !v;
-    });
+  useEffect(() => {
+    if (!layoutLoaded.current) return;
+    try {
+      localStorage.setItem("snagly_cal_zoom", String(hourPx));
+      localStorage.setItem("snagly_cal_h", String(gridH));
+      localStorage.setItem("snagly_cal_w", calW === null ? "fill" : String(calW));
+    } catch { /* ignore */ }
+  }, [hourPx, gridH, calW]);
+
+  // Window-style resize: corner handle drags width + height, bottom bar drags
+  // height. Dragging (nearly) as wide as the page snaps back to "fill".
+  const startResize = (e: ReactPointerEvent<HTMLDivElement>, mode: "corner" | "height") => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = frameRef.current?.getBoundingClientRect().width ?? 900;
+    const startH = gridH;
+    const avail = frameRef.current?.parentElement?.getBoundingClientRect().width ?? startW;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+    const onMove = (ev: globalThis.PointerEvent) => {
+      if (mode === "corner") {
+        const w = startW + (ev.clientX - startX);
+        setCalW(w >= avail - 20 ? null : Math.max(560, Math.round(w)));
+      }
+      if (view === "week") {
+        setGridH(Math.max(300, Math.min(900, Math.round(startH + (ev.clientY - startY)))));
+      }
+    };
+    const onUp = () => {
+      document.body.style.userSelect = prevSelect;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   };
-  const cycleDensity = () => {
-    setDensity((d) => {
-      const next: RowDensity = d === "compact" ? "cozy" : d === "cozy" ? "roomy" : "compact";
-      try { localStorage.setItem("snagly_cal_density", next); } catch { /* ignore */ }
-      return next;
-    });
+  const resetLayout = () => {
+    setCalW(null);
+    setGridH(520);
+    setHourPx(56);
   };
-  const hourPx = ROW_HEIGHTS[density];
   const openEvent = (ev: Ev, mode: "view" | "edit") => setSelected({ ev, mode });
 
   // Desktop hover preview (skipped on touch, where the click popup is the path).
@@ -220,7 +255,7 @@ export function CalendarViews({ events, legend = [], weather, weatherHours }: { 
       : startOfWeek(anchor) > startOfWeek(new Date());
 
   return (
-    <div style={{ maxWidth: wide ? undefined : 820, margin: wide ? undefined : "0 auto" }}>
+    <div>
       <div style={S.toolbar}>
         <div style={S.viewToggle}>
           {(["week", "month", "agenda"] as View[]).map((v) => (
@@ -231,14 +266,20 @@ export function CalendarViews({ events, legend = [], weather, weatherHours }: { 
         </div>
         <div style={S.nav}>
           {view === "week" && (
-            <button type="button" onClick={cycleDensity} className="btn" style={S.layoutBtn} title="Row height - tap to cycle">
-              {density === "compact" ? "Compact" : density === "cozy" ? "Cozy" : "Roomy"}
-            </button>
+            <label style={S.zoomWrap} title="Hour height - drag to zoom the grid">
+              <span style={S.zoomLabel}>Zoom</span>
+              <input
+                type="range"
+                min={36}
+                max={88}
+                step={2}
+                value={hourPx}
+                onChange={(e) => setHourPx(Number(e.target.value))}
+                style={S.zoom}
+                aria-label="Hour row height"
+              />
+            </label>
           )}
-          <button type="button" onClick={toggleWide} className="btn" style={S.layoutBtn} title={wide ? "Center the calendar at a fixed width" : "Let the calendar fill the screen"}>
-            {wide ? <Minimize2 size={13} aria-hidden /> : <Maximize2 size={13} aria-hidden />}
-            {wide ? "Centered" : "Fill"}
-          </button>
           {view !== "agenda" && (
             <>
               <button type="button" onClick={() => go(-1)} disabled={!canGoBack} style={{ ...S.navBtn, opacity: canGoBack ? 1 : 0.35, cursor: canGoBack ? "pointer" : "default" }} aria-label="Previous">‹</button>
@@ -260,21 +301,43 @@ export function CalendarViews({ events, legend = [], weather, weatherHours }: { 
         </div>
       )}
 
-      {view === "week" && (
-        <WeekView anchor={anchor} evs={evs} weather={weather} weatherHours={weatherHours} hourPx={hourPx} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
-      )}
-      {view === "month" && (
-        <MonthView
-          anchor={anchor}
-          evs={evs}
-          weather={weather}
-          onPickDay={(d) => {
-            setAnchor(d);
-            setView("week");
-          }}
+      <div
+        ref={frameRef}
+        style={{ position: "relative", maxWidth: calW ?? undefined, margin: calW !== null ? "0 auto" : undefined, paddingBottom: view === "week" ? 9 : 0 }}
+      >
+        {view === "week" && (
+          <WeekView anchor={anchor} evs={evs} weather={weather} weatherHours={weatherHours} hourPx={hourPx} gridH={gridH} onOpen={openEvent} onHover={showHover} onHoverLeave={queueHideHover} />
+        )}
+        {view === "month" && (
+          <MonthView
+            anchor={anchor}
+            evs={evs}
+            weather={weather}
+            onPickDay={(d) => {
+              setAnchor(d);
+              setView("week");
+            }}
+          />
+        )}
+        {view === "agenda" && <AgendaView evs={evs} weather={weather} onOpen={openEvent} />}
+
+        {view === "week" && (
+          <div
+            onPointerDown={(e) => startResize(e, "height")}
+            onDoubleClick={resetLayout}
+            style={S.heightHandle}
+            title="Drag to make the calendar taller or shorter - double-click to reset"
+          >
+            <span style={S.gripDot} /><span style={S.gripDot} /><span style={S.gripDot} />
+          </div>
+        )}
+        <div
+          onPointerDown={(e) => startResize(e, "corner")}
+          onDoubleClick={resetLayout}
+          style={S.cornerHandle}
+          title="Drag to resize the calendar - double-click to reset"
         />
-      )}
-      {view === "agenda" && <AgendaView evs={evs} weather={weather} onOpen={openEvent} />}
+      </div>
 
       {selected && (
         <AppointmentModal
@@ -300,6 +363,7 @@ function WeekView({
   weather,
   weatherHours,
   hourPx,
+  gridH,
   onOpen,
   onHover,
   onHoverLeave
@@ -309,10 +373,17 @@ function WeekView({
   weather?: WeatherByDay;
   weatherHours?: WeatherByHour;
   hourPx: number;
+  gridH: number;
   onOpen: (ev: Ev, mode: "view" | "edit") => void;
   onHover: (ev: Ev, rect: DOMRect) => void;
   onHoverLeave: () => void;
 }) {
+  // The grid lives in a scroll window; open on the working morning (8 AM).
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = Math.max(0, (8 - AXIS_START) * hourPx - 6);
+  }, [hourPx]);
   const weekStart = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
@@ -321,9 +392,9 @@ function WeekView({
   const hourKey = (d: Date, h: number) => `${localKey(d)}T${String(h).padStart(2, "0")}`;
 
   return (
-    <div style={S.weekScroll}>
+    <div ref={scrollRef} className="scroll-soft" style={{ ...S.weekScroll, height: gridH }}>
       <div style={S.weekInner}>
-        <div style={S.weekRow}>
+        <div style={{ ...S.weekRow, ...S.stickyHead }}>
           <div style={S.axisCol} />
           {days.map((d) => (
             <div key={d.toISOString()} style={dayHeader(sameDay(d, today))}>
@@ -779,7 +850,7 @@ const S: Record<string, CSSProperties> = {
   legend: { display: "flex", flexWrap: "wrap", gap: 12, margin: "0 0 12px", fontSize: 12, color: "var(--text)" },
   legendItem: { display: "inline-flex", alignItems: "center", gap: 5 },
   legendDot: { width: 11, height: 11, borderRadius: 3, display: "inline-block", flexShrink: 0 },
-  weekScroll: { overflowX: "auto", border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface)", boxShadow: "var(--shadow-sm)" },
+  weekScroll: { overflow: "auto", overscrollBehavior: "contain", border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface)", boxShadow: "var(--shadow-sm)" },
   weekInner: { minWidth: 780 },
   weekRow: { display: "flex" },
   axisCol: { flex: "0 0 52px", width: 52 },
@@ -788,7 +859,13 @@ const S: Record<string, CSSProperties> = {
   dayCol: { flex: "1 0 110px", position: "relative", borderLeft: "1px solid var(--border)" },
   wxBand: { position: "absolute", left: 0, right: 0, background: "rgba(58,123,208,0.07)", pointerEvents: "none" },
   wxStamp: { position: "absolute", right: 3, display: "inline-flex", alignItems: "center", gap: 2, fontSize: 9, fontWeight: 600, zIndex: 1 },
-  layoutBtn: { display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 11px", borderRadius: 999, border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--muted)", fontWeight: 600, fontSize: 12, cursor: "pointer" },
+  zoomWrap: { display: "inline-flex", alignItems: "center", gap: 7, padding: "0 4px" },
+  zoomLabel: { fontSize: 11.5, fontWeight: 600, color: "var(--muted)" },
+  zoom: { width: 96, accentColor: "var(--brand)", cursor: "ew-resize" },
+  stickyHead: { position: "sticky", top: 0, zIndex: 3, background: "var(--surface)", boxShadow: "0 1px 0 var(--border)" },
+  heightHandle: { position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: -2, width: 56, height: 13, cursor: "ns-resize", zIndex: 4, borderRadius: 999, background: "var(--surface)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-xs)", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, touchAction: "none" },
+  gripDot: { width: 3, height: 3, borderRadius: 999, background: "var(--muted)" },
+  cornerHandle: { position: "absolute", right: -2, bottom: -2, width: 18, height: 18, cursor: "nwse-resize", zIndex: 4, borderRadius: "3px 3px 8px 3px", background: "repeating-linear-gradient(135deg, transparent 0 4px, var(--border-strong) 4px 6px)", opacity: 0.9, touchAction: "none" },
   hourLine: { position: "absolute", left: 0, right: 0, height: 1, background: "#f1f2f5" },
   monthDow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginTop: 4 },
   monthDowCell: { textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted)", padding: "4px 0" },
