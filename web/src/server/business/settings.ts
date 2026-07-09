@@ -15,6 +15,14 @@ export type QuoteRangeSettings = {
   duration_minutes?: number; // how long this job takes; drives how many time slots fit. Unset = default.
 };
 
+// Personal contacts the owner never wants business-handled: no auto-text, no
+// lead card — their voicemails file quietly. Fed by "Mark as personal" on a
+// lead, manual entry, or contact import. Capped at 500 entries.
+export type PrivateNumberEntry = {
+  name: string;
+  phone: string; // E.164
+};
+
 // Weather-smart booking prefs. zip empty = weather off. A forecast day is
 // flagged "bad for exterior work" when it falls outside the temp window, its
 // rain chance exceeds the cutoff, or it's snow/ice/storm weather.
@@ -55,6 +63,7 @@ export type BusinessSettings = {
   ai_reply: AiReplySettings;
   goals: GoalsSettings;
   weather: WeatherSettings;
+  private_numbers: PrivateNumberEntry[];
 };
 
 export type BusinessSettingsUpdate = {
@@ -70,6 +79,7 @@ export type BusinessSettingsUpdate = {
   ai_reply?: Partial<AiReplySettings>;
   goals?: Partial<GoalsSettings>;
   weather?: Partial<WeatherSettings>;
+  private_numbers?: PrivateNumberEntry[];
 };
 
 export const DEFAULT_MISSED_CALL_AUTO_TEXT =
@@ -129,7 +139,8 @@ export const DEFAULT_BUSINESS_SETTINGS: BusinessSettings = {
   quote_ranges: [],
   ai_reply: DEFAULT_AI_REPLY_SETTINGS,
   goals: DEFAULT_GOALS_SETTINGS,
-  weather: DEFAULT_WEATHER_SETTINGS
+  weather: DEFAULT_WEATHER_SETTINGS,
+  private_numbers: []
 };
 
 type JsonObject = { [key: string]: JsonValue };
@@ -158,8 +169,15 @@ export function getBusinessSettings(
     quote_ranges: readQuoteRanges(raw.quote_ranges),
     ai_reply: readAiReplySettings(raw.ai_reply),
     goals: readGoals(raw.goals),
-    weather: readWeather(raw.weather)
+    weather: readWeather(raw.weather),
+    private_numbers: readPrivateNumbers(raw.private_numbers)
   };
+}
+
+// Whether a caller is on the owner's personal list (E.164 exact match).
+export function isPrivateNumber(settings: Pick<BusinessSettings, "private_numbers">, phoneE164: string | null | undefined): boolean {
+  if (!phoneE164) return false;
+  return settings.private_numbers.some((p) => p.phone === phoneE164);
 }
 
 export function mergeBusinessSettingsJson(
@@ -219,6 +237,13 @@ export function mergeBusinessSettingsJson(
       ...(typeof range.duration_minutes === "number" && range.duration_minutes > 0
         ? { duration_minutes: range.duration_minutes }
         : {})
+    }));
+  }
+
+  if (partial.private_numbers !== undefined) {
+    merged.private_numbers = partial.private_numbers.slice(0, 500).map((p) => ({
+      name: p.name,
+      phone: p.phone
     }));
   }
 
@@ -407,6 +432,22 @@ function readTravelBuffer(value: JsonValue | undefined): number {
     return DEFAULT_TRAVEL_BUFFER_MINUTES;
   }
   return Math.min(240, Math.round(value));
+}
+
+// Personal-contact list: E.164 phones with display names, deduped, capped.
+function readPrivateNumbers(value: JsonValue | undefined): PrivateNumberEntry[] {
+  if (!Array.isArray(value)) return [];
+  const out: PrivateNumberEntry[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    const raw = asJsonObject(entry);
+    const phone = typeof raw.phone === "string" ? raw.phone.trim() : "";
+    if (!/^\+\d{8,15}$/.test(phone) || seen.has(phone)) continue;
+    seen.add(phone);
+    out.push({ phone, name: typeof raw.name === "string" ? raw.name.trim().slice(0, 80) : "" });
+    if (out.length >= 500) break;
+  }
+  return out;
 }
 
 // Weather prefs: 5-digit US zip (else off) + clamped cutoffs.

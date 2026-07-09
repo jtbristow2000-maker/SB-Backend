@@ -1,5 +1,19 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Privacy layer (UI half): private numbers list + mark-as-personal
+
+### Added
+- **Settings → Privacy tab**: a "Private numbers" list (friends & family who never get business treatment). Three ways in: manual name+number add, **.vcf contacts-file import** (parsed client-side — contacts never leave the device; a check-off sheet picks who's personal), and the **native contact picker** where supported (Android Chrome). List rows show name + number with one-tap remove. Capped at 500, deduped by E.164.
+- **"Mark as personal" toggle on the lead contact card** (tap the name → shield button) — adds/removes that caller from the list optimistically.
+- **Personal contacts are filtered out of the pipeline UI**: Leads directory and Today's callbacks/Needs-Attention skip them (their data stays in the DB).
+- Contract: `private_numbers: {name, phone}[]` in settings_json + `isPrivateNumber()` helper; actions `addPrivateNumbers` / `removePrivateNumber` / `setLeadPersonal`.
+
+### Note
+- **Server suppression is the Codex half (pending)**: neutral greeting + no auto-text + no callback task for private callers in the intake path. Until that lands, this is list management + UI filtering only.
+
+### Verified
+- `npm run verify` (43 files, 177 tests) + `next build` pass.
+
 ## [2026-07-09] - Desktop width pass + auto-growing composer
 
 ### Changed

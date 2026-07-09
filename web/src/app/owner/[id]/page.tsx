@@ -5,7 +5,7 @@ import { ArrowLeft, Hourglass, Voicemail } from "lucide-react";
 import { hasConfiguredExtractionProvider } from "@/server/intake/runtime";
 import { getAppConfig } from "@/server/config";
 import { getOwnerBusinessContext } from "@/server/business/current";
-import { getBusinessSettings, quotePriceLabel } from "@/server/business/settings";
+import { getBusinessSettings, isPrivateNumber, quotePriceLabel } from "@/server/business/settings";
 import { buildProfileDetail, type ProfileCallTimelineItem } from "@/server/profiles/detail";
 import { ReplyComposer } from "@/app/owner/ReplyComposer";
 import { ContactButtons } from "@/app/owner/ContactButtons";
@@ -242,6 +242,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
           autoFilled={autoFilled}
           facts={jobFacts}
           pastJobs={pastJobsForCard}
+          isPersonal={isPrivateNumber(settings, profile.phone_e164)}
         />
         {profile.phone_e164 && <ContactButtons phone={profile.phone_e164} profileId={profile.id} />}
       </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Brush, CalendarClock, MessageSquareText, Phone, Sparkles, Voicemail, type LucideIcon } from "lucide-react";
+import { Brush, CalendarClock, MessageSquareText, Phone, ShieldCheck, Sparkles, Voicemail, type LucideIcon } from "lucide-react";
 
 import { SettingsSaveBar } from "@/app/owner/SettingsSaveBar";
 import { UnsavedChangesGuard } from "@/app/owner/UnsavedChangesGuard";
@@ -12,7 +12,7 @@ import { UnsavedChangesGuard } from "@/app/owner/UnsavedChangesGuard";
 // are hidden with display:none (their fields still submit + the unsaved-changes
 // guard and sticky save bar keep seeing the whole form).
 
-type TabId = "phone" | "ai" | "voicemail" | "business" | "booking" | "services";
+type TabId = "phone" | "ai" | "voicemail" | "business" | "booking" | "services" | "privacy";
 
 const TABS: ReadonlyArray<{ id: TabId; label: string; Icon: LucideIcon }> = [
   { id: "phone", label: "Phone", Icon: Phone },
@@ -20,7 +20,8 @@ const TABS: ReadonlyArray<{ id: TabId; label: string; Icon: LucideIcon }> = [
   { id: "voicemail", label: "Voicemail", Icon: Voicemail },
   { id: "business", label: "Business", Icon: Brush },
   { id: "booking", label: "Hours & Weather", Icon: CalendarClock },
-  { id: "services", label: "Services", Icon: MessageSquareText }
+  { id: "services", label: "Services", Icon: MessageSquareText },
+  { id: "privacy", label: "Privacy", Icon: ShieldCheck }
 ];
 
 export function SettingsShell({
@@ -30,7 +31,8 @@ export function SettingsShell({
   voicemail,
   business,
   booking,
-  services
+  services,
+  privacy
 }: {
   action: (formData: FormData) => Promise<void>;
   phone: ReactNode;
@@ -39,6 +41,7 @@ export function SettingsShell({
   business: ReactNode;
   booking: ReactNode;
   services: ReactNode;
+  privacy: ReactNode;
 }) {
   const [tab, setTab] = useState<TabId>("phone");
   const show = (id: TabId): CSSProperties => (id === tab ? {} : { display: "none" });
@@ -62,8 +65,9 @@ export function SettingsShell({
       </nav>
 
       <div className="settings-body">
-        {/* Phone setup lives outside the settings form (it has its own forms). */}
+        {/* Phone setup + Privacy live outside the settings form (they run their own actions). */}
         <div style={{ ...show("phone"), marginTop: 14 }}>{phone}</div>
+        <div style={{ ...show("privacy"), marginTop: 14 }}>{privacy}</div>
 
         <form id="settings-form" action={action} style={S.form}>
           <UnsavedChangesGuard formId="settings-form" />
@@ -72,7 +76,7 @@ export function SettingsShell({
           <div style={show("business")}>{business}</div>
           <div style={show("booking")}>{booking}</div>
           <div style={show("services")}>{services}</div>
-          {tab !== "phone" && (
+          {tab !== "phone" && tab !== "privacy" && (
             <button type="submit" className="btn" style={S.save}>Save settings</button>
           )}
           <SettingsSaveBar formId="settings-form" />

@@ -5,7 +5,7 @@ import { CalendarCheck2, CircleCheckBig, PhoneMissed, TrendingUp, Voicemail } fr
 import { CountUp } from "@/app/owner/CountUp";
 
 import { getOwnerBusinessContext } from "@/server/business/current";
-import { getBusinessSettings } from "@/server/business/settings";
+import { getBusinessSettings, isPrivateNumber } from "@/server/business/settings";
 import { buildCallbackProfileList } from "@/server/profiles/callbacks";
 import { LeadList, type LeadListItem } from "@/app/owner/LeadList";
 import { OnboardingChecklist, type OnboardingStep } from "@/app/owner/OnboardingChecklist";
@@ -51,9 +51,11 @@ export default async function Today() {
     rt.appointmentRepository.list()
   ]) : [[], [], [], [], []];
   const tz = business?.timezone || FALLBACK_TZ;
-  const callbacks = business
+  const settingsForPrivacy = getBusinessSettings(business);
+  const callbacks = (business
     ? buildCallbackProfileList({ businessId: business.id, profiles, calls, messages, tasks })
-    : [];
+    : []
+  ).filter((c) => !isPrivateNumber(settingsForPrivacy, c.phone_e164)); // personal contacts stay out of the pipeline
 
   // Compare calendar days in the business timezone (en-CA → YYYY-MM-DD).
   const dayKey = (d: Date) =>
