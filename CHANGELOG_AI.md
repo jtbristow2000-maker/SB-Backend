@@ -1,5 +1,17 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Schedule: crash fix, double-click booking, drag-to-move appointments
+
+### Fixed
+- **Crash on click-drag over empty grid** ("Something went wrong" boundary): the create-drag handlers read React event fields (`currentTarget`) inside deferred state updaters, where they're null. Drag state now lives in refs with all event reads synchronous.
+
+### Changed
+- **Booking an empty slot is now double-click** (or press-and-drag a range) — a plain click does nothing, matching the click=view / double-click=edit convention on appointment blocks. Selection paint only appears once you actually drag.
+- **Appointments are drag-to-move**: grab any block, drag vertically or across days (live preview, 30-min snap, duration preserved), release to save — optimistic UI with `updateAppointment` carrying the block's existing details so nothing gets nulled. Click/double-click/hover untouched (6px drag threshold).
+
+### Verified
+- `npm run verify` (43 files, 177 tests) + `next build` pass.
+
 ## [2026-07-09] - Privacy layer (UI half): private numbers list + mark-as-personal
 
 ### Added
