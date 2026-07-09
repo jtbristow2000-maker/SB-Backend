@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Settings reorganized into tabbed sub-menus
+
+### Changed
+- **Settings is now six tabs instead of one long scroll**: Phone · AI & Replies · Voicemail · Business (name/color/logo) · Hours & Weather · Services. New `SettingsShell` client component renders pill tabs and toggles section visibility with `display:none` — everything stays mounted inside the ONE settings form, so saving from any tab still captures every field, and the unsaved-changes guard + sticky save bar keep watching the whole form.
+- "Quote ranges" section renamed **"Services & prices"** with clearer copy; "Ring my phone first" hint notes that calls forwarded from your own number always go straight to voicemail.
+
+### Verified
+- `npm run verify` (43 files, 177 tests) + `next build` pass.
+
 ## [2026-07-09] - "Keep your number" onboarding (default path)
 
 ### Added
