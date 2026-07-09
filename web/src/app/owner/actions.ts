@@ -480,6 +480,33 @@ export async function deleteAppointment(formData: FormData): Promise<void> {
   revalidateSchedule(existing?.customer_profile_id);
 }
 
+// "Use my number" onboarding: saves the owner's real cell as both the shared-
+// routing matcher (business_phone_e164 — what ForwardedFrom is matched against)
+// and the owner's contact number.
+export async function saveOwnerNumber(formData: FormData): Promise<void> {
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+
+  const raw = String(formData.get("owner_cell") ?? "").trim();
+  if (!raw) return;
+
+  try {
+    // The repository normalizes phones to E.164 (throws on garbage — caught below).
+    await rt.businessRepository.update(business.id, {
+      name: business.name,
+      ownerName: business.owner_name,
+      ownerPhone: raw,
+      businessPhone: raw,
+      timezone: business.timezone
+    });
+  } catch {
+    /* unparseable number or business reset — leave things unchanged */
+  }
+
+  revalidatePath("/owner/settings");
+  revalidatePath("/owner/today");
+}
+
 // Weekly goal targets from the Stats screen. 0 (or blank) clears a goal.
 export async function saveGoals(formData: FormData): Promise<void> {
   const { rt, business } = await getRuntimeAndBusiness();

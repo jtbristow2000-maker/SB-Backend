@@ -1,20 +1,102 @@
 import type { CSSProperties } from "react";
-import { CheckCircle2, PhoneForwarded } from "lucide-react";
+import { CheckCircle2, PhoneForwarded, Smartphone } from "lucide-react";
 
-import { savePortInfo, submitPort } from "@/app/owner/actions";
+import { saveOwnerNumber, savePortInfo, submitPort } from "@/app/owner/actions";
 import { ActivateNumberForm } from "@/app/owner/ActivateNumberForm";
 import { fmtPhone } from "@/app/owner/format";
 import type { NumberStatus } from "@/server/db/schema";
 import type { BusinessNumberReadModel } from "@/server/telephony/numberState";
 
-// Owner Settings → "Phone number": shows the business's connected number + trial
-// state, an Activate button (sandbox-safe — it simulates a number unless real
-// Twilio provisioning is configured), call-forwarding instructions, and a
-// port-in form that collects what's needed to move the owner's real number over.
+// Owner Settings → "Phone number". Default path: KEEP YOUR NUMBER — save your
+// cell, forward missed calls to the shared Snagly line, done (no purchase, no
+// per-user verification). A separate dedicated business number remains available
+// underneath (Activate w/ trial), along with the port-in form once one exists.
 
-export function PhoneNumberSection({ model }: { model: BusinessNumberReadModel }) {
+export function PhoneNumberSection({
+  model,
+  sharedNumber,
+  businessPhone,
+  hasCapturedCall
+}: {
+  model: BusinessNumberReadModel;
+  sharedNumber: string | null;
+  businessPhone: string | null;
+  hasCapturedCall?: boolean;
+}) {
   const { number_status, twilio_number_e164, trial, port_request_status } = model;
   const hasNumber = Boolean(twilio_number_e164);
+
+  if ((number_status === "none" || !hasNumber) && sharedNumber) {
+    const sharedPretty = fmtPhone(sharedNumber);
+    const sharedDigits = sharedNumber.replace(/\D/g, "").replace(/^1/, "");
+    return (
+      <section style={S.section}>
+        <div style={S.title}>Phone setup</div>
+        <div style={S.hint}>Keep your own number — Snagly just catches the calls you miss.</div>
+
+        {/* Step 1 — their cell (what forwarded calls are matched against) */}
+        <div style={S.stepTitle}><Smartphone size={13} className="ico-inline" aria-hidden /> 1. Your cell number</div>
+        <form action={saveOwnerNumber} style={S.cellForm}>
+          <input
+            name="owner_cell"
+            type="tel"
+            required
+            defaultValue={businessPhone ? fmtPhone(businessPhone) : ""}
+            placeholder="(404) 555-1234"
+            className="input"
+            style={S.cellInput}
+            autoComplete="tel"
+          />
+          <button type="submit" className="btn" style={S.secondary}>{businessPhone ? "Update" : "Save"}</button>
+        </form>
+        {businessPhone && (
+          <div style={S.savedNote}><CheckCircle2 size={12} className="ico-inline" aria-hidden /> Saved — calls forwarded from {fmtPhone(businessPhone)} route to your account.</div>
+        )}
+
+        {/* Step 2 — carrier forwarding to the shared line */}
+        <div style={{ ...S.stepTitle, marginTop: 14 }}><PhoneForwarded size={13} className="ico-inline" aria-hidden /> 2. Forward missed calls</div>
+        <div style={S.forward}>
+          <div style={S.body}>
+            On your phone, dial{" "}
+            <a href={`tel:${encodeURIComponent(`*71${sharedDigits}`)}`} style={S.dialLink}>
+              <code style={S.code}>*71 {sharedPretty}</code>
+            </a>{" "}
+            and tap call — that turns on &ldquo;forward when I don&apos;t answer.&rdquo; That&apos;s the whole setup.
+          </div>
+          <details style={S.carrierDetails}>
+            <summary style={S.carrierSummary}>My carrier&apos;s code is different</summary>
+            <div style={S.body}>
+              <strong>Verizon:</strong> <code style={S.code}>*71{sharedDigits}</code> · <strong>T-Mobile:</strong>{" "}
+              <code style={S.code}>**61*1{sharedDigits}#</code> · <strong>AT&amp;T:</strong>{" "}
+              <code style={S.code}>**61*1{sharedDigits}*11*25#</code>
+              <br />
+              To turn it off later: Verizon <code style={S.code}>*73</code> · T-Mobile/AT&amp;T <code style={S.code}>##61#</code>
+            </div>
+          </details>
+        </div>
+
+        {/* Step 3 — prove it works */}
+        <div style={{ ...S.stepTitle, marginTop: 14 }}>3. Test it</div>
+        <div style={S.body}>
+          {hasCapturedCall ? (
+            <span style={S.savedNote}><CheckCircle2 size={13} className="ico-inline" aria-hidden /> Working — calls are flowing into your dashboard.</span>
+          ) : (
+            <>Call your number from another phone and let it ring out. Your test shows up on <strong>Today</strong> within a minute — voicemail, transcript, and all.</>
+          )}
+        </div>
+
+        {/* The separate-line option, tucked away */}
+        <details style={S.details}>
+          <summary style={S.summary}>Want a separate business number instead?</summary>
+          <div style={S.body}>
+            Get a dedicated Snagly line — full business/personal separation, and it unlocks call recording later. Comes
+            with a <strong>14-day free trial</strong>.
+          </div>
+          <ActivateNumberForm />
+        </details>
+      </section>
+    );
+  }
 
   if (number_status === "none" || !hasNumber) {
     return (
@@ -134,6 +216,13 @@ const S: Record<string, CSSProperties> = {
   section: { padding: "16px 18px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" },
   title: { fontSize: 14, fontWeight: 700, color: "var(--ink)" },
   hint: { fontSize: 12, color: "var(--muted)", margin: "2px 0 10px" },
+  stepTitle: { fontSize: 13, fontWeight: 700, color: "var(--ink)", margin: "10px 0 6px" },
+  cellForm: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
+  cellInput: { flex: "1 1 170px", maxWidth: 230, padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14 },
+  savedNote: { display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, fontSize: 12.5, fontWeight: 600, color: "#1d6b4f" },
+  dialLink: { textDecoration: "none", color: "inherit" },
+  carrierDetails: { marginTop: 6 },
+  carrierSummary: { fontSize: 12, fontWeight: 600, color: "var(--brand)", cursor: "pointer" },
   body: { fontSize: 13, color: "var(--text)", lineHeight: 1.5, margin: "8px 0" },
   numberRow: { display: "flex", alignItems: "center", gap: 10, margin: "6px 0 2px", flexWrap: "wrap" },
   number: { fontSize: 18, fontWeight: 700, color: "var(--ink)", fontFamily: "ui-monospace, monospace" },

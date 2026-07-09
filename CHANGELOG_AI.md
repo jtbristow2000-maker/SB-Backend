@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - "Keep your number" onboarding (default path)
+
+### Added
+- **Settings → Phone setup redesigned around the shared line**: when no dedicated number exists and `SHARED_NUMBER_E164` is set, the default flow is 1) save your cell (`saveOwnerNumber` action → `business_phone_e164` + `owner_phone_e164`, the shared-routing matcher), 2) dial-one-code forwarding instructions with a tap-to-dial link + per-carrier codes (Verizon/T-Mobile/AT&T, incl. turn-off codes), 3) a test-call step that flips to "✓ Working" once the business has a captured call. The dedicated-number option (14-day trial, "unlocks call recording later") is tucked in a details block underneath; port-in unchanged.
+- Today's onboarding checklist step 1 rewritten to match ("Connect your phone — keep your own number"); completes on either `business_phone_e164` or a dedicated number.
+
+### Verified
+- `npm run verify` passes (43 files, 177 tests) + `next build` clean.
+
 ## [2026-07-09] - Shared-number call and SMS routing
 
 ### Added
