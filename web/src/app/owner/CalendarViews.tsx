@@ -422,12 +422,31 @@ function WeekView({
   onHoverLeave: () => void;
   onCreate: (start: Date, end: Date) => void;
 }) {
-  // The grid lives in a scroll window; open on the working morning (8 AM).
+  // Live "you are here" marker (Outlook-style red line), refreshed each minute.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const nowH = now.getHours() + now.getMinutes() / 60;
+  const nowOnAxis = nowH >= AXIS_START && nowH <= AXIS_END;
+
+  // The grid lives in a scroll window. If today is in view, open centered on
+  // right now; otherwise open on the working morning (8 AM).
+  const weekHasToday = (() => {
+    const t = startOfDay(new Date());
+    const ws = startOfWeek(anchor);
+    return t >= ws && t < addDays(ws, 7);
+  })();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = Math.max(0, (8 - AXIS_START) * hourPx - 6);
-  }, [hourPx]);
+    if (!el) return;
+    const anchorH = weekHasToday && nowOnAxis ? nowH : 8;
+    const centerOffset = weekHasToday && nowOnAxis ? el.clientHeight * 0.4 : 6;
+    el.scrollTop = Math.max(0, (anchorH - AXIS_START) * hourPx - centerOffset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hourPx, weekHasToday]);
 
   // Google-style create: press on empty grid, drag to pick the window, release
   // to book. A plain click (no drag) books a one-hour slot.
@@ -540,6 +559,12 @@ function WeekView({
                 {hours.map((h) => (
                   <div key={h} style={{ ...S.hourLine, top: (h - AXIS_START) * hourPx }} />
                 ))}
+                {sameDay(d, today) && nowOnAxis && (
+                  <div style={{ ...S.nowLine, top: (nowH - AXIS_START) * hourPx }} title={`Now · ${timeLabel(now)}`}>
+                    <span style={S.nowDot} />
+                    <span style={S.nowTime}>{timeLabel(now)}</span>
+                  </div>
+                )}
                 {dayEvents.map((e) => {
                   const g = blockGeom(e.startDate, e.endDate, hourPx);
                   return (
@@ -972,6 +997,9 @@ const S: Record<string, CSSProperties> = {
   gripDot: { width: 3, height: 3, borderRadius: 999, background: "var(--muted)" },
   cornerHandle: { position: "absolute", right: -2, bottom: -2, width: 18, height: 18, cursor: "nwse-resize", zIndex: 4, borderRadius: "3px 3px 8px 3px", background: "repeating-linear-gradient(135deg, transparent 0 4px, var(--border-strong) 4px 6px)", opacity: 0.9, touchAction: "none" },
   hourLine: { position: "absolute", left: 0, right: 0, height: 1, background: "#f1f2f5" },
+  nowLine: { position: "absolute", left: 0, right: 0, height: 2, background: "#e5484d", zIndex: 2, pointerEvents: "none", boxShadow: "0 0 4px rgba(229,72,77,0.45)" },
+  nowDot: { position: "absolute", left: -4, top: -3.5, width: 9, height: 9, borderRadius: 999, background: "#e5484d", boxShadow: "0 0 0 2px #fff" },
+  nowTime: { position: "absolute", right: 3, top: -15, fontSize: 9, fontWeight: 800, color: "#e5484d", background: "rgba(255,255,255,0.9)", padding: "0 4px", borderRadius: 4 },
   monthDow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginTop: 4 },
   monthDowCell: { textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted)", padding: "4px 0" },
   monthGrid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
