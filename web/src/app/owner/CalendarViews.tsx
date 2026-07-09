@@ -533,9 +533,11 @@ function WeekView({
   const commitMove = (ev: Ev) => {
     const ov = moveOverridesRef.current[ev.id];
     if (!ov) return;
-    const durationMin = ev.endDate
-      ? Math.max(30, Math.round((ev.endDate.getTime() - ev.startDate.getTime()) / 60_000))
-      : 60;
+    const durationMin = ov.end
+      ? Math.max(30, Math.round((ov.end.getTime() - ov.start.getTime()) / 60_000))
+      : ev.endDate
+        ? Math.max(30, Math.round((ev.endDate.getTime() - ev.startDate.getTime()) / 60_000))
+        : 60;
     const fd = new FormData();
     fd.set("appointmentId", ev.id);
     fd.set("title", ev.title);
@@ -550,6 +552,21 @@ function WeekView({
   };
   const moveOverridesRef = useRef(moveOverrides);
   moveOverridesRef.current = moveOverrides;
+
+  // Drag the bottom edge of a block to change its length (30-min snap).
+  const previewResize = (ev: Ev, clientY: number) => {
+    const current = moveOverridesRef.current[ev.id];
+    const start = current?.start ?? ev.startDate;
+    const di = days.findIndex((d) => sameDay(d, start));
+    const el = di >= 0 ? colRefs.current[di] : null;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    const startH = start.getHours() + start.getMinutes() / 60;
+    let endH = Math.round(((clientY - top) / hourPx + AXIS_START) * 2) / 2;
+    endH = Math.max(startH + 0.5, Math.min(AXIS_END, endH));
+    const end = dateAt(start, endH);
+    setMoveOverrides((prev) => ({ ...prev, [ev.id]: { start, end } }));
+  };
   const weekStart = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
@@ -609,18 +626,20 @@ function WeekView({
                     return <div key={`wx-${h}`} style={{ ...S.wxBand, top: (h - AXIS_START) * hourPx, height: hourPx }} />;
                   })}
                 {weatherHours &&
-                  [9, 13, 17].map((h) => {
+                  hours.filter((h) => h % 2 === 0).map((h) => {
                     const wx = weatherHours[hourKey(d, h)];
                     if (!wx || wx.temp === null) return null;
                     const Icon = wxIcon(wx.short);
                     return (
                       <span
                         key={`stamp-${h}`}
-                        style={{ ...S.wxStamp, top: (h - AXIS_START) * hourPx + 2, color: wx.bad ? "#b06f12" : "var(--faint)" }}
-                        title={`${hourLabel(h)} - ${wx.short}${wx.temp !== null ? ` · ${wx.temp}°` : ""}${wx.rain !== null ? ` · ${wx.rain}% rain` : ""}`}
+                        style={{ ...S.wxStamp, top: (h - AXIS_START) * hourPx + 2, color: wx.bad ? "#b06f12" : "var(--muted)" }}
                       >
-                        <Icon size={11} aria-hidden />
+                        <Icon size={12} aria-hidden />
                         {wx.temp}°
+                        {wx.rain !== null && wx.rain > 0 && (
+                          <span style={{ color: wx.bad ? "#b06f12" : "#3a7bd0", fontWeight: 700 }}>{wx.rain}%</span>
+                        )}
                       </span>
                     );
                   })}
@@ -646,6 +665,7 @@ function WeekView({
                       onHover={onHover}
                       onHoverLeave={onHoverLeave}
                       onPreviewMove={previewMove}
+                      onPreviewResize={previewResize}
                       onCommitMove={commitMove}
                     />
                   );
@@ -668,6 +688,7 @@ function EventBlock({
   onHover,
   onHoverLeave,
   onPreviewMove,
+  onPreviewResize,
   onCommitMove
 }: {
   ev: Ev;
@@ -678,6 +699,7 @@ function EventBlock({
   onHover: (ev: Ev, rect: DOMRect) => void;
   onHoverLeave: () => void;
   onPreviewMove: (ev: Ev, clientX: number, clientY: number, grabOffsetH: number) => void;
+  onPreviewResize: (ev: Ev, clientY: number) => void;
   onCommitMove: (ev: Ev) => void;
 }) {
   const color = ev.serviceColor || statusColor(ev.status);
@@ -686,13 +708,14 @@ function EventBlock({
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Drag-to-move: only kicks in past a small movement threshold, so click and
   // double-click keep working. All event reads happen synchronously.
-  const drag = useRef<{ startX: number; startY: number; grabOffsetH: number; moved: boolean } | null>(null);
+  const drag = useRef<{ mode: "move" | "resize"; startX: number; startY: number; grabOffsetH: number; moved: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
   const onBlockPointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
     e.stopPropagation(); // don't start the column's create-drag
+    const mode: "move" | "resize" = (e.target as HTMLElement).closest("[data-resize]") ? "resize" : "move";
     const rect = e.currentTarget.getBoundingClientRect();
-    drag.current = { startX: e.clientX, startY: e.clientY, grabOffsetH: (e.clientY - rect.top) / hourPx, moved: false };
+    drag.current = { mode, startX: e.clientX, startY: e.clientY, grabOffsetH: (e.clientY - rect.top) / hourPx, moved: false };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch { /* capture unsupported */ }
@@ -701,12 +724,14 @@ function EventBlock({
     const d = drag.current;
     if (!d) return;
     if (!d.moved) {
-      if (Math.abs(e.clientX - d.startX) + Math.abs(e.clientY - d.startY) < 6) return;
+      const threshold = d.mode === "resize" ? 3 : 6;
+      if (Math.abs(e.clientX - d.startX) + Math.abs(e.clientY - d.startY) < threshold) return;
       d.moved = true;
       setDragging(true);
       onHoverLeave();
     }
-    onPreviewMove(ev, e.clientX, e.clientY, d.grabOffsetH);
+    if (d.mode === "resize") onPreviewResize(ev, e.clientY);
+    else onPreviewMove(ev, e.clientX, e.clientY, d.grabOffsetH);
   };
   const onBlockPointerUp = () => {
     const d = drag.current;
@@ -767,6 +792,8 @@ function EventBlock({
         {timeLabel(ev.startDate)}
       </div>
       <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title}</div>
+      {/* bottom grip: drag to change the appointment's length */}
+      <span data-resize style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 8, cursor: "ns-resize" }} aria-hidden />
     </button>
   );
 }
@@ -1102,7 +1129,7 @@ const S: Record<string, CSSProperties> = {
   dayHeaderNum: { fontSize: 15, fontWeight: 700, color: "var(--ink)" },
   dayCol: { flex: "1 0 110px", position: "relative", borderLeft: "1px solid var(--border)" },
   wxBand: { position: "absolute", left: 0, right: 0, background: "rgba(58,123,208,0.07)", pointerEvents: "none" },
-  wxStamp: { position: "absolute", right: 3, display: "inline-flex", alignItems: "center", gap: 2, fontSize: 9, fontWeight: 600, zIndex: 1 },
+  wxStamp: { position: "absolute", right: 3, display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 650, zIndex: 1, background: "rgba(255,255,255,0.9)", padding: "2px 6px", borderRadius: 999, pointerEvents: "none", boxShadow: "var(--shadow-xs)" },
   bookBtn: { display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 999, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 2px 8px rgba(var(--brand-rgb),0.3)" },
   quickWhen: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--brand)", margin: "2px 0 10px" },
   qInput: { padding: "10px 12px", borderRadius: 10, border: "1px solid #d8dce3", fontSize: 14, width: "100%", boxSizing: "border-box" },

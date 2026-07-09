@@ -1,5 +1,14 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Schedule: louder weather stamps + drag-to-resize appointments
+
+### Changed
+- **Hourly weather stamps upgraded**: every 2 hours (8a/10a/12p/…/8p) instead of three a day, larger type on a white pill for legibility, and the **rain % shows right on the stamp** (blue, amber when that hour breaks your cutoffs). Stamps no longer intercept clicks, so booking gestures work through them.
+- **Appointment blocks drag-to-resize**: grab the bottom edge of any block (ns-resize cursor) and pull to change its length — live preview, 30-min snapping, saves on release through the same optimistic path as drag-to-move. No more opening the edit menu just to make a job 1.5h.
+
+### Verified
+- `npm run verify` (43 files, 177 tests) + `next build` pass.
+
 ## [2026-07-09] - Schedule: crash fix, double-click booking, drag-to-move appointments
 
 ### Fixed
