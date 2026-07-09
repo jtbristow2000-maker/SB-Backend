@@ -253,6 +253,10 @@ export class SupabaseBusinessRepository implements BusinessRepository {
     const { data, error } = await this.client.from("businesses").select("*");
     return rowsOrThrow(data, error, "list businesses");
   }
+
+  async listAll(): Promise<BusinessRow[]> {
+    return this.list();
+  }
 }
 
 export class SupabaseBusinessMemberRepository implements BusinessMemberRepository {

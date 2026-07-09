@@ -1,5 +1,29 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Admin portal (UI half)
+
+### Added
+- **`/admin` portal page** (admin-email gated; non-admins bounce to the app): every business with member email, phones, number status, lead/call counts, signup date — and an **"Open account"** button that steps into that business's real owner dashboard for live onboarding.
+- **Admin-mode banner**: while impersonating, a fixed amber bar sits above the whole app ("Admin mode — you're inside X's account") with an **Exit** button; sidebar/topbar offset beneath it so nothing hides.
+- **Admin link** in the sidebar footer, visible only to admin emails.
+- Actions: `openBusinessAsAdmin` (re-checks admin server-side, sets the httpOnly impersonation cookie) and `exitAdminImpersonation`.
+
+### Ops
+- Requires `ADMIN_EMAILS` (comma-separated) in Vercel — added to the launch checklist.
+
+### Verified
+- `npm run verify` (46 files, 185 tests) + `next build` pass.
+
+## [2026-07-09] - Admin impersonation foundation
+
+### Added
+- Added `ADMIN_EMAILS` config and `isAdminEmail()` so admin tooling is disabled unless explicitly configured.
+- Added guarded owner-context impersonation via the `snagly_admin_business` cookie for configured admins only, using service-role repositories and auditing `admin.impersonation_used`.
+- Added `listBusinessesForAdmin()` to return all businesses with phone/number status, lead counts, call counts, and member email when available from Supabase Auth.
+
+### Verified
+- `npm run verify` (46 files, 185 tests passed, 1 skipped).
+
 ## [2026-07-09] - Today's-weather blurb + quieter stamps
 
 ### Added

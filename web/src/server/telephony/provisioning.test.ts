@@ -11,6 +11,7 @@ function config(overrides: Partial<AppConfig> = {}): AppConfig {
     appBaseUrl: "http://localhost:3000",
     publicBaseUrl: null,
     sharedNumberE164: null,
+    adminEmails: [],
     apiKeyConfigured: false,
     environment: "test",
     persistence: "memory",

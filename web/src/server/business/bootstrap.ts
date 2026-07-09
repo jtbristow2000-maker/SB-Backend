@@ -35,6 +35,7 @@ export interface BusinessRepository {
   updateTelephony(id: string, input: BusinessTelephonyUpdateInput): Promise<BusinessRow>;
   updateSettings(id: string, partial: BusinessSettingsUpdate): Promise<BusinessRow>;
   list(): Promise<BusinessRow[]>;
+  listAll(): Promise<BusinessRow[]>;
 }
 
 function nowIso(): string {
@@ -185,6 +186,10 @@ export class InMemoryBusinessRepository implements BusinessRepository {
 
   async list(): Promise<BusinessRow[]> {
     return Array.from(this.businesses.values());
+  }
+
+  async listAll(): Promise<BusinessRow[]> {
+    return this.list();
   }
 }
 
