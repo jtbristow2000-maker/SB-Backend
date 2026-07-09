@@ -4,7 +4,7 @@ import { Bar, CardBlock } from "@/app/owner/Skeleton";
 // conversation bubbles, composer.
 export default function LeadLoading() {
   return (
-    <main className="owner-page" style={{ maxWidth: 720 }}>
+    <main className="owner-page" style={{ maxWidth: 860 }}>
       <Bar w={60} h={12} />
       <Bar w={230} h={26} style={{ marginTop: 16 }} />
       <Bar w={170} h={12} style={{ marginTop: 8 }} />

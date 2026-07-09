@@ -498,6 +498,17 @@ export function ReplyComposer({
   );
 
   const text = edited ?? draft;
+
+  // The message box grows with its content (up to a cap) instead of making the
+  // owner scroll a tiny window to read their own reply.
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight + 2, 340)}px`;
+  }, [text]);
+
   const [sendState, setSendState] = useState<"idle" | "sending" | "sent">("idle");
   const [, startSendTransition] = useTransition();
   const send = () => {
@@ -641,9 +652,10 @@ export function ReplyComposer({
       {/* The message field, docked like a messaging app. */}
       <div className="input" style={S.inputRow}>
         <textarea
+          ref={taRef}
           value={text}
           onChange={(e) => setEdited(e.target.value)}
-          rows={3}
+          rows={2}
           style={S.textarea}
           aria-label="Reply message"
         />
@@ -758,7 +770,7 @@ const S: Record<string, CSSProperties> = {
   weatherNote: { marginBottom: 9, fontSize: 12.5, lineHeight: 1.45, color: "#2b5f9e", background: "rgba(58,123,208,0.1)", padding: "7px 10px", borderRadius: 9 },
   noRanges: { fontSize: 13, color: "var(--muted)", margin: "0 2px 9px" },
   inputRow: { display: "flex", alignItems: "flex-end", gap: 8, padding: "10px 10px 10px 14px", borderRadius: 22, background: "var(--surface)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-sm)" },
-  textarea: { flex: 1, minWidth: 0, border: "none", outline: "none", resize: "none", fontSize: 15, lineHeight: 1.5, fontFamily: "inherit", color: "var(--ink)", background: "transparent", padding: "4px 0" },
+  textarea: { flex: 1, minWidth: 0, border: "none", outline: "none", resize: "none", overflowY: "auto", fontSize: 15, lineHeight: 1.5, fontFamily: "inherit", color: "var(--ink)", background: "transparent", padding: "4px 0" },
   inputActions: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0 },
   copyBtn: { width: 36, height: 36, borderRadius: 999, border: "none", background: "#f1f2f5", color: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 },
   caption: { margin: "7px 4px 0", fontSize: 12, color: "var(--faint)", lineHeight: 1.45 }

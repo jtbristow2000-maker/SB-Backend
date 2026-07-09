@@ -319,7 +319,7 @@ export default async function OwnerLead({ params }: { params: Promise<{ id: stri
 }
 
 const S: Record<string, CSSProperties> = {
-  shell: { maxWidth: 680 },
+  shell: { maxWidth: 860 },
   back: { color: "var(--brand)", fontWeight: 600, fontSize: 13, textDecoration: "none" },
   empty: { marginTop: 16, padding: "22px 16px", borderRadius: 14, background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", textAlign: "center", color: "var(--muted)" },
 

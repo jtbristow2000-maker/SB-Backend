@@ -70,7 +70,7 @@ export default async function LeadsPage() {
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 720 },
+  page: { maxWidth: 920 },
   h1: { margin: "4px 0 2px", fontSize: 26 },
   sub: { color: "var(--muted)", fontSize: 13 }
 };

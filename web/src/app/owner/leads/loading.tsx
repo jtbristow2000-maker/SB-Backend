@@ -3,7 +3,7 @@ import { Bar, CardBlock } from "@/app/owner/Skeleton";
 // Instant skeleton for the Leads directory — search bar, filter chips, rows.
 export default function LeadsLoading() {
   return (
-    <main className="owner-page" style={{ maxWidth: 720 }}>
+    <main className="owner-page" style={{ maxWidth: 920 }}>
       <Bar w={120} h={24} />
       <Bar w={200} h={12} style={{ marginTop: 8 }} />
       <CardBlock h={46} style={{ marginTop: 18, borderRadius: 11 }} />
