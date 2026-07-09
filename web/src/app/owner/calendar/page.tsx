@@ -50,7 +50,7 @@ export default async function CalendarPage() {
     <main className="owner-page" style={S.page}>
       <div style={S.narrow}>
         <h1 style={S.h1}>Schedule</h1>
-        <div style={S.sub}>Click or drag an empty slot to book it — just like your phone&apos;s calendar.</div>
+        <div style={S.sub}>Double-click an empty slot (or drag across one) to book it — and drag any booking to move it.</div>
       </div>
 
       <CalendarViews events={events} weather={forecast.days} weatherHours={forecast.hours} />

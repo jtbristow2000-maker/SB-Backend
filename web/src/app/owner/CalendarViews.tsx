@@ -448,9 +448,18 @@ function WeekView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hourPx, weekHasToday]);
 
-  // Google-style create: press on empty grid, drag to pick the window, release
-  // to book. A plain click (no drag) books a one-hour slot.
-  const [sel, setSel] = useState<{ di: number; a: number; b: number; moved: boolean } | null>(null);
+  // Google-style booking gestures. Drag on empty grid paints a time window and
+  // books it on release; DOUBLE-click books a one-hour slot; existing blocks
+  // drag to move. Drag state lives in refs (mirrored to state for painting) so
+  // event fields are only read synchronously — reading them inside deferred
+  // React updaters crashed the page (currentTarget is null by then).
+  type Sel = { di: number; a: number; b: number; moved: boolean };
+  const [sel, setSel] = useState<Sel | null>(null);
+  const selRef = useRef<Sel | null>(null);
+  const putSel = (v: Sel | null) => {
+    selRef.current = v;
+    setSel(v);
+  };
   const snapAt = (colTop: number, clientY: number) => {
     const raw = (clientY - colTop) / hourPx + AXIS_START;
     return Math.min(AXIS_END - 0.5, Math.max(AXIS_START, Math.floor(raw * 2) / 2));
@@ -463,29 +472,84 @@ function WeekView({
   const beginCreate = (e: ReactPointerEvent<HTMLDivElement>, di: number) => {
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest("button")) return; // an event block
-    const col = e.currentTarget;
-    const h = snapAt(col.getBoundingClientRect().top, e.clientY);
-    col.setPointerCapture(e.pointerId);
-    setSel({ di, a: h, b: h + 0.5, moved: false });
+    const h = snapAt(e.currentTarget.getBoundingClientRect().top, e.clientY);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch { /* capture unsupported */ }
+    putSel({ di, a: h, b: h + 0.5, moved: false });
   };
   const moveCreate = (e: ReactPointerEvent<HTMLDivElement>, di: number) => {
-    setSel((prev) => {
-      if (!prev || prev.di !== di) return prev;
-      const h = snapAt(e.currentTarget.getBoundingClientRect().top, e.clientY) + 0.5;
-      const b = Math.max(prev.a + 0.5, Math.min(AXIS_END, h));
-      return b === prev.b ? prev : { ...prev, b, moved: true };
-    });
+    const cur = selRef.current;
+    if (!cur || cur.di !== di) return;
+    const h = snapAt(e.currentTarget.getBoundingClientRect().top, e.clientY) + 0.5;
+    const b = Math.max(cur.a + 0.5, Math.min(AXIS_END, h));
+    if (b !== cur.b) putSel({ ...cur, b, moved: true });
   };
   const endCreate = (di: number, day: Date) => {
-    setSel((prev) => {
-      if (prev && prev.di === di) {
-        const startH = Math.min(prev.a, prev.b - 0.5);
-        const endH = prev.moved ? Math.max(prev.b, startH + 0.5) : Math.min(AXIS_END, startH + 1);
-        onCreate(dateAt(day, startH), dateAt(day, endH));
-      }
-      return null;
+    const cur = selRef.current;
+    putSel(null);
+    if (!cur || cur.di !== di || !cur.moved) return; // plain clicks don't book — double-click does
+    const startH = Math.min(cur.a, cur.b - 0.5);
+    const endH = Math.max(cur.b, startH + 0.5);
+    onCreate(dateAt(day, startH), dateAt(day, endH));
+  };
+  const doubleCreate = (e: React.MouseEvent<HTMLDivElement>, d: Date) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const h = snapAt(e.currentTarget.getBoundingClientRect().top, e.clientY);
+    onCreate(dateAt(d, h), dateAt(d, Math.min(AXIS_END, h + 1)));
+  };
+
+  // ---- drag-to-move existing appointments ----
+  // Live preview via an override map; committed through updateAppointment with
+  // the block's existing details (empty fields would otherwise be nulled).
+  const colRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [moveOverrides, setMoveOverrides] = useState<Record<string, { start: Date; end: Date | null }>>({});
+  useEffect(() => {
+    setMoveOverrides({}); // fresh server data wins once it arrives
+  }, [evs]);
+  const [, startMoveTransition] = useTransition();
+
+  const resolveTarget = (clientX: number, clientY: number): { day: Date; top: number } | null => {
+    for (let i = 0; i < days.length; i++) {
+      const el = colRefs.current[i];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) return { day: days[i], top: r.top };
+    }
+    return null;
+  };
+
+  const previewMove = (ev: Ev, clientX: number, clientY: number, grabOffsetH: number) => {
+    const target = resolveTarget(clientX, clientY);
+    if (!target) return;
+    const durH = ev.endDate ? Math.max(0.5, (ev.endDate.getTime() - ev.startDate.getTime()) / 3_600_000) : 1;
+    const rawStart = (clientY - target.top) / hourPx + AXIS_START - grabOffsetH;
+    const startH = Math.min(AXIS_END - durH, Math.max(AXIS_START, Math.round(rawStart * 2) / 2));
+    const start = dateAt(target.day, startH);
+    const end = ev.endDate ? new Date(start.getTime() + (ev.endDate.getTime() - ev.startDate.getTime())) : null;
+    setMoveOverrides((prev) => ({ ...prev, [ev.id]: { start, end } }));
+  };
+
+  const commitMove = (ev: Ev) => {
+    const ov = moveOverridesRef.current[ev.id];
+    if (!ov) return;
+    const durationMin = ev.endDate
+      ? Math.max(30, Math.round((ev.endDate.getTime() - ev.startDate.getTime()) / 60_000))
+      : 60;
+    const fd = new FormData();
+    fd.set("appointmentId", ev.id);
+    fd.set("title", ev.title);
+    fd.set("service", ev.service ?? "");
+    fd.set("location", ev.location ?? "");
+    fd.set("notes", ev.notes ?? "");
+    fd.set("start", toLocalInput(ov.start));
+    fd.set("duration", String(durationMin));
+    startMoveTransition(async () => {
+      await updateAppointment(fd);
     });
   };
+  const moveOverridesRef = useRef(moveOverrides);
+  moveOverridesRef.current = moveOverrides;
   const weekStart = startOfWeek(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
@@ -513,17 +577,21 @@ function WeekView({
             ))}
           </div>
           {days.map((d, i) => {
-            const dayEvents = evs.filter((e) => sameDay(e.startDate, d));
+            const dayEvents = evs
+              .map((e) => (moveOverrides[e.id] ? { ...e, startDate: moveOverrides[e.id].start, endDate: moveOverrides[e.id].end } : e))
+              .filter((e) => sameDay(e.startDate, d));
             return (
               <div
                 key={d.toISOString()}
+                ref={(el) => { colRefs.current[i] = el; }}
                 style={{ ...S.dayCol, height: totalPx }}
                 onPointerDown={(e) => beginCreate(e, i)}
                 onPointerMove={sel && sel.di === i ? (e) => moveCreate(e, i) : undefined}
                 onPointerUp={() => endCreate(i, d)}
-                onPointerCancel={() => setSel(null)}
+                onPointerCancel={() => putSel(null)}
+                onDoubleClick={(e) => doubleCreate(e, d)}
               >
-                {sel && sel.di === i && (
+                {sel && sel.di === i && sel.moved && (
                   <div
                     style={{
                       ...S.selBlock,
@@ -573,9 +641,12 @@ function WeekView({
                       ev={e}
                       top={g.top}
                       height={g.height}
+                      hourPx={hourPx}
                       onOpen={onOpen}
                       onHover={onHover}
                       onHoverLeave={onHoverLeave}
+                      onPreviewMove={previewMove}
+                      onCommitMove={commitMove}
                     />
                   );
                 })}
@@ -592,22 +663,62 @@ function EventBlock({
   ev,
   top,
   height,
+  hourPx,
   onOpen,
   onHover,
-  onHoverLeave
+  onHoverLeave,
+  onPreviewMove,
+  onCommitMove
 }: {
   ev: Ev;
   top: number;
   height: number;
+  hourPx: number;
   onOpen: (ev: Ev, mode: "view" | "edit") => void;
   onHover: (ev: Ev, rect: DOMRect) => void;
   onHoverLeave: () => void;
+  onPreviewMove: (ev: Ev, clientX: number, clientY: number, grabOffsetH: number) => void;
+  onCommitMove: (ev: Ev) => void;
 }) {
   const color = ev.serviceColor || statusColor(ev.status);
   const dimmed = ev.status === "cancelled" || ev.status === "no_show";
   // Distinguish single click (view) from double click (edit) with a short timer.
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Drag-to-move: only kicks in past a small movement threshold, so click and
+  // double-click keep working. All event reads happen synchronously.
+  const drag = useRef<{ startX: number; startY: number; grabOffsetH: number; moved: boolean } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const onBlockPointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    e.stopPropagation(); // don't start the column's create-drag
+    const rect = e.currentTarget.getBoundingClientRect();
+    drag.current = { startX: e.clientX, startY: e.clientY, grabOffsetH: (e.clientY - rect.top) / hourPx, moved: false };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch { /* capture unsupported */ }
+  };
+  const onBlockPointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    if (!d.moved) {
+      if (Math.abs(e.clientX - d.startX) + Math.abs(e.clientY - d.startY) < 6) return;
+      d.moved = true;
+      setDragging(true);
+      onHoverLeave();
+    }
+    onPreviewMove(ev, e.clientX, e.clientY, d.grabOffsetH);
+  };
+  const onBlockPointerUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (d?.moved) {
+      setDragging(false);
+      if (timer.current) clearTimeout(timer.current);
+      onCommitMove(ev);
+    }
+  };
   const handleClick = () => {
+    if (dragging) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => onOpen(ev, "view"), 200);
   };
@@ -632,9 +743,12 @@ function EventBlock({
     lineHeight: 1.25,
     color: "#1e2026",
     textAlign: "left",
-    cursor: "pointer",
+    cursor: dragging ? "grabbing" : "pointer",
     fontFamily: "inherit",
-    opacity: dimmed ? 0.5 : 1
+    opacity: dimmed ? 0.5 : 1,
+    touchAction: "none",
+    boxShadow: dragging ? "var(--shadow-md)" : undefined,
+    zIndex: dragging ? 3 : undefined
   };
   return (
     <button
@@ -642,7 +756,11 @@ function EventBlock({
       style={style}
       onClick={handleClick}
       onDoubleClick={handleDouble}
-      onMouseEnter={(e) => onHover(ev, e.currentTarget.getBoundingClientRect())}
+      onPointerDown={onBlockPointerDown}
+      onPointerMove={onBlockPointerMove}
+      onPointerUp={onBlockPointerUp}
+      onPointerCancel={onBlockPointerUp}
+      onMouseEnter={(e) => { if (!dragging) onHover(ev, e.currentTarget.getBoundingClientRect()); }}
       onMouseLeave={onHoverLeave}
     >
       <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
