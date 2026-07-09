@@ -3,6 +3,8 @@ import type { CSSProperties } from "react";
 import { CalendarCheck2, CircleCheckBig, PhoneMissed, TrendingUp, Voicemail } from "lucide-react";
 
 import { CountUp } from "@/app/owner/CountUp";
+import { getWeatherByZip } from "@/app/owner/weather";
+import { WeatherBlurb } from "@/app/owner/WeatherBlurb";
 
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings, isPrivateNumber } from "@/server/business/settings";
@@ -143,12 +145,15 @@ export default async function Today() {
     }
   ];
 
+  const forecast = await getWeatherByZip(settings.weather);
+
   return (
     <main className="owner-page">
       <div style={S.greeting}>{greeting(tz)}</div>
       <div style={S.date}>
         {new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric" })}
       </div>
+      <WeatherBlurb forecast={forecast} tz={tz} />
 
       <OnboardingChecklist steps={onboardingSteps} />
 
