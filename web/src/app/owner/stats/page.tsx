@@ -322,7 +322,7 @@ function delta(diff: number): CSSProperties {
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 680 },
+  page: { maxWidth: 920 },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
   sub: { color: "var(--muted)", fontSize: 13 },
 

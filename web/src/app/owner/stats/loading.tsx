@@ -3,7 +3,7 @@ import { Bar, CardBlock } from "@/app/owner/Skeleton";
 // Instant skeleton for Stats — hero, goals, chart, activity, records.
 export default function StatsLoading() {
   return (
-    <main className="owner-page" style={{ maxWidth: 680 }}>
+    <main className="owner-page" style={{ maxWidth: 920 }}>
       <Bar w={90} h={24} />
       <Bar w={260} h={12} style={{ marginTop: 8 }} />
       <CardBlock h={170} style={{ marginTop: 18 }} />

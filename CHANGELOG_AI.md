@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Desktop width pass + auto-growing composer
+
+### Changed
+- **Desktop finally uses the screen**: `.owner-page` base cap 880 → 1100; Leads 720 → 920; Lead detail 680 → 860; Stats 680 → 920; Settings 640 → 1080 (loading skeletons matched). Bubble/readability limits keep text comfortable inside the wider frames.
+- **Settings sub-menus become a left rail on desktop** (≥900px): sticky vertical nav beside the content — no more horizontal tab scrollbar; phones keep the swipeable pill row. Tab styling moved to CSS (`.settings-tab`) to make it responsive.
+- **The reply message box auto-grows with its content** (up to ~340px, then scrolls) instead of a fixed 3-row window you had to scroll inside.
+
+### Verified
+- `npm run verify` (43 files, 177 tests) + `next build` pass.
+
 ## [2026-07-09] - Settings reorganized into tabbed sub-menus
 
 ### Changed

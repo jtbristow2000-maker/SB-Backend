@@ -295,7 +295,7 @@ export default async function SettingsPage() {
 }
 
 const S: Record<string, CSSProperties> = {
-  page: { maxWidth: 640 },
+  page: { maxWidth: 1080 },
   h1: { margin: "4px 0 2px", fontSize: 26, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.5px" },
   sub: { color: "var(--muted)", fontSize: 13 },
   stack: { display: "flex", flexDirection: "column", gap: 14 },
