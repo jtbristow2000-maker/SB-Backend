@@ -637,7 +637,7 @@ function WeekView({
                       >
                         <Icon size={12} aria-hidden />
                         {wx.temp}°
-                        {wx.rain !== null && wx.rain > 0 && (
+                        {wx.rain !== null && wx.rain >= 30 && (
                           <span style={{ color: wx.bad ? "#b06f12" : "#3a7bd0", fontWeight: 700 }}>{wx.rain}%</span>
                         )}
                       </span>

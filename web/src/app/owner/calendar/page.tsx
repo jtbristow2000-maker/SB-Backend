@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { CalendarViews, type CalendarEvent } from "@/app/owner/CalendarViews";
 import { fmtPhone } from "@/app/owner/format";
 import { getWeatherByZip } from "@/app/owner/weather";
+import { WeatherBlurb } from "@/app/owner/WeatherBlurb";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings, quotePriceLabel, quoteServiceColor, isServiceOnCalendar } from "@/server/business/settings";
 
@@ -51,6 +52,7 @@ export default async function CalendarPage() {
       <div style={S.narrow}>
         <h1 style={S.h1}>Schedule</h1>
         <div style={S.sub}>Double-click an empty slot (or drag across one) to book it — and drag any booking to move it.</div>
+        <WeatherBlurb forecast={forecast} tz={business?.timezone || "America/New_York"} />
       </div>
 
       <CalendarViews events={events} weather={forecast.days} weatherHours={forecast.hours} />

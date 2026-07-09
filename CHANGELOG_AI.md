@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Today's-weather blurb + quieter stamps
+
+### Added
+- **"Today:" forecast blurb** on the Schedule header and the Today page — a plain-English line built from the hourly forecast that says *when*, not just how likely: e.g. "Scattered thunderstorms around 2 PM — high 91°, 60% rain". Amber-tinted when the day breaks the owner's weather cutoffs. New `summarizeToday()` in weather.ts + shared `WeatherBlurb` component (fail-soft: renders nothing without a forecast).
+
+### Changed
+- Hourly grid stamps only print the rain % at **30%+** — temps and icons stay, the `1%`/`3%` noise goes.
+
+### Verified
+- `npm run verify` (43 files, 177 tests) + `next build` pass.
+
 ## [2026-07-09] - Schedule: louder weather stamps + drag-to-resize appointments
 
 ### Changed

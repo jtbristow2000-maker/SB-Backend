@@ -46,6 +46,52 @@ function severeLabel(short: string): string | null {
   return null;
 }
 
+// Plain-English one-liner for "today" at the business's location — e.g.
+// "Scattered thunderstorms around 2 PM — high 91°, 60% rain". Scans the hourly
+// forecast for the first upcoming rain/storm hour so the owner knows WHEN, not
+// just how likely.
+export type TodayBlurb = { text: string; short: string; bad: boolean };
+
+export function summarizeToday(forecast: Forecast, tz: string): TodayBlurb | null {
+  const now = new Date();
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  const day = forecast.days[todayKey];
+  if (!day || (!day.short && day.hi === null)) return null;
+
+  const currentHour = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(now)
+  ) % 24;
+
+  // First upcoming hour (through 9 PM) that looks like rain/storms.
+  let eventAt: number | null = null;
+  let eventShort = "";
+  for (let h = Math.max(6, currentHour); h <= 21; h++) {
+    const wx = forecast.hours[`${todayKey}T${String(h).padStart(2, "0")}`];
+    if (!wx) continue;
+    const rainy = (wx.rain !== null && wx.rain >= 40) || /rain|shower|storm|thunder|drizzle/i.test(wx.short);
+    if (rainy) {
+      eventAt = h;
+      eventShort = wx.short;
+      break;
+    }
+  }
+
+  const hi = day.hi !== null ? `high ${day.hi}°` : "";
+  const rainPart = day.rain !== null && day.rain >= 30 ? `${day.rain}% rain` : "";
+  const tail = [hi, rainPart].filter(Boolean).join(", ");
+
+  let text: string;
+  if (eventAt !== null) {
+    const hourLabel = `${eventAt % 12 === 0 ? 12 : eventAt % 12} ${eventAt < 12 ? "AM" : "PM"}`;
+    const what = (eventShort || day.short || "Rain").toLowerCase();
+    text = `${what.charAt(0).toUpperCase()}${what.slice(1)} around ${hourLabel}${tail ? ` — ${tail}` : ""}`;
+  } else {
+    text = `${day.short || "Forecast"}${tail ? ` — ${tail}` : ""}`;
+  }
+
+  return { text, short: eventShort || day.short, bad: day.bad };
+}
+
 export async function getWeatherByZip(weather: WeatherSettings): Promise<Forecast> {
   if (!/^\d{5}$/.test(weather.zip)) return NO_FORECAST;
   try {
