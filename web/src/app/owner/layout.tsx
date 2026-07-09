@@ -46,9 +46,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
   const business = context?.business ?? null;
   const settings = getBusinessSettings(business);
   const config = getAppConfig();
-  // Simulator link temporarily hidden for marketing screenshots.
-  // Restore by setting this back to `config.simulatorEnabled`.
-  const simulatorEnabled = false && config.simulatorEnabled;
+  const simulatorEnabled = config.simulatorEnabled;
   // Auth is only active in supabase mode; only then is there a session to sign out of.
   const authEnabled = config.persistence === "supabase";
   const impersonating = context?.impersonating ?? null;
