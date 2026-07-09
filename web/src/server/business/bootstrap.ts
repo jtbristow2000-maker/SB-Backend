@@ -81,9 +81,9 @@ export class InMemoryBusinessRepository implements BusinessRepository {
 
   async findByBusinessPhone(phoneE164: string): Promise<BusinessRow | null> {
     return (
-      Array.from(this.businesses.values()).find(
-        (business) => business.business_phone_e164 === phoneE164
-      ) ?? null
+      Array.from(this.businesses.values())
+        .filter((business) => business.business_phone_e164 === phoneE164)
+        .sort(compareBusinessesByUpdatedAt)[0] ?? null
     );
   }
 
@@ -186,4 +186,9 @@ export class InMemoryBusinessRepository implements BusinessRepository {
   async list(): Promise<BusinessRow[]> {
     return Array.from(this.businesses.values());
   }
+}
+
+function compareBusinessesByUpdatedAt(a: BusinessRow, b: BusinessRow): number {
+  const byUpdated = Date.parse(b.updated_at) - Date.parse(a.updated_at);
+  return byUpdated !== 0 ? byUpdated : b.id.localeCompare(a.id);
 }

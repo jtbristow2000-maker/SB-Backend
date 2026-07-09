@@ -156,6 +156,7 @@ describe("BACKEND-07 voice intake service", () => {
       fastTranscriptionEnabled?: boolean;
       transcriptionProvider?: TranscriptionProvider;
       publicBaseUrl?: string | null;
+      sharedNumberE164?: string | null;
       scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
       scheduleAutomatedOutbound?: (callback: () => Promise<void>) => Promise<void> | void;
       autoReplyDelaySleep?: (delayMs: number) => Promise<void>;
@@ -205,6 +206,7 @@ describe("BACKEND-07 voice intake service", () => {
       isAiExtractionEnabled: () => options.aiExtractionEnabled ?? false,
       isAiReplyEnabled: () => options.aiReplyEnabled ?? false,
       isFastTranscriptionEnabled: () => options.fastTranscriptionEnabled ?? false,
+      getSharedNumberE164: () => options.sharedNumberE164 ?? null,
       getPublicBaseUrl: () => options.publicBaseUrl ?? null,
       scheduleAutoReplyTimeout: options.scheduleAutoReplyTimeout,
       scheduleAutomatedOutbound: options.scheduleAutomatedOutbound,
@@ -355,6 +357,52 @@ describe("BACKEND-07 voice intake service", () => {
       provider_call_id: "CA_TWILIO_NUMBER",
       to_phone_e164: "+14155550100"
     });
+  });
+
+  it("routes shared-number forwarded calls straight to voicemail to avoid forwarding loops", async () => {
+    const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
+    const {
+      callRecordRepository,
+      taskRepository,
+      auditEventRepository,
+      service
+    } = await setupService({
+      sharedNumberE164: "+18664819747",
+      scheduleAutoReplyTimeout: (callback, delayMs) => scheduled.push({ callback, delayMs })
+    });
+
+    const result = await service.handleIncomingVoice({
+      from: "(949) 555-0100",
+      to: "+18664819747",
+      forwardedFrom: "+13105550199",
+      callSid: "CA_SHARED_FORWARD"
+    });
+
+    const calls = await callRecordRepository.list();
+    const tasks = await taskRepository.list();
+    const auditEvents = await auditEventRepository.list();
+    expect(result.status).toBe("voicemail");
+    expect(result.twiml).toContain("<Record");
+    expect(result.twiml).not.toContain("<Dial");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      provider_call_id: "CA_SHARED_FORWARD",
+      call_type: "missed",
+      from_phone_e164: "+19495550100",
+      to_phone_e164: "+18664819747",
+      needs_review: true
+    });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].notes).toBe("Missed call status: shared-forward");
+    expect(auditEvents[0]).toMatchObject({
+      event_type: "call.missed",
+      event_json: {
+        providerCallId: "CA_SHARED_FORWARD",
+        dialCallStatus: "shared-forward"
+      }
+    });
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].delayMs).toBe(MISSED_CALL_AUTO_REPLY_TIMEOUT_MS);
   });
 
   it("marks completed dial calls as answered and returns empty TwiML", async () => {

@@ -11,6 +11,7 @@ const originalEnv = {
   OWNER_PHONE: process.env.OWNER_PHONE,
   BUSINESS_PHONE: process.env.BUSINESS_PHONE,
   TIMEZONE: process.env.TIMEZONE,
+  SHARED_NUMBER_E164: process.env.SHARED_NUMBER_E164,
   WEBHOOK_SIGNATURE_REQUIRED: process.env.WEBHOOK_SIGNATURE_REQUIRED
 };
 
@@ -28,6 +29,7 @@ afterEach(() => {
   restoreEnvVar("OWNER_PHONE", originalEnv.OWNER_PHONE);
   restoreEnvVar("BUSINESS_PHONE", originalEnv.BUSINESS_PHONE);
   restoreEnvVar("TIMEZONE", originalEnv.TIMEZONE);
+  restoreEnvVar("SHARED_NUMBER_E164", originalEnv.SHARED_NUMBER_E164);
   restoreEnvVar("WEBHOOK_SIGNATURE_REQUIRED", originalEnv.WEBHOOK_SIGNATURE_REQUIRED);
   resetIntakeRuntimeForTests();
   vi.restoreAllMocks();
@@ -88,6 +90,66 @@ describe("BACKEND-07 Twilio voice route", () => {
     expect(twiml).toContain("<Record");
     expect(twiml).not.toContain("<Dial");
     expect(await runtime.taskRepository.list()).toHaveLength(1);
+  });
+
+  it("passes ForwardedFrom through and records voicemail for shared-number forwarding", async () => {
+    process.env.BUSINESS_ID = "00000000-0000-4000-8000-000000000304";
+    process.env.BUSINESS_NAME = "Shared Route Detail Co";
+    process.env.OWNER_PHONE = "(213) 373-4253";
+    process.env.BUSINESS_PHONE = "(310) 555-0199";
+    process.env.SHARED_NUMBER_E164 = "+18664819747";
+    process.env.TIMEZONE = "America/New_York";
+    resetIntakeRuntimeForTests();
+
+    const runtime = await getIntakeRuntime();
+    const request = new NextRequest("http://localhost:3000/api/webhooks/twilio/voice", {
+      method: "POST",
+      body: new URLSearchParams({
+        From: "(949) 555-0100",
+        To: "+18664819747",
+        ForwardedFrom: "+13105550199",
+        CallSid: "CA_ROUTE_SHARED_FORWARD"
+      })
+    });
+
+    const response = await POST(request);
+    const twiml = await response.text();
+    const calls = await runtime.callRecordRepository.list();
+
+    expect(response.status).toBe(200);
+    expect(twiml).toContain("<Record");
+    expect(twiml).not.toContain("<Dial");
+    expect(calls[0]).toMatchObject({
+      provider_call_id: "CA_ROUTE_SHARED_FORWARD",
+      business_id: "00000000-0000-4000-8000-000000000304",
+      to_phone_e164: "+18664819747",
+      call_type: "missed"
+    });
+  });
+
+  it("returns polite TwiML for unmatched shared-number forwarding without throwing", async () => {
+    process.env.BUSINESS_ID = "00000000-0000-4000-8000-000000000305";
+    process.env.BUSINESS_NAME = "Shared Unmatched Route Co";
+    process.env.OWNER_PHONE = "(213) 373-4253";
+    process.env.BUSINESS_PHONE = "(310) 555-0199";
+    process.env.SHARED_NUMBER_E164 = "+18664819747";
+    process.env.TIMEZONE = "America/New_York";
+    resetIntakeRuntimeForTests();
+
+    const request = new NextRequest("http://localhost:3000/api/webhooks/twilio/voice", {
+      method: "POST",
+      body: new URLSearchParams({
+        From: "(949) 555-0100",
+        To: "+18664819747",
+        CallSid: "CA_ROUTE_SHARED_MISSING"
+      })
+    });
+
+    const response = await POST(request);
+    const twiml = await response.text();
+
+    expect(response.status).toBe(404);
+    expect(twiml).toContain("This number isn&apos;t connected to an account yet.");
   });
 
   it("emits a structured webhook log with provider and business ids", async () => {

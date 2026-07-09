@@ -16,7 +16,10 @@ import type {
   TaskRow
 } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
-import { resolveBusinessByInboundPhone } from "@/server/telephony/routing";
+import {
+  isSharedInboundPhone,
+  resolveBusinessForIncomingVoice
+} from "@/server/telephony/routing";
 import type { VoicemailGreetingRepository } from "@/server/voicemailGreetings/repository";
 import type {
   AutoReplyProvider,
@@ -42,6 +45,9 @@ export const MISSED_CALL_AUTO_REPLY_TIMEOUT_MS = 75_000;
 export type IncomingVoicePayload = {
   from: string;
   to: string;
+  called?: string | null;
+  forwardedFrom?: string | null;
+  calledVia?: string | null;
   callSid?: string;
 };
 
@@ -99,6 +105,7 @@ export type VoiceIntakeDependencies = {
   isAiExtractionEnabled: () => boolean;
   isAiReplyEnabled: () => boolean;
   isFastTranscriptionEnabled: () => boolean;
+  getSharedNumberE164?: () => string | null;
   getPublicBaseUrl?: () => string | null;
   scheduleAutoReplyTimeout?: (callback: () => void, delayMs: number) => void;
   scheduleAutomatedOutbound?: (callback: () => Promise<void>) => Promise<void> | void;
@@ -112,16 +119,35 @@ export class VoiceIntakeService {
   async handleIncomingVoice(payload: IncomingVoicePayload): Promise<IncomingVoiceResult> {
     const toPhone = normalizePhoneNumber(payload.to);
     const fromPhone = normalizePhoneNumber(payload.from);
-    const businessMatch = await resolveBusinessByInboundPhone(
-      this.dependencies.businessRepository,
-      toPhone
-    );
+    const sharedNumberE164 = this.dependencies.getSharedNumberE164?.() ?? null;
+    const sharedInbound = isSharedInboundPhone(toPhone, payload.called, sharedNumberE164);
+    const businessMatch = await resolveBusinessForIncomingVoice({
+      businessRepository: this.dependencies.businessRepository,
+      auditEventRepository: this.dependencies.auditEventRepository,
+      toE164: toPhone,
+      called: payload.called,
+      forwardedFrom: payload.forwardedFrom,
+      calledVia: payload.calledVia,
+      sharedNumberE164,
+      rawPayload: {
+        From: payload.from,
+        To: payload.to,
+        Called: payload.called,
+        ForwardedFrom: payload.forwardedFrom,
+        CalledVia: payload.calledVia,
+        CallSid: payload.callSid
+      }
+    });
     const business = businessMatch?.business ?? null;
 
     if (!business) {
       return {
         status: "business_not_found",
-        twiml: this.dependencies.callProvider.buildSayTwiml("This business number is not configured.")
+        twiml: this.dependencies.callProvider.buildSayTwiml(
+          sharedInbound
+            ? "This number isn't connected to an account yet."
+            : "This business number is not configured."
+        )
       };
     }
 
@@ -156,13 +182,22 @@ export class VoiceIntakeService {
           call_type: "missed",
           from_phone_e164: fromPhone,
           to_phone_e164: toPhone
-        });
+    });
 
     const settings = getBusinessSettings(business);
-    if (settings.forward_calls === false || !business.owner_phone_e164) {
+    if (
+      businessMatch?.matchedBy === "shared_forward" ||
+      settings.forward_calls === false ||
+      !business.owner_phone_e164
+    ) {
       const voicemail = await this.prepareVoicemailRecording({
         callRecord,
-        dialCallStatus: settings.forward_calls === false ? "forwarding-disabled" : "owner-phone-missing"
+        dialCallStatus:
+          businessMatch?.matchedBy === "shared_forward"
+            ? "shared-forward"
+            : settings.forward_calls === false
+              ? "forwarding-disabled"
+              : "owner-phone-missing"
       });
 
       return {

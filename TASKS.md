@@ -792,6 +792,12 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-07-09: Shared-number Snagly routing:
+  - DONE (Codex, 2026-07-09): Added `SHARED_NUMBER_E164` config and shared-forward voice routing via Twilio `ForwardedFrom`/`CalledVia` to `business_phone_e164`.
+  - DONE (Codex, 2026-07-09): Shared-forward calls go straight to voicemail and never dial the owner back, preventing conditional-forwarding loops.
+  - DONE (Codex, 2026-07-09): Shared-number inbound SMS routes by the sender's existing customer profile, with deterministic ambiguity handling and audit/log warnings.
+  - DONE (Codex, 2026-07-09): Owner/manual SMS and automated missed-call replies now resolve outbound From as dedicated business number first, shared Snagly number second.
+  - Claude/UI contract: businesses without `twilio_number_e164` can still operate when `SHARED_NUMBER_E164` is configured; dedicated-number businesses remain unchanged.
 - 2026-06-10: Missed-call auto-text send delay:
   - DONE (Claude, 2026-06-10): Added the `auto_text_delay_seconds` setting and owner UI.
   - DONE (Codex, 2026-06-10): Automated missed-call template and AI replies now wait the configured delay with ±2 seconds jitter before provider SMS send; `0` keeps immediate sends.

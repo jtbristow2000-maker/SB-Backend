@@ -10,6 +10,7 @@ function config(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     appBaseUrl: "http://localhost:3000",
     publicBaseUrl: null,
+    sharedNumberE164: null,
     apiKeyConfigured: false,
     environment: "test",
     persistence: "memory",

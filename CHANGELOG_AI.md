@@ -1,5 +1,16 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Shared-number call and SMS routing
+
+### Added
+- Added `SHARED_NUMBER_E164` config for the company-wide Snagly number.
+- Shared-number voice calls now resolve the business from Twilio `ForwardedFrom`/`CalledVia`, then go straight to voicemail to avoid carrier-forwarding loops.
+- Shared-number inbound SMS now resolves by the sender's existing customer profile, with ambiguity warnings/audit events when multiple businesses match.
+- Added one outbound-number resolver so owner texts and automated missed-call replies use a dedicated business Twilio number first, then the shared Snagly number.
+
+### Verified
+- `npm run verify` (43 files, 177 tests passed, 1 skipped).
+
 ## [2026-07-08] - Schedule v4: book right on the grid (Google/Outlook-style)
 
 ### Changed

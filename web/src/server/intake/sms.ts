@@ -1,9 +1,11 @@
 import type { BusinessRepository } from "@/server/business/bootstrap";
+import type { CustomerProfileRepository } from "@/server/customerProfiles/repository";
 import type { CustomerProfileService } from "@/server/customerProfiles/service";
 import type { MessageRow, TaskRow } from "@/server/db/schema";
 import { normalizePhoneNumber } from "@/server/phone/normalize";
-import { resolveBusinessByInboundPhone } from "@/server/telephony/routing";
+import { resolveBusinessForInboundSms } from "@/server/telephony/routing";
 
+import type { AuditEventRepository } from "./auditEvents";
 import type { MessageRepository } from "./messages";
 import type { TaskRepository } from "./tasks";
 
@@ -23,9 +25,12 @@ export type InboundSmsResult = {
 
 export type SmsIntakeDependencies = {
   businessRepository: BusinessRepository;
+  customerProfileRepository: CustomerProfileRepository;
   customerProfileService: CustomerProfileService;
   messageRepository: MessageRepository;
   taskRepository: TaskRepository;
+  auditEventRepository?: AuditEventRepository;
+  getSharedNumberE164?: () => string | null;
 };
 
 export class SmsIntakeService {
@@ -34,10 +39,14 @@ export class SmsIntakeService {
   async handleInboundSms(payload: InboundSmsPayload): Promise<InboundSmsResult> {
     const fromPhone = normalizePhoneNumber(payload.from);
     const toPhone = normalizePhoneNumber(payload.to);
-    const businessMatch = await resolveBusinessByInboundPhone(
-      this.dependencies.businessRepository,
-      toPhone
-    );
+    const businessMatch = await resolveBusinessForInboundSms({
+      businessRepository: this.dependencies.businessRepository,
+      customerProfileRepository: this.dependencies.customerProfileRepository,
+      auditEventRepository: this.dependencies.auditEventRepository,
+      fromE164: fromPhone,
+      toE164: toPhone,
+      sharedNumberE164: this.dependencies.getSharedNumberE164?.() ?? null
+    });
     const business = businessMatch?.business ?? null;
 
     if (!business) {
@@ -45,12 +54,18 @@ export class SmsIntakeService {
     }
 
     const lastContactAt = new Date().toISOString();
-    const { profile } = await this.dependencies.customerProfileService.upsertByBusinessAndPhone({
-      businessId: business.id,
-      phone: fromPhone,
-      source: "inbound_sms",
-      lastContactAt
-    });
+    const profile = businessMatch?.customerProfile
+      ? await this.dependencies.customerProfileRepository.update(businessMatch.customerProfile.id, {
+          last_contact_at: lastContactAt
+        })
+      : (
+          await this.dependencies.customerProfileService.upsertByBusinessAndPhone({
+            businessId: business.id,
+            phone: fromPhone,
+            source: "inbound_sms",
+            lastContactAt
+          })
+        ).profile;
     const existingMessage = payload.messageSid
       ? await this.dependencies.messageRepository.findByProviderMessageId(
           business.id,

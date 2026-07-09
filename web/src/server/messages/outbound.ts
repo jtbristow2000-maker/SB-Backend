@@ -1,8 +1,10 @@
 import type { CustomerProfileRepository } from "@/server/customerProfiles/repository";
+import { getAppConfig } from "@/server/config";
 import type { BusinessRow, CustomerProfileRow, MessageRow } from "@/server/db/schema";
 import type { AuditEventRepository } from "@/server/intake/auditEvents";
 import type { MessageRepository } from "@/server/intake/messages";
 import type { SmsProvider } from "@/server/providers";
+import { resolveOutboundNumber } from "@/server/telephony/routing";
 
 export type OwnerMessagePayload = {
   profile_id: string;
@@ -24,13 +26,10 @@ export type OwnerMessageDependencies = {
   auditEventRepository: AuditEventRepository;
   smsProvider: SmsProvider;
   isSmsSendingEnabled: () => boolean;
+  getSharedNumberE164?: () => string | null;
 };
 
 const REQUIRED_FIELDS = ["profile_id", "body"] as const;
-
-function outboundFromNumber(business: BusinessRow): string | null {
-  return business.twilio_number_e164 ?? business.business_phone_e164;
-}
 
 export function validateOwnerMessagePayload(payload: unknown): OwnerMessageValidation {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -92,7 +91,9 @@ export async function sendOwnerApprovedSms(
 
   const smsSendingEnabled = dependencies.isSmsSendingEnabled();
   const sentAt = new Date().toISOString();
-  const fromNumber = outboundFromNumber(input.business);
+  const fromNumber = resolveOutboundNumber(input.business, {
+    sharedNumberE164: dependencies.getSharedNumberE164?.() ?? getAppConfig().sharedNumberE164
+  });
   let message = await dependencies.messageRepository.create({
     business_id: input.business.id,
     customer_profile_id: profile.id,
