@@ -227,10 +227,17 @@ p {
   .owner-page { padding: 18px 14px 90px; }
 }
 
-/* Desktop left sidebar */
+/* Desktop left sidebar — pinned to the viewport so the nav (and the
+   Settings/Simulator/Sign-out footer) stays put while long pages scroll. */
 .owner-sidebar {
   width: 230px;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: linear-gradient(180deg, #1b1d24 0%, #141519 100%);
   border-right: 1px solid #24262e;
   color: #9ca3af;
@@ -238,6 +245,7 @@ p {
   flex-direction: column;
   padding: 20px 0;
 }
+.owner-sidebar-footer { padding-bottom: 16px; }
 .owner-brand { display: flex; align-items: center; gap: 12px; padding: 0 18px 18px; }
 .owner-logo {
   width: 40px; height: 40px; border-radius: 11px;
