@@ -134,9 +134,11 @@ export class SupabaseBusinessRepository implements BusinessRepository {
       .from("businesses")
       .select("*")
       .eq("business_phone_e164", phoneE164)
-      .maybeSingle();
+      .order("updated_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1);
     failIfError(error, "find business by phone");
-    return data;
+    return data?.[0] ?? null;
   }
 
   async findByTwilioNumber(phoneE164: string): Promise<BusinessRow | null> {

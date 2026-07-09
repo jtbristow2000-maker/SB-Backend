@@ -116,10 +116,10 @@ export default async function Today() {
   const onboardingSteps: OnboardingStep[] = [
     {
       key: "number",
-      title: "Connect your business number",
-      desc: "Advertise your Snagly number as your business line — on your site, truck, and cards.",
-      note: "Set your phone's “ring before voicemail” to ~30 sec (or off) so Snagly catches the call before your carrier voicemail picks up.",
-      done: Boolean(business?.twilio_number_e164),
+      title: "Connect your phone",
+      desc: "Keep your own number — save your cell and dial one forwarding code. Missed calls flow straight into Snagly.",
+      note: "Prefer a separate business line? That option's right underneath in Settings.",
+      done: Boolean(business?.business_phone_e164 || business?.twilio_number_e164),
       href: "/owner/settings",
       cta: "Set up →"
     },

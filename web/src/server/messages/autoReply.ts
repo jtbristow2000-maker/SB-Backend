@@ -1,4 +1,5 @@
 import { suggestOpenSlots } from "@/server/appointments/availability";
+import { getAppConfig } from "@/server/config";
 import type { AppointmentRepository } from "@/server/intake/appointments";
 import {
   getBusinessSettings,
@@ -19,6 +20,7 @@ import type { AuditEventRepository } from "@/server/intake/auditEvents";
 import type { CallRecordRepository } from "@/server/intake/callRecords";
 import type { MessageRepository } from "@/server/intake/messages";
 import type { AutoReplyProvider, SmsProvider } from "@/server/providers";
+import { resolveOutboundNumber } from "@/server/telephony/routing";
 
 const AUTO_REPLY_PROVIDER_MESSAGE_PREFIX = "missed-call-auto-text";
 export const AUTO_TEXT_DELAY_JITTER_SECONDS = 2;
@@ -36,6 +38,7 @@ export type MissedCallAutoReplyDependencies = {
   autoReplyProvider: AutoReplyProvider;
   isSmsSendingEnabled: () => boolean;
   isAiReplyEnabled: () => boolean;
+  getSharedNumberE164?: () => string | null;
   now?: () => Date;
   sleepBeforeAutoReplySend?: (delayMs: number) => Promise<void>;
   autoReplyDelayRandom?: () => number;
@@ -98,6 +101,9 @@ export async function sendMissedCallAutoReply(
   });
   const smsSendingEnabled = dependencies.isSmsSendingEnabled();
   const createdAt = (dependencies.now?.() ?? new Date()).toISOString();
+  const fromNumber = resolveOutboundNumber(business, {
+    sharedNumberE164: dependencies.getSharedNumberE164?.() ?? getAppConfig().sharedNumberE164
+  });
   const sendDelayMs = smsSendingEnabled
     ? autoTextSendDelayMs(settings, dependencies.autoReplyDelayRandom)
     : 0;
@@ -108,7 +114,7 @@ export async function sendMissedCallAutoReply(
     provider_message_id: providerMessageId,
     direction: "outbound",
     channel: "sms",
-    from_phone_e164: call.to_phone_e164,
+    from_phone_e164: fromNumber,
     to_phone_e164: call.from_phone_e164,
     body: composition.body,
     media_json: buildAutoReplyMetadata(composition, input.reason, !smsSendingEnabled),
@@ -126,7 +132,7 @@ export async function sendMissedCallAutoReply(
       const result = await dependencies.smsProvider.sendMessage({
         businessId: call.business_id,
         to: call.from_phone_e164,
-        from: call.to_phone_e164 ?? undefined,
+        from: fromNumber ?? undefined,
         body: composition.body
       });
 

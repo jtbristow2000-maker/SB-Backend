@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
     const result = await intake.voiceIntakeService.handleIncomingVoice({
       from: form.From ?? "",
       to: form.To ?? "",
+      called: form.Called,
+      forwardedFrom: form.ForwardedFrom,
+      calledVia: form.CalledVia,
       callSid: form.CallSid
     });
 

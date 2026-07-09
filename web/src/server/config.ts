@@ -1,3 +1,5 @@
+import { normalizePhoneNumber } from "@/server/phone/normalize";
+
 function readBoolean(name: string, fallback: boolean): boolean {
   // Trim so a stray space/newline pasted into a hosting env var (e.g. "true ")
   // doesn't silently read as false.
@@ -14,9 +16,23 @@ function readString(name: string): string | undefined {
   return raw ? raw : undefined;
 }
 
+function readPhone(name: string): string | null {
+  const raw = readString(name);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return normalizePhoneNumber(raw);
+  } catch {
+    return null;
+  }
+}
+
 export type AppConfig = {
   appBaseUrl: string;
   publicBaseUrl: string | null;
+  sharedNumberE164: string | null;
   apiKeyConfigured: boolean;
   environment: string;
   persistence: "memory" | "supabase";
@@ -50,6 +66,7 @@ export function getAppConfig(): AppConfig {
     appBaseUrl:
       publicBaseUrl ?? "http://localhost:3000",
     publicBaseUrl,
+    sharedNumberE164: readPhone("SHARED_NUMBER_E164"),
     apiKeyConfigured: Boolean(process.env.API_KEY),
     environment: process.env.NODE_ENV ?? "development",
     persistence,

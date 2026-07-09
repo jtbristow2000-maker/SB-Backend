@@ -7,9 +7,10 @@ import { CustomerProfileService } from "@/server/customerProfiles/service";
 import { InMemoryMessageRepository } from "./messages";
 import { SmsIntakeService } from "./sms";
 import { InMemoryTaskRepository } from "./tasks";
+import { InMemoryAuditEventRepository } from "./auditEvents";
 
 describe("BACKEND-11 inbound SMS intake service", () => {
-  async function setupService() {
+  async function setupService(options: { sharedNumberE164?: string | null } = {}) {
     const businessRepository = new InMemoryBusinessRepository();
     await bootstrapSingleTenantBusiness(businessRepository, {
       id: "00000000-0000-4000-8000-000000000401",
@@ -23,11 +24,15 @@ describe("BACKEND-11 inbound SMS intake service", () => {
     const customerProfileService = new CustomerProfileService(customerProfileRepository);
     const messageRepository = new InMemoryMessageRepository();
     const taskRepository = new InMemoryTaskRepository();
+    const auditEventRepository = new InMemoryAuditEventRepository();
     const service = new SmsIntakeService({
       businessRepository,
+      customerProfileRepository,
       customerProfileService,
       messageRepository,
-      taskRepository
+      taskRepository,
+      auditEventRepository,
+      getSharedNumberE164: () => options.sharedNumberE164 ?? null
     });
 
     return {
@@ -35,6 +40,7 @@ describe("BACKEND-11 inbound SMS intake service", () => {
       customerProfileRepository,
       messageRepository,
       taskRepository,
+      auditEventRepository,
       service
     };
   }
@@ -119,5 +125,142 @@ describe("BACKEND-11 inbound SMS intake service", () => {
       provider_message_id: "SM_TWILIO_NUMBER",
       to_phone_e164: "+14155550100"
     });
+  });
+
+  it("routes inbound SMS on the shared number by the sender's existing profile", async () => {
+    const {
+      customerProfileRepository,
+      messageRepository,
+      service
+    } = await setupService({ sharedNumberE164: "+18664819747" });
+    const profile = await customerProfileRepository.create({
+      business_id: "00000000-0000-4000-8000-000000000401",
+      display_name: "Shared Customer",
+      phone_e164: "+19495550100",
+      email: null,
+      address_line1: null,
+      address_line2: null,
+      city: null,
+      state: null,
+      postal_code: null,
+      source: "incoming_call",
+      status: "new",
+      summary: null,
+      notes: null,
+      last_contact_at: "2026-06-01T10:00:00.000Z"
+    });
+
+    const result = await service.handleInboundSms({
+      from: "(949) 555-0100",
+      to: "+18664819747",
+      body: "This is my reply",
+      messageSid: "SM_SHARED_MATCH"
+    });
+    const messages = await messageRepository.list();
+    const profiles = await customerProfileRepository.list();
+
+    expect(result.status).toBe("stored");
+    expect(result.customerProfileId).toBe(profile.id);
+    expect(messages[0]).toMatchObject({
+      business_id: "00000000-0000-4000-8000-000000000401",
+      customer_profile_id: profile.id,
+      from_phone_e164: "+19495550100",
+      to_phone_e164: "+18664819747",
+      body: "This is my reply"
+    });
+    expect(profiles.find((candidate) => candidate.id === profile.id)?.last_contact_at).not.toBe(
+      "2026-06-01T10:00:00.000Z"
+    );
+  });
+
+  it("selects the most recently contacted profile and audits ambiguous shared SMS matches", async () => {
+    const {
+      businessRepository,
+      customerProfileRepository,
+      messageRepository,
+      auditEventRepository,
+      service
+    } = await setupService({ sharedNumberE164: "+18664819747" });
+    const secondBusiness = await businessRepository.create({
+      id: "00000000-0000-4000-8000-000000000402",
+      name: "Second SMS Co",
+      ownerName: "Owner",
+      ownerPhone: "(213) 373-4254",
+      businessPhone: "(310) 555-0188",
+      timezone: "America/New_York"
+    });
+    await customerProfileRepository.create({
+      business_id: "00000000-0000-4000-8000-000000000401",
+      display_name: "Older Customer",
+      phone_e164: "+19495550100",
+      email: null,
+      address_line1: null,
+      address_line2: null,
+      city: null,
+      state: null,
+      postal_code: null,
+      source: "incoming_call",
+      status: "new",
+      summary: null,
+      notes: null,
+      last_contact_at: "2026-06-01T10:00:00.000Z"
+    });
+    const newerProfile = await customerProfileRepository.create({
+      business_id: secondBusiness.id,
+      display_name: "Newer Customer",
+      phone_e164: "+19495550100",
+      email: null,
+      address_line1: null,
+      address_line2: null,
+      city: null,
+      state: null,
+      postal_code: null,
+      source: "incoming_call",
+      status: "new",
+      summary: null,
+      notes: null,
+      last_contact_at: "2026-06-02T10:00:00.000Z"
+    });
+
+    const result = await service.handleInboundSms({
+      from: "+19495550100",
+      to: "+18664819747",
+      body: "Which shop is this?",
+      messageSid: "SM_SHARED_AMBIGUOUS"
+    });
+    const messages = await messageRepository.list();
+    const audits = await auditEventRepository.list();
+
+    expect(result.status).toBe("stored");
+    expect(result.customerProfileId).toBe(newerProfile.id);
+    expect(messages[0]).toMatchObject({
+      business_id: secondBusiness.id,
+      customer_profile_id: newerProfile.id
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      business_id: secondBusiness.id,
+      customer_profile_id: newerProfile.id,
+      event_type: "sms.shared_ambiguous"
+    });
+  });
+
+  it("returns business_not_found without creating records for unmatched shared SMS", async () => {
+    const {
+      customerProfileRepository,
+      messageRepository,
+      service
+    } = await setupService({ sharedNumberE164: "+18664819747" });
+
+    const result = await service.handleInboundSms({
+      from: "+19495550999",
+      to: "+18664819747",
+      body: "Hello?",
+      messageSid: "SM_SHARED_UNMATCHED"
+    });
+
+    expect(result.status).toBe("business_not_found");
+    expect(await customerProfileRepository.list()).toHaveLength(0);
+    expect(await messageRepository.list()).toHaveLength(0);
   });
 });

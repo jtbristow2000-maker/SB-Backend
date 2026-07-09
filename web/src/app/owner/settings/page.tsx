@@ -10,6 +10,7 @@ import { UnsavedChangesGuard } from "@/app/owner/UnsavedChangesGuard";
 import { VoicemailRecorder } from "@/app/owner/VoicemailRecorder";
 import { getOwnerBusinessContext } from "@/server/business/current";
 import { getBusinessSettings } from "@/server/business/settings";
+import { getAppConfig } from "@/server/config";
 import { buildBusinessNumberReadModel, type BusinessNumberReadModel } from "@/server/telephony/numberState";
 
 export const dynamic = "force-dynamic";
@@ -29,12 +30,16 @@ export default async function SettingsPage() {
   const context = await getOwnerBusinessContext();
   const business = context?.business ?? null;
   const settings = getBusinessSettings(business);
+  const sharedNumber = getAppConfig().sharedNumberE164;
   let numberModel: BusinessNumberReadModel | null = null;
+  let hasCapturedCall = false;
   if (context?.rt && business) {
     const portRequest = await context.rt.numberPortRequestRepository
       .findLatestByBusinessId(business.id)
       .catch(() => null);
     numberModel = buildBusinessNumberReadModel(business, portRequest);
+    const calls = await context.rt.callRecordRepository.list().catch(() => []);
+    hasCapturedCall = calls.some((c) => c.business_id === business.id);
   }
 
   return (
@@ -44,7 +49,12 @@ export default async function SettingsPage() {
 
       {numberModel && (
         <div style={{ marginTop: 16 }}>
-          <PhoneNumberSection model={numberModel} />
+          <PhoneNumberSection
+            model={numberModel}
+            sharedNumber={sharedNumber}
+            businessPhone={business?.business_phone_e164 ?? null}
+            hasCapturedCall={hasCapturedCall}
+          />
         </div>
       )}
 

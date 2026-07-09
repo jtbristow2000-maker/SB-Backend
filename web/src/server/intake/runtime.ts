@@ -162,14 +162,18 @@ export function buildIntakeRuntime(
       const currentConfig = getAppConfig();
       return currentConfig.fastTranscriptionEnabled && currentConfig.openAiConfigured;
     },
+    getSharedNumberE164: () => getAppConfig().sharedNumberE164,
     getPublicBaseUrl: () => getAppConfig().publicBaseUrl,
     scheduleAutomatedOutbound: scheduleAfterResponse
   });
   const smsIntakeService = new SmsIntakeService({
     businessRepository,
+    customerProfileRepository,
     customerProfileService,
     messageRepository,
-    taskRepository
+    taskRepository,
+    auditEventRepository,
+    getSharedNumberE164: () => getAppConfig().sharedNumberE164
   });
 
   const runtime: IntakeRuntime = {
