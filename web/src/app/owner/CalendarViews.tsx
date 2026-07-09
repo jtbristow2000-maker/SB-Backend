@@ -249,7 +249,7 @@ export function CalendarViews({ events, weather, weatherHours }: { events: Calen
         return x < curMonth ? curMonth : x;
       }
       const x = addDays(prev, dir * 7);
-      return startOfWeek(x) < startOfWeek(now) ? startOfWeek(now) : x;
+      return startOfDay(x) < startOfDay(now) ? startOfDay(now) : x;
     });
   };
 
@@ -257,14 +257,14 @@ export function CalendarViews({ events, weather, weatherHours }: { events: Calen
     view === "month"
       ? `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
       : view === "week"
-        ? weekLabel(startOfWeek(anchor))
+        ? weekLabel(startOfDay(anchor))
         : "Upcoming";
 
   // The schedule never needs to go back in time — block navigating before the current week/month.
   const canGoBack =
     view === "month"
       ? new Date(anchor.getFullYear(), anchor.getMonth(), 1) > new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      : startOfWeek(anchor) > startOfWeek(new Date());
+      : startOfDay(anchor) > startOfDay(new Date());
 
   return (
     <div>
@@ -318,7 +318,8 @@ export function CalendarViews({ events, weather, weatherHours }: { events: Calen
             evs={evs}
             weather={weather}
             onPickDay={(d) => {
-              setAnchor(d);
+              const today = startOfDay(new Date());
+              setAnchor(d < today ? today : d);
               setView("week");
             }}
           />
@@ -435,7 +436,7 @@ function WeekView({
   // right now; otherwise open on the working morning (8 AM).
   const weekHasToday = (() => {
     const t = startOfDay(new Date());
-    const ws = startOfWeek(anchor);
+    const ws = startOfDay(anchor);
     return t >= ws && t < addDays(ws, 7);
   })();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -567,7 +568,8 @@ function WeekView({
     const end = dateAt(start, endH);
     setMoveOverrides((prev) => ({ ...prev, [ev.id]: { start, end } }));
   };
-  const weekStart = startOfWeek(anchor);
+  // Rolling 7-day outlook: today (or the navigated day) is the leftmost column.
+  const weekStart = startOfDay(anchor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = new Date();
   const hours = Array.from({ length: AXIS_END - AXIS_START }, (_, i) => AXIS_START + i);
@@ -792,6 +794,24 @@ function EventBlock({
         {timeLabel(ev.startDate)}
       </div>
       <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title}</div>
+      {ev.service && height >= 62 && (
+        <div style={{ fontSize: 10, opacity: 0.75, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.service}</div>
+      )}
+      {ev.location && height >= 82 && (
+        <span
+          role="link"
+          title={ev.location}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location ?? "")}`, "_blank", "noopener");
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          style={{ display: "inline-flex", alignItems: "center", gap: 3, maxWidth: "100%", fontSize: 9.5, fontWeight: 700, color: "#2b5f9e", cursor: "pointer", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
+          <MapPin size={10} style={{ flexShrink: 0 }} aria-hidden /> {ev.location}
+        </span>
+      )}
       {/* bottom grip: drag to change the appointment's length */}
       <span data-resize style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 8, cursor: "ns-resize" }} aria-hidden />
     </button>
