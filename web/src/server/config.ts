@@ -16,6 +16,13 @@ function readString(name: string): string | undefined {
   return raw ? raw : undefined;
 }
 
+function readStringList(name: string): string[] {
+  return (readString(name) ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 function readPhone(name: string): string | null {
   const raw = readString(name);
   if (!raw) {
@@ -33,6 +40,7 @@ export type AppConfig = {
   appBaseUrl: string;
   publicBaseUrl: string | null;
   sharedNumberE164: string | null;
+  adminEmails: string[];
   apiKeyConfigured: boolean;
   environment: string;
   persistence: "memory" | "supabase";
@@ -67,6 +75,7 @@ export function getAppConfig(): AppConfig {
       publicBaseUrl ?? "http://localhost:3000",
     publicBaseUrl,
     sharedNumberE164: readPhone("SHARED_NUMBER_E164"),
+    adminEmails: readStringList("ADMIN_EMAILS"),
     apiKeyConfigured: Boolean(process.env.API_KEY),
     environment: process.env.NODE_ENV ?? "development",
     persistence,
@@ -100,4 +109,9 @@ export function getAppConfig(): AppConfig {
     anthropicConfigured: Boolean(readString("ANTHROPIC_API_KEY")),
     sentryConfigured: Boolean(process.env.SENTRY_DSN)
   };
+}
+
+export function isAdminEmail(email: string | null | undefined): boolean {
+  const normalized = email?.trim().toLowerCase();
+  return Boolean(normalized && getAppConfig().adminEmails.includes(normalized));
 }

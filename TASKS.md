@@ -792,6 +792,11 @@ Difficulty key: **S** ≈ <½ day · **M** ≈ ~1 day · **L** ≈ 2+ days.
 
 ## Backend Maintenance / Contract Notes
 
+- 2026-07-09: Admin impersonation + admin data service:
+  - DONE (Codex, 2026-07-09): Added `ADMIN_EMAILS` and `isAdminEmail()` so admin features are server-gated and disabled unless configured.
+  - DONE (Codex, 2026-07-09): Owner business context can impersonate `snagly_admin_business` only for configured admins, using service-role repositories and auditing `admin.impersonation_used`.
+  - DONE (Codex, 2026-07-09): Added `listBusinessesForAdmin()` for Claude's `/admin` UI: id, name, phones, number status, created date, lead/call counts, and member email when Supabase Auth data is available.
+  - Claude/UI contract: `/admin` can set/clear the `snagly_admin_business` cookie; owner layout can read `context.impersonating` to show an amber banner and Exit control.
 - 2026-07-09: Shared-number Snagly routing:
   - DONE (Codex, 2026-07-09): Added `SHARED_NUMBER_E164` config and shared-forward voice routing via Twilio `ForwardedFrom`/`CalledVia` to `business_phone_e164`.
   - DONE (Codex, 2026-07-09): Shared-forward calls go straight to voicemail and never dial the owner back, preventing conditional-forwarding loops.

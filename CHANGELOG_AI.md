@@ -1,5 +1,15 @@
 # CHANGELOG_AI.md
 
+## [2026-07-09] - Admin impersonation foundation
+
+### Added
+- Added `ADMIN_EMAILS` config and `isAdminEmail()` so admin tooling is disabled unless explicitly configured.
+- Added guarded owner-context impersonation via the `snagly_admin_business` cookie for configured admins only, using service-role repositories and auditing `admin.impersonation_used`.
+- Added `listBusinessesForAdmin()` to return all businesses with phone/number status, lead counts, call counts, and member email when available from Supabase Auth.
+
+### Verified
+- `npm run verify` (46 files, 185 tests passed, 1 skipped).
+
 ## [2026-07-09] - Today's-weather blurb + quieter stamps
 
 ### Added
