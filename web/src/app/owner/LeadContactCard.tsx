@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { CSSProperties } from "react";
-import { BadgeDollarSign, CalendarClock, Check, ChevronRight, Sparkles, Wrench, X, type LucideIcon } from "lucide-react";
+import { BadgeDollarSign, CalendarClock, Check, ChevronRight, ShieldCheck, Sparkles, Wrench, X, type LucideIcon } from "lucide-react";
 
-import { saveCustomerDetails } from "@/app/owner/actions";
+import { saveCustomerDetails, setLeadPersonal } from "@/app/owner/actions";
 
 // The lead's identity, iMessage-style: avatar + name up top, and tapping it opens
 // a contact card (modal) with what they asked for (AI-read facts), the editable
@@ -33,7 +33,8 @@ export function LeadContactCard({
   referral,
   autoFilled,
   facts = [],
-  pastJobs
+  pastJobs,
+  isPersonal = false
 }: {
   profileId: string;
   name: string;
@@ -48,8 +49,21 @@ export function LeadContactCard({
   autoFilled: boolean;
   facts?: ContactFact[];
   pastJobs: PastJob[];
+  isPersonal?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [personal, setPersonal] = useState(isPersonal);
+  const [, startTransition] = useTransition();
+  const togglePersonal = () => {
+    const next = !personal;
+    setPersonal(next); // optimistic
+    const fd = new FormData();
+    fd.set("profileId", profileId);
+    fd.set("personal", next ? "1" : "0");
+    startTransition(async () => {
+      await setLeadPersonal(fd);
+    });
+  };
 
   // Esc closes; lock body scroll while the card is up.
   useEffect(() => {
@@ -105,6 +119,14 @@ export function LeadContactCard({
                 <X size={17} aria-hidden />
               </button>
             </div>
+
+            <button type="button" onClick={togglePersonal} className="btn" style={personalBtn(personal)}>
+              <ShieldCheck size={14} aria-hidden />
+              {personal ? "Personal contact — no auto-texts" : "Mark as personal (friend/family)"}
+            </button>
+            {personal && (
+              <div style={S.personalHint}>They&apos;ll never get business texts, and their calls stay out of your leads.</div>
+            )}
 
             {facts.length > 0 && (
               <div style={S.factsBox}>
@@ -169,8 +191,19 @@ export function LeadContactCard({
   );
 }
 
+function personalBtn(on: boolean): CSSProperties {
+  return {
+    display: "inline-flex", alignItems: "center", gap: 7, marginBottom: 12,
+    padding: "8px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: 650, cursor: "pointer",
+    border: `1px solid ${on ? "rgba(var(--positive-rgb),0.5)" : "var(--border-strong)"}`,
+    background: on ? "rgba(var(--positive-rgb),0.12)" : "var(--surface)",
+    color: on ? "#1d6b4f" : "var(--text)"
+  };
+}
+
 const S: Record<string, CSSProperties> = {
   trigger: { display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", minWidth: 0, font: "inherit" },
+  personalHint: { fontSize: 12, color: "var(--muted)", margin: "-6px 0 12px", lineHeight: 1.4 },
   avatar: {
     width: 46, height: 46, borderRadius: 999, flexShrink: 0,
     background: "linear-gradient(135deg, var(--brand), var(--brand-strong))",

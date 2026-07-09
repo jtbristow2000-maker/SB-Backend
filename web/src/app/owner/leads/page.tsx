@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { getOwnerBusinessContext } from "@/server/business/current";
+import { getBusinessSettings, isPrivateNumber } from "@/server/business/settings";
 
 import { LeadDirectory, type DirectoryLead } from "../LeadDirectory";
 
@@ -42,8 +43,10 @@ export default async function LeadsPage() {
     else if (!aUp && !curUp && aMs > curMs) apptByProfile.set(pid, a.scheduled_start_at);
   }
 
+  // Personal contacts (Settings → Privacy) stay out of the pipeline.
+  const settings = getBusinessSettings(business);
   const leads: DirectoryLead[] = profiles
-    .filter((p) => !business || p.business_id === business.id)
+    .filter((p) => (!business || p.business_id === business.id) && !isPrivateNumber(settings, p.phone_e164))
     .map((p) => ({
       id: p.id,
       display_name: p.display_name,

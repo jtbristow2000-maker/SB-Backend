@@ -5,6 +5,7 @@ import { PhoneNumberSection } from "@/app/owner/PhoneNumberSection";
 import { AutoReplyLevelSlider } from "@/app/owner/AutoReplyLevelSlider";
 import { QuoteRangesEditor } from "@/app/owner/QuoteRangesEditor";
 import { LogoUpload } from "@/app/owner/LogoUpload";
+import { PrivateNumbersManager } from "@/app/owner/PrivateNumbersManager";
 import { SettingsShell } from "@/app/owner/SettingsShell";
 import { VoicemailRecorder } from "@/app/owner/VoicemailRecorder";
 import { getOwnerBusinessContext } from "@/server/business/current";
@@ -276,6 +277,16 @@ export default async function SettingsPage() {
     </section>
   );
 
+  const privacyTab = (
+    <section style={S.section}>
+      <div style={S.sectionTitle}>Private numbers</div>
+      <div style={S.sectionHint}>
+        Friends &amp; family who should never get business treatment: no auto-text, no lead card — their voicemails just file quietly. Add them here, or tap &ldquo;Personal&rdquo; on any lead.
+      </div>
+      <PrivateNumbersManager initial={settings.private_numbers} />
+    </section>
+  );
+
   return (
     <main className="owner-page" style={S.page}>
       <h1 style={S.h1}>Settings</h1>
@@ -289,6 +300,7 @@ export default async function SettingsPage() {
         business={businessTab}
         booking={bookingTab}
         services={servicesTab}
+        privacy={privacyTab}
       />
     </main>
   );

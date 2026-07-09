@@ -9,7 +9,9 @@ import {
   updateBusinessAppointment
 } from "@/server/appointments/api";
 import { getOwnerBusinessContext } from "@/server/business/current";
+import { getBusinessSettings, type PrivateNumberEntry } from "@/server/business/settings";
 import type { BusinessSettingsUpdate } from "@/server/business/settings";
+import { normalizePhoneNumber } from "@/server/phone/normalize";
 import { getAppConfig } from "@/server/config";
 import type { AppointmentStatus } from "@/server/db/schema";
 import type { AppointmentUpdateInput } from "@/server/intake/appointments";
@@ -478,6 +480,82 @@ export async function deleteAppointment(formData: FormData): Promise<void> {
   }
 
   revalidateSchedule(existing?.customer_profile_id);
+}
+
+// ------------------------- Private (personal) numbers -------------------------
+// Personal contacts never get business handling. The list lives in settings_json.
+
+async function writePrivateNumbers(entries: PrivateNumberEntry[]): Promise<void> {
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+  try {
+    await rt.businessRepository.updateSettings(business.id, { private_numbers: entries });
+  } catch {
+    /* business may have been reset */
+  }
+  revalidatePath("/owner/settings");
+  revalidatePath("/owner/today");
+  revalidatePath("/owner/leads");
+}
+
+// Add one or many: payload = JSON array of { name, phone } (raw phone formats ok).
+export async function addPrivateNumbers(formData: FormData): Promise<void> {
+  const { business } = await getRuntimeAndBusiness();
+  if (!business) return;
+  let incoming: { name?: unknown; phone?: unknown }[] = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("payload") ?? "[]"));
+    if (Array.isArray(parsed)) incoming = parsed;
+  } catch {
+    return;
+  }
+
+  const existing = getBusinessSettings(business).private_numbers;
+  const byPhone = new Map(existing.map((p) => [p.phone, p]));
+  for (const item of incoming) {
+    const rawPhone = typeof item.phone === "string" ? item.phone.trim() : "";
+    if (!rawPhone) continue;
+    let phone: string;
+    try {
+      phone = normalizePhoneNumber(rawPhone);
+    } catch {
+      continue; // skip unparseable entries
+    }
+    const name = typeof item.name === "string" ? item.name.trim().slice(0, 80) : "";
+    if (!byPhone.has(phone) || (name && !byPhone.get(phone)?.name)) {
+      byPhone.set(phone, { phone, name: name || byPhone.get(phone)?.name || "" });
+    }
+  }
+  await writePrivateNumbers([...byPhone.values()].slice(0, 500));
+}
+
+export async function removePrivateNumber(formData: FormData): Promise<void> {
+  const { business } = await getRuntimeAndBusiness();
+  if (!business) return;
+  const phone = String(formData.get("phone") ?? "").trim();
+  if (!phone) return;
+  const existing = getBusinessSettings(business).private_numbers;
+  await writePrivateNumbers(existing.filter((p) => p.phone !== phone));
+}
+
+// One-tap from a lead's contact card: toggle this person on/off the private list.
+export async function setLeadPersonal(formData: FormData): Promise<void> {
+  const { rt, business } = await getRuntimeAndBusiness();
+  if (!rt || !business) return;
+  const profileId = String(formData.get("profileId") ?? "");
+  const makePersonal = String(formData.get("personal") ?? "") === "1";
+  const profile = (await rt.customerProfileRepository.list()).find(
+    (p) => p.id === profileId && p.business_id === business.id
+  );
+  if (!profile?.phone_e164) return;
+
+  const existing = getBusinessSettings(business).private_numbers;
+  const without = existing.filter((p) => p.phone !== profile.phone_e164);
+  const next = makePersonal
+    ? [...without, { phone: profile.phone_e164, name: (profile.display_name ?? "").slice(0, 80) }]
+    : without;
+  await writePrivateNumbers(next.slice(0, 500));
+  revalidatePath(`/owner/${profileId}`);
 }
 
 // "Use my number" onboarding: saves the owner's real cell as both the shared-
